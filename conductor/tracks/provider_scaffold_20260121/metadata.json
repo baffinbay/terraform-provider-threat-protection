@@ -1,0 +1,8 @@
+{
+  "track_id": "provider_scaffold_20260121",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-21T00:00:00Z",
+  "updated_at": "2026-01-21T00:00:00Z",
+  "description": "Scaffold the Terraform Provider and implement basic authentication to the Baffin Bay API."
+}
