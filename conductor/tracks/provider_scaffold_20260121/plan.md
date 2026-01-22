@@ -1,10 +1,12 @@
 # Implementation Plan - Provider Scaffold & Auth
 
 ## Phase 1: Project Initialization
-- [ ] Task: Initialize Go Module and Project Structure
-    - [ ] Sub-task: Create `go.mod` and install dependencies (`hashicorp/terraform-plugin-framework`).
-    - [ ] Sub-task: Create standard directory structure (`internal/provider`, `internal/client`, `examples`).
-    - [ ] Sub-task: Create a dummy test to verify the test runner works (RED/GREEN).
+- [x] Task: Project Configuration & Hygiene
+    - [x] Sub-task: Create `.gitignore` to exclude local environment files and the `conductor/` directory.
+- [x] Task: Initialize Go Module and Project Structure
+    - [x] Sub-task: Create `go.mod` and install dependencies (`hashicorp/terraform-plugin-framework`).
+    - [x] Sub-task: Create standard directory structure (`internal/provider`, `internal/client`, `examples`).
+    - [x] Sub-task: Create a dummy test to verify the test runner works (RED/GREEN).
 
 ## Phase 2: API Client Implementation
 - [ ] Task: Define Client Interface and Configuration
