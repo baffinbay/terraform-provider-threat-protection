@@ -31,12 +31,15 @@ func (d *PingDataSource) Metadata(ctx context.Context, req datasource.MetadataRe
 
 func (d *PingDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "A data source to verify connectivity to the Baffin Bay API.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				MarkdownDescription: "The ID of this resource.",
+				Computed:            true,
 			},
 			"ok": schema.BoolAttribute{
-				Computed: true,
+				MarkdownDescription: "True if the ping was successful.",
+				Computed:            true,
 			},
 		},
 	}

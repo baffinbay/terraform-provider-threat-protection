@@ -21,7 +21,7 @@ type BaffinBayProviderModel struct {
 	APIURL types.String `tfsdk:"api_url"`
 }
 
-func New(ctx context.Context) provider.Provider {
+func New() provider.Provider {
 	return &BaffinBayProvider{}
 }
 

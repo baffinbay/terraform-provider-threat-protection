@@ -12,7 +12,7 @@ import (
 )
 
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"baffinbay": providerserver.NewProtocol6WithError(New(context.Background())),
+	"baffinbay": providerserver.NewProtocol6WithError(New()),
 }
 
 func TestAccProvider(t *testing.T) {

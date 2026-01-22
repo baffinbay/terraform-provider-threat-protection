@@ -11,21 +11,21 @@
     - [x] Sub-task: Document "Testing" procedures (Unit vs Acceptance with `TF_ACC=1`).
 
 ## Phase 2: Documentation Automation Setup
-- [ ] Task: Install and Configure tfplugindocs
-    - [ ] Sub-task: Add `tfplugindocs` dependency to `go.mod` (or installation instructions).
-    - [ ] Sub-task: Create a `Makefile` or update `main.go` with `//go:generate` tags for documentation.
-- [ ] Task: Scaffold Documentation Templates
-    - [ ] Sub-task: Create `templates/index.md.tmpl` for provider-level documentation.
-    - [ ] Sub-task: Ensure directory structure (`docs/`, `templates/`) exists.
+- [x] Task: Install and Configure tfplugindocs
+    - [x] Sub-task: Add `tfplugindocs` dependency to `go.mod` (or installation instructions).
+    - [x] Sub-task: Create a `Makefile` or update `main.go` with `//go:generate` tags for documentation.
+- [x] Task: Scaffold Documentation Templates
+    - [x] Sub-task: Create `templates/index.md.tmpl` for provider-level documentation.
+    - [x] Sub-task: Ensure directory structure (`docs/`, `templates/`) exists.
 
 ## Phase 3: Generation and Verification
-- [ ] Task: Generate Initial Documentation
-    - [ ] Sub-task: Run `tfplugindocs` to generate `docs/index.md` and `docs/data-sources/ping.md`.
-    - [ ] Sub-task: Verify the generated output matches Terraform Registry style.
-- [ ] Task: Final Documentation Review
-    - [ ] Sub-task: Review all generated files for clarity, broken links, and formatting.
+- [x] Task: Generate Initial Documentation
+    - [x] Sub-task: Run `tfplugindocs` to generate `docs/index.md` and `docs/data-sources/ping.md`.
+    - [x] Sub-task: Verify the generated output matches Terraform Registry style.
+- [x] Task: Final Documentation Review
+    - [x] Sub-task: Review all generated files for clarity, broken links, and formatting.
 
 ## Phase 4: Finalization
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Developer Environment & Hygiene' (Protocol in workflow.md)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Documentation Automation Setup' (Protocol in workflow.md)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Generation and Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Developer Environment & Hygiene' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Documentation Automation Setup' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Generation and Verification' (Protocol in workflow.md)
