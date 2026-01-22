@@ -9,6 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
+// Run "go generate" to generate the documentation for the registry/website
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name baffinbay
+
 func main() {
 	var debug bool
 
