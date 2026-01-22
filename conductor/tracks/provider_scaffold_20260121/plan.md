@@ -9,13 +9,13 @@
     - [x] Sub-task: Create a dummy test to verify the test runner works (RED/GREEN).
 
 ## Phase 2: API Client Implementation
-- [ ] Task: Define Client Interface and Configuration
-    - [ ] Sub-task: Create `internal/client` package.
-    - [ ] Sub-task: Define a `Client` struct that holds the Host URL and HTTP Client.
-    - [ ] Sub-task: Write unit tests for client initialization (RED/GREEN).
-- [ ] Task: Implement Authentication Logic
-    - [ ] Sub-task: Add `SetAuth` method to the client to inject the API Key into headers.
-    - [ ] Sub-task: Write unit tests ensuring the `Authorization` header is set correctly (RED/GREEN).
+- [x] Task: Define Client Interface and Configuration
+    - [x] Sub-task: Create `internal/client` package.
+    - [x] Sub-task: Define a `Client` struct that holds the Host URL and HTTP Client.
+    - [x] Sub-task: Write unit tests for client initialization (RED/GREEN).
+- [x] Task: Implement Authentication Logic
+    - [x] Sub-task: Add `SetAuth` method to the client to inject the API Key into headers.
+    - [x] Sub-task: Write unit tests ensuring the `Authorization` header is set correctly (RED/GREEN).
 
 ## Phase 3: Provider Implementation
 - [ ] Task: Define Provider Schema
