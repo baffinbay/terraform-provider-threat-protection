@@ -18,15 +18,15 @@
     - [x] Sub-task: Write unit tests ensuring the `Authorization` header is set correctly (RED/GREEN).
 
 ## Phase 3: Provider Implementation
-- [ ] Task: Define Provider Schema
-    - [ ] Sub-task: Create `internal/provider/provider.go`.
-    - [ ] Sub-task: Define the provider schema with `api_key` (Sensitive) and `api_url` (Optional).
-    - [ ] Sub-task: Implement `Configure` method to instantiate the API client with the provided config.
-- [ ] Task: Connect Provider to Main
-    - [ ] Sub-task: Create `main.go` serving the provider.
-    - [ ] Sub-task: Write a basic acceptance test verifying the provider can initialize without errors (RED/GREEN).
+- [x] Task: Define Provider Schema
+    - [x] Sub-task: Create `internal/provider/provider.go`.
+    - [x] Sub-task: Define the provider schema with `api_key` (Sensitive) and `api_url` (Optional).
+    - [x] Sub-task: Implement `Configure` method to instantiate the API client with the provided config.
+- [x] Task: Connect Provider to Main
+    - [x] Sub-task: Create `main.go` serving the provider.
+    - [x] Sub-task: Write a basic acceptance test verifying the provider can initialize without errors (RED/GREEN).
 
 ## Phase 4: Verification
-- [ ] Task: End-to-End Authentication Test
-    - [ ] Sub-task: Create a "ping" or "validate" method in the client (even if it just hits a health endpoint or similar).
-    - [ ] Sub-task: Write an acceptance test that configures the provider with a mock/real key and asserts success.
+- [x] Task: End-to-End Authentication Test
+    - [x] Sub-task: Create a "ping" or "validate" method in the client (even if it just hits a health endpoint or similar).
+    - [x] Sub-task: Write an acceptance test that configures the provider with a mock/real key and asserts success.
