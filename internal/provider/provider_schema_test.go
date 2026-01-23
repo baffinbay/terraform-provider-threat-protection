@@ -23,4 +23,10 @@ func TestProviderSchema(t *testing.T) {
 	if _, ok := resp.Schema.Attributes["api_url"]; !ok {
 		t.Error("Missing api_url attribute")
 	}
+	if _, ok := resp.Schema.Attributes["client_id"]; !ok {
+		t.Error("Missing client_id attribute")
+	}
+	if _, ok := resp.Schema.Attributes["client_secret"]; !ok {
+		t.Error("Missing client_secret attribute")
+	}
 }
