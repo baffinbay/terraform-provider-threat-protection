@@ -1,8 +1,0 @@
-{
-  "track_id": "documentation_automation_20260122",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-22T05:50:00Z",
-  "updated_at": "2026-01-22T05:50:00Z",
-  "description": "Documentation. README with setup instructions, .env usage, and automated DOCUMENTATION.md via tfplugindocs."
-}
