@@ -29,4 +29,7 @@ func TestProviderSchema(t *testing.T) {
 	if _, ok := resp.Schema.Attributes["client_secret"]; !ok {
 		t.Error("Missing client_secret attribute")
 	}
+	if _, ok := resp.Schema.Attributes["account_id"]; !ok {
+		t.Error("Missing account_id attribute")
+	}
 }

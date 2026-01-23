@@ -24,6 +24,7 @@ func TestAccProvider(t *testing.T) {
 		if r.URL.Path == "/ping" {
 			auth := r.Header.Get("Authorization")
 			if auth != "Bearer test" && auth != "Bearer mock-token" {
+				t.Logf("Ping Unauthorized: Got %s", auth)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -53,6 +54,7 @@ func TestAccProvider(t *testing.T) {
 				Config: `provider "baffinbay" {
                     client_id     = "test-id"
                     client_secret = "test-secret"
+                    api_key       = ""
                     api_url       = "` + server.URL + `"
                     oidc_url      = "` + server.URL + `/oauth/token"
                 }

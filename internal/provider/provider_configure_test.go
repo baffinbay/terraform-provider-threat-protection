@@ -31,6 +31,7 @@ func TestProviderConfigure_OIDC(t *testing.T) {
 			"client_id":     tftypes.String,
 			"client_secret": tftypes.String,
 			"oidc_url":      tftypes.String,
+			"account_id":    tftypes.String,
 		},
 	}
 	configBody := tftypes.NewValue(objType, map[string]tftypes.Value{
@@ -39,6 +40,7 @@ func TestProviderConfigure_OIDC(t *testing.T) {
 		"client_id":     tftypes.NewValue(tftypes.String, "test-client-id"),
 		"client_secret": tftypes.NewValue(tftypes.String, "test-client-secret"),
 		"oidc_url":      tftypes.NewValue(tftypes.String, server.URL),
+		"account_id":    tftypes.NewValue(tftypes.String, "test-account-id"),
 	})
 
 	req := provider.ConfigureRequest{
@@ -51,6 +53,7 @@ func TestProviderConfigure_OIDC(t *testing.T) {
 					"client_id":     schema.StringAttribute{Optional: true},
 					"client_secret": schema.StringAttribute{Optional: true},
 					"oidc_url":      schema.StringAttribute{Optional: true},
+					"account_id":    schema.StringAttribute{Optional: true},
 				},
 			},
 		},

@@ -22,6 +22,7 @@ type BaffinBayProviderModel struct {
 	ClientID     types.String `tfsdk:"client_id"`
 	ClientSecret types.String `tfsdk:"client_secret"`
 	OIDCURL      types.String `tfsdk:"oidc_url"`
+	AccountID    types.String `tfsdk:"account_id"`
 }
 
 func New() provider.Provider {
@@ -57,6 +58,10 @@ func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaReque
 				MarkdownDescription: "The OIDC token endpoint URL. Defaults to production URL.",
 				Optional:            true,
 			},
+			"account_id": schema.StringAttribute{
+				MarkdownDescription: "The Account ID for Baffin Bay Threat Protection. Required for some resources.",
+				Optional:            true,
+			},
 		},
 	}
 }
@@ -86,7 +91,7 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		clientSecret = os.Getenv("BAFFINBAY_CLIENT_SECRET")
 	}
 
-	apiUrl := "https://api.baffinbay.com"
+	apiUrl := "https://portal.baffinbay.com"
 	if !data.APIURL.IsNull() {
 		apiUrl = data.APIURL.ValueString()
 	}
@@ -96,16 +101,22 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		oidcUrl = data.OIDCURL.ValueString()
 	}
 
-	c := client.NewClient(apiUrl)
+	accountID := data.AccountID.ValueString()
+	if data.AccountID.IsNull() {
+		accountID = os.Getenv("BAFFINBAY_ACCOUNT_ID")
+	}
 
-	if clientID != "" && clientSecret != "" {
+	c := client.NewClient(apiUrl)
+	c.AccountID = accountID
+
+	if apiKey != "" {
+		c.SetAuth(apiKey)
+	} else if clientID != "" && clientSecret != "" {
 		err := c.Authenticate(oidcUrl, clientID, clientSecret)
 		if err != nil {
 			resp.Diagnostics.AddError("OIDC Authentication Failed", err.Error())
 			return
 		}
-	} else if apiKey != "" {
-		c.SetAuth(apiKey)
 	} else {
 		resp.Diagnostics.AddError("Missing Credentials", "Either OIDC credentials (client_id and client_secret) or an API Key must be configured.")
 		return
@@ -122,5 +133,10 @@ func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource
 }
 
 func (p *BaffinBayProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewCertificateResource,
+		NewCaBundleResource,
+		NewCustomPageResource,
+		NewTrafficConfigResource,
+	}
 }
