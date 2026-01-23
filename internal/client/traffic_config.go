@@ -12,16 +12,18 @@ type TrafficConfigRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
-			Name       string `json:"name"`
-			Version    string `json:"version"`
+			Name       string    `json:"name"`
+			Version    string    `json:"version"`
 			Frontend   *Frontend `json:"frontend,omitempty"`
 			Backend    *Backend  `json:"backend,omitempty"`
 			Deployment struct {
 				State string `json:"state"`
 			} `json:"deployment"`
-			Protocols []string `json:"protocols,omitempty"`
-			Prefix    string   `json:"prefix,omitempty"`
-			Announced bool     `json:"announced,omitempty"`
+			Protocols    []string   `json:"protocols,omitempty"`
+			Prefix       string     `json:"prefix,omitempty"`
+			Announced    bool       `json:"announced,omitempty"`
+			WAF          *WAF       `json:"waf,omitempty"`
+			RateLimiting *RateLimit `json:"rateLimiting,omitempty"`
 		} `json:"attributes"`
 		Relationships struct {
 			BelongsTo struct {
@@ -32,6 +34,31 @@ type TrafficConfigRequest struct {
 			} `json:"belongsTo"`
 		} `json:"relationships"`
 	} `json:"data"`
+}
+
+type WAF struct {
+	Enforcement      string `json:"enforcement"`
+	ParanoidLevel    int64  `json:"paranoidLevel"`
+	CoreRuleSetID    string `json:"coreRuleSetId"`
+	SourceExclusions struct {
+		Enabled bool     `json:"enabled"`
+		Sources []string `json:"sources"`
+	} `json:"sourceExclusions"`
+	HTTPCompliance struct {
+		GlobalConfig struct {
+			ParameterLimit struct {
+				Enabled bool `json:"enabled"`
+				Limit   int  `json:"limit"`
+			} `json:"parameterLimit"`
+			AllowedHttpMethods  []string `json:"allowedHttpMethods"`
+			AllowedHttpVersions []string `json:"allowedHttpVersions"`
+		} `json:"globalConfig"`
+	} `json:"httpCompliance"`
+	PathExclusions []interface{} `json:"pathExclusions"`
+}
+
+type RateLimit struct {
+	Enforcement string `json:"enforcement"`
 }
 
 type Frontend struct {
@@ -117,4 +144,39 @@ func (c *Client) DeleteTrafficConfig(id string) error {
 	}
 
 	return nil
+}
+
+type TrafficConfigsResponse struct {
+	Data []struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		Attributes struct {
+			Name string `json:"name"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func (c *Client) GetTrafficConfigs() (*TrafficConfigsResponse, error) {
+	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/traffic-configs", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get traffic configs (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var tcResp TrafficConfigsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tcResp); err != nil {
+		return nil, err
+	}
+
+	return &tcResp, nil
 }

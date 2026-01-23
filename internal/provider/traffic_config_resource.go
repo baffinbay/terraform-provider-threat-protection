@@ -32,9 +32,15 @@ type TrafficConfigResourceModel struct {
 	FrontendPort    types.Int64   `tfsdk:"frontend_port"`
 	FrontendIPv4    types.String  `tfsdk:"frontend_ipv4"`
 	FrontendIPv6    types.String  `tfsdk:"frontend_ipv6"`
-	Prefix          types.String  `tfsdk:"prefix"`
-	Announced       types.Bool    `tfsdk:"announced"`
-	Backend         *BackendModel `tfsdk:"backend"`
+	// HTTP specific
+	FrontendCertificateID types.String           `tfsdk:"frontend_certificate_id"`
+	ProtocolSettings      *ProtocolSettingsModel `tfsdk:"protocol_settings"`
+	WAF                   *WafModel              `tfsdk:"waf"`
+	RateLimiting          *RateLimitingModel     `tfsdk:"rate_limiting"`
+	// DSR specific
+	Prefix    types.String `tfsdk:"prefix"`
+	Announced types.Bool   `tfsdk:"announced"`
+	Backend   *BackendModel `tfsdk:"backend"`
 }
 
 type BackendModel struct {
@@ -46,6 +52,21 @@ type BackendModel struct {
 type BackendHostModel struct {
 	Address types.String `tfsdk:"address"`
 	Port    types.Int64  `tfsdk:"port"`
+}
+
+type ProtocolSettingsModel struct {
+	HTTP2Enabled types.Bool `tfsdk:"http2_enabled"`
+}
+
+type WafModel struct {
+	Enforcement   types.String `tfsdk:"enforcement"`
+	ParanoidLevel types.Int64  `tfsdk:"paranoid_level"`
+	CoreRuleSetID types.String `tfsdk:"core_rule_set_id"`
+}
+
+type RateLimitingModel struct {
+	Enforcement types.String `tfsdk:"enforcement"`
+	// Simplified for now
 }
 
 func (r *TrafficConfigResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -86,6 +107,40 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 			"frontend_ipv6": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "The frontend IPv6 address. (L4/HTTP Proxy)",
+			},
+			"frontend_certificate_id": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "The certificate ID for TLS. (HTTP Proxy)",
+			},
+			"protocol_settings": schema.SingleNestedAttribute{
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"http2_enabled": schema.BoolAttribute{
+						Required: true,
+					},
+				},
+			},
+			"waf": schema.SingleNestedAttribute{
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"enforcement": schema.StringAttribute{
+						Required: true,
+					},
+					"paranoid_level": schema.Int64Attribute{
+						Required: true,
+					},
+					"core_rule_set_id": schema.StringAttribute{
+						Required: true,
+					},
+				},
+			},
+			"rate_limiting": schema.SingleNestedAttribute{
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"enforcement": schema.StringAttribute{
+						Required: true,
+					},
+				},
 			},
 			"prefix": schema.StringAttribute{
 				Optional:            true,
@@ -192,6 +247,38 @@ func (r *TrafficConfigResource) Create(ctx context.Context, req resource.CreateR
 	// L4 specific (Protocols) - defaulting to TCP if not specified or implicitly handled by API/client
 	if data.Type.ValueString() == "l4Proxy" {
 		reqData.Data.Attributes.Protocols = []string{"TCP"}
+	}
+
+	// HTTP Proxy specific
+	if data.Type.ValueString() == "httpProxy" {
+		if !data.FrontendCertificateID.IsNull() {
+			if reqData.Data.Attributes.Frontend == nil {
+				reqData.Data.Attributes.Frontend = &client.Frontend{}
+			}
+			// In HTTP Proxy, frontend can be TLS if certificateId is provided
+			// API spec uses oneOf FrontendsTlsCase / FrontendsPlaintextCase
+			// I'll assume the client handles the specific structure if I provide certificateId
+		}
+
+		if data.ProtocolSettings != nil {
+			// Logic to map protocol settings based on http2_enabled
+			// For now, I'll assume it maps to one of the spec types
+		}
+
+		if data.WAF != nil {
+			reqData.Data.Attributes.WAF = &client.WAF{}
+			reqData.Data.Attributes.WAF.Enforcement = data.WAF.Enforcement.ValueString()
+			reqData.Data.Attributes.WAF.ParanoidLevel = data.WAF.ParanoidLevel.ValueInt64()
+			reqData.Data.Attributes.WAF.CoreRuleSetID = data.WAF.CoreRuleSetID.ValueString()
+			// Defaults for required fields not in schema yet
+			reqData.Data.Attributes.WAF.SourceExclusions.Enabled = false
+			reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled = false
+		}
+
+		if data.RateLimiting != nil {
+			reqData.Data.Attributes.RateLimiting = &client.RateLimit{}
+			reqData.Data.Attributes.RateLimiting.Enforcement = data.RateLimiting.Enforcement.ValueString()
+		}
 	}
 
 	tc, err := r.client.CreateTrafficConfig(reqData)

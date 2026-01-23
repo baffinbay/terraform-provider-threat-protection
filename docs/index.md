@@ -22,6 +22,7 @@ provider "baffinbay" {
 
 ### Optional
 
+- `account_id` (String) The Account ID for Baffin Bay Threat Protection. Required for some resources.
 - `api_key` (String, Sensitive) The API Key for Baffin Bay Threat Protection API. Deprecated: Use OIDC authentication instead.
 - `api_url` (String) The API URL for Baffin Bay Threat Protection API. Defaults to production URL.
 - `client_id` (String) The OIDC Client ID for authentication.

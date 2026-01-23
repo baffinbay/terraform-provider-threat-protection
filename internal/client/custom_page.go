@@ -122,3 +122,42 @@ func (c *Client) DeleteCustomPage(id string) error {
 
 	return nil
 }
+
+type CustomPagesResponse struct {
+	Data []struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		Attributes struct {
+			Name string `json:"name"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func (c *Client) GetCustomPages(tenantID string) (*CustomPagesResponse, error) {
+	path := "/api/v2/traffic-mgmt/custom-pages"
+	if tenantID != "" {
+		path += "?filter[tenantId]=" + tenantID
+	}
+	req, err := c.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get custom pages (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var cpResp CustomPagesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cpResp); err != nil {
+		return nil, err
+	}
+
+	return &cpResp, nil
+}

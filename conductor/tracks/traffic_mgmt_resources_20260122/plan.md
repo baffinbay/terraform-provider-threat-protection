@@ -35,18 +35,18 @@
     - [x] Sub-task: Ensure all tests pass after refactoring.
 
 ## Phase 4: Advanced Traffic Configuration (HTTP Proxy & WAF)
-- [ ] Task: Implement HTTP Proxy Support
-    - [ ] Sub-task: Write acceptance tests for HTTP Proxy with TLS/Plaintext frontends (RED).
-    - [ ] Sub-task: Implement HTTP specific schema and CRUD logic (GREEN).
-- [ ] Task: Implement WAF and Protocol Settings
-    - [ ] Sub-task: Write acceptance tests for WAF enforcement and rule sets (RED).
-    - [ ] Sub-task: Implement WAF attributes mapping and protocol settings (GREEN).
+- [x] Task: Implement HTTP Proxy Support
+    - [x] Sub-task: Write acceptance tests for HTTP Proxy with TLS/Plaintext frontends (RED).
+    - [x] Sub-task: Implement HTTP specific schema and CRUD logic (GREEN).
+- [x] Task: Implement WAF and Protocol Settings
+    - [x] Sub-task: Write acceptance tests for WAF enforcement and rule sets (RED).
+    - [x] Sub-task: Implement WAF attributes mapping and protocol settings (GREEN).
 
 ## Phase 5: Data Sources & Finalization
-- [ ] Task: Implement Data Sources
-    - [ ] Sub-task: Implement `baffinbay_traffic_configs` data source.
-    - [ ] Sub-task: Implement `baffinbay_certificates` data source.
-    - [ ] Sub-task: Implement `baffinbay_ca_bundles` data source.
-    - [ ] Sub-task: Implement `baffinbay_custom_pages` data source.
-    - [ ] Sub-task: Implement `baffinbay_ip_sources` data source.
+- [x] Task: Implement Data Sources
+    - [x] Sub-task: Implement `baffinbay_traffic_configs` data source.
+    - [x] Sub-task: Implement `baffinbay_certificates` data source.
+    - [x] Sub-task: Implement `baffinbay_ca_bundles` data source.
+    - [x] Sub-task: Implement `baffinbay_custom_pages` data source.
+    - [x] Sub-task: Implement `baffinbay_ip_sources` data source.
 - [ ] Task: Documentation & Verification

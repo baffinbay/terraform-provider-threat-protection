@@ -22,10 +22,62 @@ Manages a Baffin Bay Traffic Configuration.
 
 ### Optional
 
+- `announced` (Boolean) Controls if the Routed Dsr is to be announced on Juniper. (Routed DSR)
+- `backend` (Attributes) (see [below for nested schema](#nestedatt--backend))
 - `deployment_state` (String) The deployment state (DEPLOYED, UNDEPLOYED).
-- `frontend_port` (Number) The frontend port. (L4 Proxy)
+- `frontend_certificate_id` (String) The certificate ID for TLS. (HTTP Proxy)
+- `frontend_ipv4` (String) The frontend IPv4 address. (L4/HTTP Proxy)
+- `frontend_ipv6` (String) The frontend IPv6 address. (L4/HTTP Proxy)
+- `frontend_port` (Number) The frontend port. (L4/HTTP Proxy)
 - `prefix` (String) The CIDR prefix. (Routed DSR)
+- `protocol_settings` (Attributes) (see [below for nested schema](#nestedatt--protocol_settings))
+- `rate_limiting` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting))
+- `waf` (Attributes) (see [below for nested schema](#nestedatt--waf))
 
 ### Read-Only
 
 - `id` (String) The ID of the traffic configuration.
+
+<a id="nestedatt--backend"></a>
+### Nested Schema for `backend`
+
+Required:
+
+- `delivery_method` (String) ROUND_ROBIN or LEAST_CONNECTIONS
+- `hosts` (Attributes List) (see [below for nested schema](#nestedatt--backend--hosts))
+- `server_name` (String)
+
+<a id="nestedatt--backend--hosts"></a>
+### Nested Schema for `backend.hosts`
+
+Required:
+
+- `address` (String)
+- `port` (Number)
+
+
+
+<a id="nestedatt--protocol_settings"></a>
+### Nested Schema for `protocol_settings`
+
+Required:
+
+- `http2_enabled` (Boolean)
+
+
+<a id="nestedatt--rate_limiting"></a>
+### Nested Schema for `rate_limiting`
+
+Required:
+
+- `enforcement` (String)
+
+
+<a id="nestedatt--waf"></a>
+### Nested Schema for `waf`
+
+Required:
+
+- `core_rule_set_id` (String)
+- `enforcement` (String)
+- `paranoid_level` (Number)

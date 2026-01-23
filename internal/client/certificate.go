@@ -199,3 +199,73 @@ func (c *Client) DeleteCaBundle(id string) error {
 
 	return nil
 }
+
+type CertificatesResponse struct {
+	Data []struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		Attributes struct {
+			FQDN string `json:"fqdn"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func (c *Client) GetCertificates() (*CertificatesResponse, error) {
+	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/certificates", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get certificates (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var certsResp CertificatesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&certsResp); err != nil {
+		return nil, err
+	}
+
+	return &certsResp, nil
+}
+
+type CaBundlesResponse struct {
+	Data []struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		Attributes struct {
+			Name string `json:"name"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func (c *Client) GetCaBundles() (*CaBundlesResponse, error) {
+	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/ca-bundles", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get CA bundles (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var caResp CaBundlesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&caResp); err != nil {
+		return nil, err
+	}
+
+	return &caResp, nil
+}

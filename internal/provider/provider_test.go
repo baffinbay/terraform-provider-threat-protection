@@ -21,14 +21,15 @@ func TestAccProvider(t *testing.T) {
 			w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
 		}
-		if r.URL.Path == "/ping" {
+		if r.URL.Path == "/api/v2/traffic-mgmt/tpc-ip-sources" {
 			auth := r.Header.Get("Authorization")
 			if auth != "Bearer test" && auth != "Bearer mock-token" {
-				t.Logf("Ping Unauthorized: Got %s", auth)
+				t.Logf("IP Sources Unauthorized: Got %s", auth)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/vnd.api+json")
+			w.Write([]byte(`{"data": []}`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -44,10 +45,10 @@ func TestAccProvider(t *testing.T) {
                     api_url = "` + server.URL + `"
                 }
                 
-                data "baffinbay_ping" "api_key_test" {}
+                data "baffinbay_ip_sources" "api_key_test" {}
                 `,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.baffinbay_ping.api_key_test", "ok", "true"),
+					resource.TestCheckResourceAttrSet("data.baffinbay_ip_sources.api_key_test", "id"),
 				),
 			},
 			{
@@ -59,10 +60,10 @@ func TestAccProvider(t *testing.T) {
                     oidc_url      = "` + server.URL + `/oauth/token"
                 }
                 
-                data "baffinbay_ping" "oidc_test" {}
+                data "baffinbay_ip_sources" "oidc_test" {}
                 `,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.baffinbay_ping.oidc_test", "ok", "true"),
+					resource.TestCheckResourceAttrSet("data.baffinbay_ip_sources.oidc_test", "id"),
 				),
 			},
 		},
