@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,8 +16,14 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 
 func TestAccProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
+			return
+		}
 		if r.URL.Path == "/ping" {
-			if r.Header.Get("Authorization") != "Bearer test" {
+			auth := r.Header.Get("Authorization")
+			if auth != "Bearer test" && auth != "Bearer mock-token" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -38,10 +43,24 @@ func TestAccProvider(t *testing.T) {
                     api_url = "` + server.URL + `"
                 }
                 
-                data "baffinbay_ping" "test" {}
+                data "baffinbay_ping" "api_key_test" {}
                 `,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.baffinbay_ping.test", "ok", "true"),
+					resource.TestCheckResourceAttr("data.baffinbay_ping.api_key_test", "ok", "true"),
+				),
+			},
+			{
+				Config: `provider "baffinbay" {
+                    client_id     = "test-id"
+                    client_secret = "test-secret"
+                    api_url       = "` + server.URL + `"
+                    oidc_url      = "` + server.URL + `/oauth/token"
+                }
+                
+                data "baffinbay_ping" "oidc_test" {}
+                `,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.baffinbay_ping.oidc_test", "ok", "true"),
 				),
 			},
 		},

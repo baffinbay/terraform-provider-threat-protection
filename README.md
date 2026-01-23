@@ -60,7 +60,9 @@ To avoid committing sensitive information, use a `.env` file for your API creden
     ```bash
     cp .env.example .env
     ```
-2.  Edit `.env` and set your `BAFFINBAY_API_KEY`.
+2.  Edit `.env` and set your credentials. You can use either:
+    *   **OIDC (Recommended):** `BAFFINBAY_CLIENT_ID` and `BAFFINBAY_CLIENT_SECRET`
+    *   **API Key (Legacy):** `BAFFINBAY_API_KEY`
 3.  Source the file before running Terraform commands:
     ```bash
     export $(cat .env | xargs)
