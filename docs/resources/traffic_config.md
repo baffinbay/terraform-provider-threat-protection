@@ -25,10 +25,7 @@ Manages a Baffin Bay Traffic Configuration.
 - `announced` (Boolean) Controls if the Routed Dsr is to be announced on Juniper. (Routed DSR)
 - `backend` (Attributes) (see [below for nested schema](#nestedatt--backend))
 - `deployment_state` (String) The deployment state (DEPLOYED, UNDEPLOYED).
-- `frontend_certificate_id` (String) The certificate ID for TLS. (HTTP Proxy)
-- `frontend_ipv4` (String) The frontend IPv4 address. (L4/HTTP Proxy)
-- `frontend_ipv6` (String) The frontend IPv6 address. (L4/HTTP Proxy)
-- `frontend_port` (Number) The frontend port. (L4/HTTP Proxy)
+- `frontend` (Attributes) (see [below for nested schema](#nestedatt--frontend))
 - `prefix` (String) The CIDR prefix. (Routed DSR)
 - `protocol_settings` (Attributes) (see [below for nested schema](#nestedatt--protocol_settings))
 - `rate_limiting` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting))
@@ -57,12 +54,58 @@ Required:
 
 
 
+<a id="nestedatt--frontend"></a>
+### Nested Schema for `frontend`
+
+Required:
+
+- `connection_type` (String) The connection type (SECURE, PLAINTEXT).
+- `hosts` (Attributes List) (see [below for nested schema](#nestedatt--frontend--hosts))
+- `port` (Number) The frontend port.
+
+Optional:
+
+- `hsts` (Attributes) (see [below for nested schema](#nestedatt--frontend--hsts))
+- `ipv4` (String) The frontend IPv4 address.
+- `ipv6` (String) The frontend IPv6 address.
+- `redirect_http` (Boolean) Whether to redirect HTTP to HTTPS (SECURE only).
+
+<a id="nestedatt--frontend--hosts"></a>
+### Nested Schema for `frontend.hosts`
+
+Required:
+
+- `host` (String)
+
+Optional:
+
+- `certificate_id` (String)
+- `tls_config` (String) TLS configuration level (ADVANCED, INTERMEDIATE).
+
+
+<a id="nestedatt--frontend--hsts"></a>
+### Nested Schema for `frontend.hsts`
+
+Required:
+
+- `enabled` (Boolean)
+- `include_subdomains` (Boolean)
+- `max_age` (Number)
+- `preload` (Boolean)
+
+
+
 <a id="nestedatt--protocol_settings"></a>
 ### Nested Schema for `protocol_settings`
 
 Required:
 
-- `http2_enabled` (Boolean)
+- `version` (String) HTTP protocol version (HTTP1.1, HTTP2.0).
+
+Optional:
+
+- `enable_websockets` (Boolean)
+- `multiplexing` (Boolean)
 
 
 <a id="nestedatt--rate_limiting"></a>
@@ -81,3 +124,31 @@ Required:
 - `core_rule_set_id` (String)
 - `enforcement` (String)
 - `paranoid_level` (Number)
+
+Optional:
+
+- `exclusions` (Attributes List) (see [below for nested schema](#nestedatt--waf--exclusions))
+- `http_compliance` (Attributes) (see [below for nested schema](#nestedatt--waf--http_compliance))
+- `source_exclusions` (List of String)
+
+<a id="nestedatt--waf--exclusions"></a>
+### Nested Schema for `waf.exclusions`
+
+Required:
+
+- `type` (String)
+- `value` (String)
+
+Optional:
+
+- `description` (String)
+
+
+<a id="nestedatt--waf--http_compliance"></a>
+### Nested Schema for `waf.http_compliance`
+
+Optional:
+
+- `allowed_methods` (List of String)
+- `allowed_versions` (List of String)
+- `parameter_limit` (Number)

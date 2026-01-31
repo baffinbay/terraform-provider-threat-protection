@@ -127,6 +127,49 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	return &tcResp, nil
 }
 
+func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
+	if c.AccountID == "" {
+		return nil, fmt.Errorf("account_id is required to update a traffic config")
+	}
+
+	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Attributes.Version = "0.0.1"
+
+	jsonData, err := json.Marshal(reqData)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", c.HostURL+"/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/vnd.api+json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to update traffic config (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var tcResp TrafficConfigResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tcResp); err != nil {
+		return nil, err
+	}
+
+	return &tcResp, nil
+}
+
 func (c *Client) DeleteTrafficConfig(id string) error {
 	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/traffic-configs/"+id, nil)
 	if err != nil {

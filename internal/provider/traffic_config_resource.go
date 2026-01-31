@@ -25,22 +25,46 @@ type TrafficConfigResource struct {
 }
 
 type TrafficConfigResourceModel struct {
-	ID              types.String  `tfsdk:"id"`
-	Type            types.String  `tfsdk:"type"`
-	Name            types.String  `tfsdk:"name"`
-	DeploymentState types.String  `tfsdk:"deployment_state"`
-	FrontendPort    types.Int64   `tfsdk:"frontend_port"`
-	FrontendIPv4    types.String  `tfsdk:"frontend_ipv4"`
-	FrontendIPv6    types.String  `tfsdk:"frontend_ipv6"`
-	// HTTP specific
-	FrontendCertificateID types.String           `tfsdk:"frontend_certificate_id"`
-	ProtocolSettings      *ProtocolSettingsModel `tfsdk:"protocol_settings"`
-	WAF                   *WafModel              `tfsdk:"waf"`
-	RateLimiting          *RateLimitingModel     `tfsdk:"rate_limiting"`
-	// DSR specific
-	Prefix    types.String `tfsdk:"prefix"`
-	Announced types.Bool   `tfsdk:"announced"`
-	Backend   *BackendModel `tfsdk:"backend"`
+	ID               types.String           `tfsdk:"id"`
+	Type             types.String           `tfsdk:"type"`
+	Name             types.String           `tfsdk:"name"`
+	DeploymentState  types.String           `tfsdk:"deployment_state"`
+	Frontend         *FrontendModel         `tfsdk:"frontend"`
+	ProtocolSettings *ProtocolSettingsModel `tfsdk:"protocol_settings"`
+	WAF              *WafModel              `tfsdk:"waf"`
+	RateLimiting     *RateLimitingModel     `tfsdk:"rate_limiting"`
+	Prefix           types.String           `tfsdk:"prefix"`
+	Announced        types.Bool             `tfsdk:"announced"`
+	Backend          *BackendModel          `tfsdk:"backend"`
+}
+
+type FrontendModel struct {
+	ConnectionType types.String        `tfsdk:"connection_type"`
+	Port           types.Int64         `tfsdk:"port"`
+	IPv4           types.String        `tfsdk:"ipv4"`
+	IPv6           types.String        `tfsdk:"ipv6"`
+	RedirectHttp   types.Bool          `tfsdk:"redirect_http"`
+	Hosts          []FrontendHostModel `tfsdk:"hosts"`
+	HSTS           *HstsModel          `tfsdk:"hsts"`
+}
+
+type FrontendHostModel struct {
+	Host          types.String `tfsdk:"host"`
+	CertificateID types.String `tfsdk:"certificate_id"`
+	TLSConfig     types.String `tfsdk:"tls_config"`
+}
+
+type HstsModel struct {
+	Enabled           types.Bool  `tfsdk:"enabled"`
+	MaxAge            types.Int64 `tfsdk:"max_age"`
+	IncludeSubdomains types.Bool  `tfsdk:"include_subdomains"`
+	Preload           types.Bool  `tfsdk:"preload"`
+}
+
+type ProtocolSettingsModel struct {
+	Version          types.String `tfsdk:"version"`
+	EnableWebsockets types.Bool   `tfsdk:"enable_websockets"`
+	Multiplexing     types.Bool   `tfsdk:"multiplexing"`
 }
 
 type BackendModel struct {
@@ -54,19 +78,29 @@ type BackendHostModel struct {
 	Port    types.Int64  `tfsdk:"port"`
 }
 
-type ProtocolSettingsModel struct {
-	HTTP2Enabled types.Bool `tfsdk:"http2_enabled"`
+type WafModel struct {
+	Enforcement      types.String          `tfsdk:"enforcement"`
+	ParanoidLevel    types.Int64           `tfsdk:"paranoid_level"`
+	CoreRuleSetID    types.String          `tfsdk:"core_rule_set_id"`
+	SourceExclusions []types.String        `tfsdk:"source_exclusions"`
+	HttpCompliance   *HttpComplianceModel  `tfsdk:"http_compliance"`
+	Exclusions       []WafExclusionModel   `tfsdk:"exclusions"`
 }
 
-type WafModel struct {
-	Enforcement   types.String `tfsdk:"enforcement"`
-	ParanoidLevel types.Int64  `tfsdk:"paranoid_level"`
-	CoreRuleSetID types.String `tfsdk:"core_rule_set_id"`
+type HttpComplianceModel struct {
+	AllowedMethods  []types.String `tfsdk:"allowed_methods"`
+	AllowedVersions []types.String `tfsdk:"allowed_versions"`
+	ParameterLimit  types.Int64    `tfsdk:"parameter_limit"`
+}
+
+type WafExclusionModel struct {
+	Type        types.String `tfsdk:"type"`
+	Value       types.String `tfsdk:"value"`
+	Description types.String `tfsdk:"description"`
 }
 
 type RateLimitingModel struct {
 	Enforcement types.String `tfsdk:"enforcement"`
-	// Simplified for now
 }
 
 func (r *TrafficConfigResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -96,27 +130,69 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 				Optional:            true,
 				MarkdownDescription: "The deployment state (DEPLOYED, UNDEPLOYED).",
 			},
-			"frontend_port": schema.Int64Attribute{
-				Optional:            true,
-				MarkdownDescription: "The frontend port. (L4/HTTP Proxy)",
-			},
-			"frontend_ipv4": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "The frontend IPv4 address. (L4/HTTP Proxy)",
-			},
-			"frontend_ipv6": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "The frontend IPv6 address. (L4/HTTP Proxy)",
-			},
-			"frontend_certificate_id": schema.StringAttribute{
-				Optional:            true,
-				MarkdownDescription: "The certificate ID for TLS. (HTTP Proxy)",
+			"frontend": schema.SingleNestedAttribute{
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"connection_type": schema.StringAttribute{
+						Required:            true,
+						MarkdownDescription: "The connection type (SECURE, PLAINTEXT).",
+					},
+					"port": schema.Int64Attribute{
+						Required:            true,
+						MarkdownDescription: "The frontend port.",
+					},
+					"ipv4": schema.StringAttribute{
+						Optional:            true,
+						MarkdownDescription: "The frontend IPv4 address.",
+					},
+					"ipv6": schema.StringAttribute{
+						Optional:            true,
+						MarkdownDescription: "The frontend IPv6 address.",
+					},
+					"redirect_http": schema.BoolAttribute{
+						Optional:            true,
+						MarkdownDescription: "Whether to redirect HTTP to HTTPS (SECURE only).",
+					},
+					"hosts": schema.ListNestedAttribute{
+						Required: true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"host": schema.StringAttribute{
+									Required: true,
+								},
+								"certificate_id": schema.StringAttribute{
+									Optional: true,
+								},
+								"tls_config": schema.StringAttribute{
+									Optional:            true,
+									MarkdownDescription: "TLS configuration level (ADVANCED, INTERMEDIATE).",
+								},
+							},
+						},
+					},
+					"hsts": schema.SingleNestedAttribute{
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"enabled":            schema.BoolAttribute{Required: true},
+							"max_age":            schema.Int64Attribute{Required: true},
+							"include_subdomains": schema.BoolAttribute{Required: true},
+							"preload":            schema.BoolAttribute{Required: true},
+						},
+					},
+				},
 			},
 			"protocol_settings": schema.SingleNestedAttribute{
 				Optional: true,
 				Attributes: map[string]schema.Attribute{
-					"http2_enabled": schema.BoolAttribute{
-						Required: true,
+					"version": schema.StringAttribute{
+						Required:            true,
+						MarkdownDescription: "HTTP protocol version (HTTP1.1, HTTP2.0).",
+					},
+					"enable_websockets": schema.BoolAttribute{
+						Optional: true,
+					},
+					"multiplexing": schema.BoolAttribute{
+						Optional: true,
 					},
 				},
 			},
@@ -131,6 +207,36 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 					},
 					"core_rule_set_id": schema.StringAttribute{
 						Required: true,
+					},
+					"source_exclusions": schema.ListAttribute{
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+					"http_compliance": schema.SingleNestedAttribute{
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"allowed_methods": schema.ListAttribute{
+								Optional:    true,
+								ElementType: types.StringType,
+							},
+							"allowed_versions": schema.ListAttribute{
+								Optional:    true,
+								ElementType: types.StringType,
+							},
+							"parameter_limit": schema.Int64Attribute{
+								Optional: true,
+							},
+						},
+					},
+					"exclusions": schema.ListNestedAttribute{
+						Optional: true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"type":        schema.StringAttribute{Required: true},
+								"value":       schema.StringAttribute{Required: true},
+								"description": schema.StringAttribute{Optional: true},
+							},
+						},
 					},
 				},
 			},
@@ -200,86 +306,7 @@ func (r *TrafficConfigResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	reqData := client.TrafficConfigRequest{}
-	reqData.Data.Type = data.Type.ValueString()
-	reqData.Data.Attributes.Name = data.Name.ValueString()
-	reqData.Data.Attributes.Version = "0.0.1"
-
-	if !data.DeploymentState.IsNull() {
-		reqData.Data.Attributes.Deployment.State = data.DeploymentState.ValueString()
-	} else {
-		reqData.Data.Attributes.Deployment.State = "UNDEPLOYED" // Default
-	}
-
-	// Frontend
-	if !data.FrontendPort.IsNull() {
-		reqData.Data.Attributes.Frontend = &client.Frontend{}
-		reqData.Data.Attributes.Frontend.Port = data.FrontendPort.ValueInt64()
-		if !data.FrontendIPv4.IsNull() {
-			reqData.Data.Attributes.Frontend.IPv4 = data.FrontendIPv4.ValueString()
-		}
-		if !data.FrontendIPv6.IsNull() {
-			reqData.Data.Attributes.Frontend.IPv6 = data.FrontendIPv6.ValueString()
-		}
-	}
-
-	// Backend
-	if data.Backend != nil {
-		reqData.Data.Attributes.Backend = &client.Backend{}
-		reqData.Data.Attributes.Backend.DeliveryMethod = data.Backend.DeliveryMethod.ValueString()
-		reqData.Data.Attributes.Backend.ServerName = data.Backend.ServerName.ValueString()
-		for _, host := range data.Backend.Hosts {
-			reqData.Data.Attributes.Backend.Hosts = append(reqData.Data.Attributes.Backend.Hosts, client.Host{
-				Address: host.Address.ValueString(),
-				Port:    host.Port.ValueInt64(),
-			})
-		}
-	}
-
-	// DSR specific
-	if !data.Prefix.IsNull() {
-		reqData.Data.Attributes.Prefix = data.Prefix.ValueString()
-	}
-	if !data.Announced.IsNull() {
-		reqData.Data.Attributes.Announced = data.Announced.ValueBool()
-	}
-
-	// L4 specific (Protocols) - defaulting to TCP if not specified or implicitly handled by API/client
-	if data.Type.ValueString() == "l4Proxy" {
-		reqData.Data.Attributes.Protocols = []string{"TCP"}
-	}
-
-	// HTTP Proxy specific
-	if data.Type.ValueString() == "httpProxy" {
-		if !data.FrontendCertificateID.IsNull() {
-			if reqData.Data.Attributes.Frontend == nil {
-				reqData.Data.Attributes.Frontend = &client.Frontend{}
-			}
-			// In HTTP Proxy, frontend can be TLS if certificateId is provided
-			// API spec uses oneOf FrontendsTlsCase / FrontendsPlaintextCase
-			// I'll assume the client handles the specific structure if I provide certificateId
-		}
-
-		if data.ProtocolSettings != nil {
-			// Logic to map protocol settings based on http2_enabled
-			// For now, I'll assume it maps to one of the spec types
-		}
-
-		if data.WAF != nil {
-			reqData.Data.Attributes.WAF = &client.WAF{}
-			reqData.Data.Attributes.WAF.Enforcement = data.WAF.Enforcement.ValueString()
-			reqData.Data.Attributes.WAF.ParanoidLevel = data.WAF.ParanoidLevel.ValueInt64()
-			reqData.Data.Attributes.WAF.CoreRuleSetID = data.WAF.CoreRuleSetID.ValueString()
-			// Defaults for required fields not in schema yet
-			reqData.Data.Attributes.WAF.SourceExclusions.Enabled = false
-			reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled = false
-		}
-
-		if data.RateLimiting != nil {
-			reqData.Data.Attributes.RateLimiting = &client.RateLimit{}
-			reqData.Data.Attributes.RateLimiting.Enforcement = data.RateLimiting.Enforcement.ValueString()
-		}
-	}
+	reqData := mapModelToRequest(data)
 
 	tc, err := r.client.CreateTrafficConfig(reqData)
 	if err != nil {
@@ -301,6 +328,117 @@ func (r *TrafficConfigResource) Read(ctx context.Context, req resource.ReadReque
 }
 
 func (r *TrafficConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data TrafficConfigResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	reqData := mapModelToRequest(data)
+
+	_, err := r.client.UpdateTrafficConfig(data.ID.ValueString(), reqData)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update traffic config, got error: %s", err))
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequest {
+	reqData := client.TrafficConfigRequest{}
+	reqData.Data.Type = data.Type.ValueString()
+	reqData.Data.Attributes.Name = data.Name.ValueString()
+	reqData.Data.Attributes.Version = "0.0.1"
+
+	if !data.DeploymentState.IsNull() {
+		reqData.Data.Attributes.Deployment.State = data.DeploymentState.ValueString()
+	} else {
+		reqData.Data.Attributes.Deployment.State = "UNDEPLOYED"
+	}
+
+	if data.Frontend != nil {
+		reqData.Data.Attributes.Frontend = &client.Frontend{
+			Port: data.Frontend.Port.ValueInt64(),
+		}
+		if !data.Frontend.IPv4.IsNull() {
+			reqData.Data.Attributes.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
+		}
+		if !data.Frontend.IPv6.IsNull() {
+			reqData.Data.Attributes.Frontend.IPv6 = data.Frontend.IPv6.ValueString()
+		}
+	}
+
+	if data.Backend != nil {
+		reqData.Data.Attributes.Backend = &client.Backend{
+			DeliveryMethod: data.Backend.DeliveryMethod.ValueString(),
+			ServerName:     data.Backend.ServerName.ValueString(),
+		}
+		for _, host := range data.Backend.Hosts {
+			reqData.Data.Attributes.Backend.Hosts = append(reqData.Data.Attributes.Backend.Hosts, client.Host{
+				Address: host.Address.ValueString(),
+				Port:    host.Port.ValueInt64(),
+			})
+		}
+	}
+
+	if !data.Prefix.IsNull() {
+		reqData.Data.Attributes.Prefix = data.Prefix.ValueString()
+	}
+	if !data.Announced.IsNull() {
+		reqData.Data.Attributes.Announced = data.Announced.ValueBool()
+	}
+
+	if data.Type.ValueString() == "l4Proxy" {
+		reqData.Data.Attributes.Protocols = []string{"TCP"}
+	}
+
+	if data.Type.ValueString() == "httpProxy" {
+		if data.WAF != nil {
+			reqData.Data.Attributes.WAF = &client.WAF{
+				Enforcement:   data.WAF.Enforcement.ValueString(),
+				ParanoidLevel: data.WAF.ParanoidLevel.ValueInt64(),
+				CoreRuleSetID: data.WAF.CoreRuleSetID.ValueString(),
+			}
+
+			if len(data.WAF.SourceExclusions) > 0 {
+				reqData.Data.Attributes.WAF.SourceExclusions.Enabled = true
+				for _, src := range data.WAF.SourceExclusions {
+					reqData.Data.Attributes.WAF.SourceExclusions.Sources = append(reqData.Data.Attributes.WAF.SourceExclusions.Sources, src.ValueString())
+				}
+			}
+
+			if data.WAF.HttpCompliance != nil {
+				for _, m := range data.WAF.HttpCompliance.AllowedMethods {
+					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods = append(reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods, m.ValueString())
+				}
+				for _, v := range data.WAF.HttpCompliance.AllowedVersions {
+					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions = append(reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions, v.ValueString())
+				}
+				if !data.WAF.HttpCompliance.ParameterLimit.IsNull() {
+					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled = true
+					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Limit = int(data.WAF.HttpCompliance.ParameterLimit.ValueInt64())
+				}
+			}
+
+			for _, excl := range data.WAF.Exclusions {
+				reqData.Data.Attributes.WAF.PathExclusions = append(reqData.Data.Attributes.WAF.PathExclusions, map[string]interface{}{
+					"type":        excl.Type.ValueString(),
+					"value":       excl.Value.ValueString(),
+					"description": excl.Description.ValueString(),
+				})
+			}
+		}
+
+		if data.RateLimiting != nil {
+			reqData.Data.Attributes.RateLimiting = &client.RateLimit{
+				Enforcement: data.RateLimiting.Enforcement.ValueString(),
+			}
+		}
+	}
+
+	return reqData
 }
 
 func (r *TrafficConfigResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

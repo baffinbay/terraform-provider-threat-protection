@@ -11,7 +11,7 @@ import (
 func TestAccCustomPageResource(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		
+
 		if r.URL.Path == "/oauth/token" {
 			w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
@@ -19,18 +19,18 @@ func TestAccCustomPageResource(t *testing.T) {
 
 		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/custom-pages" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "custom-page-id", "type": "custom-page", "attributes": {"name": "test.html"}}}`))
+			w.Write([]byte(`{"data": {"id": "custom-page-id", "type": "customPage", "attributes": {"name": "test-page"}}}`))
 			return
 		}
 
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/custom-pages/custom-page-id" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "custom-page-id", "type": "custom-page", "attributes": {"name": "test.html"}}}`))
+			w.Write([]byte(`{"data": {"id": "custom-page-id", "type": "customPage", "attributes": {"name": "test-page"}}}`))
 			return
 		}
 
 		if r.Method == http.MethodDelete {
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
@@ -47,16 +47,17 @@ func TestAccCustomPageResource(t *testing.T) {
 					client_secret = "test-secret"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
+					account_id    = "test-account-id"
 				}
 
 				resource "baffinbay_custom_page" "test" {
-					name    = "test.html"
-					content = "<html><body><h1>Hello</h1></body></html>"
+					name    = "test-page"
+					content = "<html>test</html>"
 				}
 				`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("baffinbay_custom_page.test", "id", "custom-page-id"),
-					resource.TestCheckResourceAttr("baffinbay_custom_page.test", "name", "test.html"),
+					resource.TestCheckResourceAttr("baffinbay_custom_page.test", "name", "test-page"),
 				),
 			},
 		},

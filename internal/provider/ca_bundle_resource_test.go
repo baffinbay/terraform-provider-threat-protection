@@ -11,7 +11,7 @@ import (
 func TestAccCaBundleResource(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		
+
 		if r.URL.Path == "/oauth/token" {
 			w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
@@ -19,13 +19,13 @@ func TestAccCaBundleResource(t *testing.T) {
 
 		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/ca-bundles" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-bundle"}}}`))
+			w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-ca"}}}`))
 			return
 		}
 
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/ca-bundles/ca-bundle-id" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-bundle"}}}`))
+			w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-ca"}}}`))
 			return
 		}
 
@@ -38,27 +38,28 @@ func TestAccCaBundleResource(t *testing.T) {
 	}))
 	defer server.Close()
 
-		resource.Test(t, resource.TestCase{
-			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-			Steps: []resource.TestStep{
-				{
-					Config: `provider "baffinbay" {
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `provider "baffinbay" {
 					client_id     = "test-id"
 					client_secret = "test-secret"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
+					account_id    = "test-account-id"
 				}
 
 				resource "baffinbay_ca_bundle" "test" {
-					name        = "test-bundle"
-					certificate = "---\nBEGIN CERTIFICATE---\n...\n---END CERTIFICATE---"
+					name        = "test-ca"
+					certificate = "ca-content"
 				}
 				`,
-					Check: resource.ComposeTestCheckFunc(
-						resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "id", "ca-bundle-id"),
-						resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "name", "test-bundle"),
-					),
-				},
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "id", "ca-bundle-id"),
+					resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "name", "test-ca"),
+				),
 			},
-		})
+		},
+	})
 }

@@ -47,13 +47,22 @@ func TestAccTrafficConfigResource(t *testing.T) {
 					client_secret = "test-secret"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
+					account_id    = "test-account-id"
 				}
 
 				resource "baffinbay_traffic_config" "test" {
 					type          = "l4Proxy"
 					name          = "test-l4"
-					frontend_port = 80
-					frontend_ipv4 = "192.168.1.1"
+					frontend = {
+						connection_type = "PLAINTEXT"
+						port            = 80
+						ipv4            = "192.168.1.1"
+						hosts = [
+							{
+								host = "example.com"
+							}
+						]
+					}
 					backend = {
 						hosts = [
 							{
@@ -69,6 +78,7 @@ func TestAccTrafficConfigResource(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("baffinbay_traffic_config.test", "id", "traffic-config-id"),
 					resource.TestCheckResourceAttr("baffinbay_traffic_config.test", "name", "test-l4"),
+					resource.TestCheckResourceAttr("baffinbay_traffic_config.test", "frontend.connection_type", "PLAINTEXT"),
 				),
 			},
 		},
