@@ -63,10 +63,34 @@ type RateLimit struct {
 }
 
 type Frontend struct {
-	IPv4 string `json:"ipv4,omitempty"`
-	IPv6 string `json:"ipv6,omitempty"`
-	IP   string `json:"ip,omitempty"`
-	Port int64  `json:"port,omitempty"`
+	IPv4                          string                         `json:"ipv4,omitempty"`
+	IPv6                          string                         `json:"ipv6,omitempty"`
+	IP                            string                         `json:"ip,omitempty"`
+	Port                          int64                          `json:"port,omitempty"`
+	ConnectionType                string                         `json:"connectionType,omitempty"`
+	RedirectHttp                  bool                           `json:"redirectHttp,omitempty"`
+	Hosts                         []FrontendHost                 `json:"hosts,omitempty"`
+	HTTPStrictTransportSecurity   *HSTS                          `json:"httpStrictTransportSecurity,omitempty"`
+	ClientCertificateVerification *ClientCertificateVerification `json:"clientCertificateVerification,omitempty"`
+}
+
+type FrontendHost struct {
+	Host          string `json:"host"`
+	CertificateID string `json:"certificateId,omitempty"`
+	TLSConfig     string `json:"tlsConfig,omitempty"`
+}
+
+type HSTS struct {
+	Enabled           bool  `json:"enabled"`
+	MaxAge            int64 `json:"maxAge"`
+	IncludeSubdomains bool  `json:"includeSubdomains"`
+	Preload           bool  `json:"preload"`
+}
+
+type ClientCertificateVerification struct {
+	Mode        string   `json:"mode"`
+	VerifyCrl   bool     `json:"verifyCrl,omitempty"`
+	CaBundleIds []string `json:"caBundleIds,omitempty"`
 }
 
 type Backend struct {
@@ -81,7 +105,7 @@ type Host struct {
 }
 
 type ProtocolSettings struct {
-	Version          string `json:"version"`
+	Version          string `json:"httpVersion"`
 	EnableWebsockets bool   `json:"enableWebsockets"`
 	Multiplexing     bool   `json:"multiplexing"`
 }
@@ -99,7 +123,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
-	reqData.Data.Attributes.Version = "0.0.1" // Default version
+	reqData.Data.Attributes.Version = "0.1.0" // Default version
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -122,7 +146,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("failed to create traffic config (status %d): %s", resp.StatusCode, string(respBody))
 	}
@@ -142,7 +166,7 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
-	reqData.Data.Attributes.Version = "0.0.1"
+	reqData.Data.Attributes.Version = "0.1.0"
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -165,7 +189,7 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("failed to update traffic config (status %d): %s", resp.StatusCode, string(respBody))
 	}

@@ -206,7 +206,7 @@ type CertificatesResponse struct {
 		ID         string `json:"id"`
 		Type       string `json:"type"`
 		Attributes struct {
-			FQDN string `json:"fqdn"`
+			CommonName string `json:"commonName"`
 		} `json:"attributes"`
 	} `json:"data"`
 }

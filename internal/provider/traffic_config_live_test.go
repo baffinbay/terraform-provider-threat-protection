@@ -28,7 +28,7 @@ func TestAccTrafficConfig_Live(t *testing.T) {
 					frontend = {
 						connection_type = "PLAINTEXT"
 						port            = 80
-						ipv4            = "1.2.3.4"
+						ipv4            = "185.195.93.211"
 						hosts = [
 							{
 								host = "smoke-test.example.com"
@@ -54,7 +54,7 @@ func TestAccTrafficConfig_Live(t *testing.T) {
 				`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("baffinbay_traffic_config.live_test", "name", "hermes-live-smoke-test"),
-					resource.TestCheckResourceAttr("baffinbay_traffic_config.live_test", "frontend.ipv4", "1.2.3.4"),
+					resource.TestCheckResourceAttr("baffinbay_traffic_config.live_test", "frontend.ipv4", "185.195.93.211"),
 				),
 			},
 		},

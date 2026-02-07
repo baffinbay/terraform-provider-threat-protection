@@ -25,9 +25,9 @@ type CertificatesDataSourceModel struct {
 }
 
 type CertificateModel struct {
-	ID   types.String `tfsdk:"id"`
-	Type types.String `tfsdk:"type"`
-	FQDN types.String `tfsdk:"fqdn"`
+	ID         types.String `tfsdk:"id"`
+	Type       types.String `tfsdk:"type"`
+	CommonName types.String `tfsdk:"common_name"`
 }
 
 func (d *CertificatesDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -48,7 +48,7 @@ func (d *CertificatesDataSource) Schema(ctx context.Context, req datasource.Sche
 						"type": schema.StringAttribute{
 							Computed: true,
 						},
-						"fqdn": schema.StringAttribute{
+						"common_name": schema.StringAttribute{
 							Computed: true,
 						},
 					},
@@ -86,9 +86,9 @@ func (d *CertificatesDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 	for _, cert := range respCerts.Data {
 		state.Certificates = append(state.Certificates, CertificateModel{
-			ID:   types.StringValue(cert.ID),
-			Type: types.StringValue(cert.Type),
-			FQDN: types.StringValue(cert.Attributes.FQDN),
+			ID:         types.StringValue(cert.ID),
+			Type:       types.StringValue(cert.Type),
+			CommonName: types.StringValue(cert.Attributes.CommonName),
 		})
 	}
 

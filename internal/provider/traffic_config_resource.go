@@ -154,7 +154,7 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 						MarkdownDescription: "Whether to redirect HTTP to HTTPS (SECURE only).",
 					},
 					"hosts": schema.ListNestedAttribute{
-						Required: true,
+						Optional: true,
 						NestedObject: schema.NestedAttributeObject{
 							Attributes: map[string]schema.Attribute{
 								"host": schema.StringAttribute{
@@ -173,10 +173,10 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 					"hsts": schema.SingleNestedAttribute{
 						Optional: true,
 						Attributes: map[string]schema.Attribute{
-							"enabled":            schema.BoolAttribute{Required: true},
-							"max_age":            schema.Int64Attribute{Required: true},
-							"include_subdomains": schema.BoolAttribute{Required: true},
-							"preload":            schema.BoolAttribute{Required: true},
+							"enabled":            schema.BoolAttribute{Optional: true},
+							"max_age":            schema.Int64Attribute{Optional: true},
+							"include_subdomains": schema.BoolAttribute{Optional: true},
+							"preload":            schema.BoolAttribute{Optional: true},
 						},
 					},
 				},
@@ -350,7 +350,7 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	reqData := client.TrafficConfigRequest{}
 	reqData.Data.Type = data.Type.ValueString()
 	reqData.Data.Attributes.Name = data.Name.ValueString()
-	reqData.Data.Attributes.Version = "0.0.1"
+	reqData.Data.Attributes.Version = "0.1.0"
 
 	if !data.DeploymentState.IsNull() {
 		reqData.Data.Attributes.Deployment.State = data.DeploymentState.ValueString()
@@ -360,16 +360,39 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 
 	if data.Frontend != nil {
 		reqData.Data.Attributes.Frontend = &client.Frontend{
-			Port: data.Frontend.Port.ValueInt64(),
+			Port:           data.Frontend.Port.ValueInt64(),
+			ConnectionType: data.Frontend.ConnectionType.ValueString(),
+			RedirectHttp:   data.Frontend.RedirectHttp.ValueBool(),
 		}
 		if !data.Frontend.IPv4.IsNull() {
 			reqData.Data.Attributes.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
-			reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv4.ValueString()
+			if data.Type.ValueString() != "httpProxy" {
+				reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv4.ValueString()
+			}
+		} else if data.Type.ValueString() == "httpProxy" {
+			reqData.Data.Attributes.Frontend.IPv4 = ""
 		}
 		if !data.Frontend.IPv6.IsNull() {
 			reqData.Data.Attributes.Frontend.IPv6 = data.Frontend.IPv6.ValueString()
-			if reqData.Data.Attributes.Frontend.IP == "" {
+			if data.Type.ValueString() != "httpProxy" && reqData.Data.Attributes.Frontend.IP == "" {
 				reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv6.ValueString()
+			}
+		}
+
+		for _, host := range data.Frontend.Hosts {
+			reqData.Data.Attributes.Frontend.Hosts = append(reqData.Data.Attributes.Frontend.Hosts, client.FrontendHost{
+				Host:          host.Host.ValueString(),
+				CertificateID: host.CertificateID.ValueString(),
+				TLSConfig:     host.TLSConfig.ValueString(),
+			})
+		}
+
+		if data.Frontend.HSTS != nil {
+			reqData.Data.Attributes.Frontend.HTTPStrictTransportSecurity = &client.HSTS{
+				Enabled:           data.Frontend.HSTS.Enabled.ValueBool(),
+				MaxAge:            data.Frontend.HSTS.MaxAge.ValueInt64(),
+				IncludeSubdomains: data.Frontend.HSTS.IncludeSubdomains.ValueBool(),
+				Preload:           data.Frontend.HSTS.Preload.ValueBool(),
 			}
 		}
 	}
