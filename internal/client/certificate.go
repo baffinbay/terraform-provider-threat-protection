@@ -44,17 +44,18 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
 
 	var path string
-	if certType == "pem" {
+	switch certType {
+	case "pem":
 		reqData.Data.Type = "importPemCertificate"
 		reqData.Data.Attributes.Certificate = cert
 		reqData.Data.Attributes.Intermediate = intermediate
 		reqData.Data.Attributes.Key = key
 		path = "/api/v2/traffic-mgmt/certificates/pem"
-	} else if certType == "lets_encrypt" {
+	case "lets_encrypt":
 		reqData.Data.Type = "letsEncrypt"
 		reqData.Data.Attributes.FQDN = fqdn
 		path = "/api/v2/traffic-mgmt/certificates/lets-encrypt"
-	} else {
+	default:
 		return nil, fmt.Errorf("invalid certificate type: %s", certType)
 	}
 
@@ -77,7 +78,7 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -102,7 +103,7 @@ func (c *Client) DeleteCertificate(id string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("failed to delete certificate (status %d)", resp.StatusCode)
@@ -166,7 +167,7 @@ func (c *Client) CreateCaBundle(name, certificate string) (*CaBundleResponse, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -191,7 +192,7 @@ func (c *Client) DeleteCaBundle(id string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("failed to delete CA bundle (status %d)", resp.StatusCode)
@@ -220,7 +221,7 @@ func (c *Client) GetCertificates() (*CertificatesResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -255,7 +256,7 @@ func (c *Client) GetCaBundles() (*CaBundlesResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

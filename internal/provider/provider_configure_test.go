@@ -16,12 +16,14 @@ func TestProviderConfigure_OIDC(t *testing.T) {
 	// Mock OIDC Server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
+		 _, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 	}))
 	defer server.Close()
 
 	p := &BaffinBayProvider{}
 	ctx := context.Background()
+	t.Setenv("BAFFINBAY_TOKEN_TIME_PATH", t.TempDir()+"/.token_time")
+	t.Setenv("BAFFINBAY_ENV_PATH", t.TempDir()+"/.env")
 
 	// Prepare configuration
 	objType := tftypes.Object{

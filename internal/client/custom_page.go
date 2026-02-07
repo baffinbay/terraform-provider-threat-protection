@@ -48,7 +48,7 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	if err != nil {
 		return nil, err
 	}
-	part.Write([]byte(content))
+	_, _ = part.Write([]byte(content))
 
 	// Add data part (JSON)
 	h := make(map[string][]string)
@@ -68,7 +68,7 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	if err != nil {
 		return nil, err
 	}
-	dataPart.Write(jsonData)
+	_, _ = dataPart.Write(jsonData)
 
 	err = writer.Close()
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -114,7 +114,7 @@ func (c *Client) DeleteCustomPage(id string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("failed to delete custom page (status %d)", resp.StatusCode)
@@ -147,7 +147,7 @@ func (c *Client) GetCustomPages(tenantID string) (*CustomPagesResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

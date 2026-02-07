@@ -106,17 +106,42 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		accountID = os.Getenv("BAFFINBAY_ACCOUNT_ID")
 	}
 
+	// Determine if we should force a refresh (e.g., in acceptance tests)
+	// We force it if TF_ACC is set, UNLESS we already have an API key.
+	// Note: We use the local token from .env/cache first if available.
+	force := os.Getenv("TF_ACC") == "1" && (apiKey == "" || apiKey == "mock-token")
+
 	c := client.NewClient(apiUrl)
 	c.AccountID = accountID
 
-	if apiKey != "" {
+	// If we are in acceptance test mode and have a cached token, let's just use it 
+	// without calling Authenticate if it looks like a real token.
+	if os.Getenv("TF_ACC") == "1" && apiKey != "" && apiKey != "mock-token" && len(apiKey) > 20 {
 		c.SetAuth(apiKey)
-	} else if clientID != "" && clientSecret != "" {
-		err := c.Authenticate(oidcUrl, clientID, clientSecret)
-		if err != nil {
-			resp.Diagnostics.AddError("OIDC Authentication Failed", err.Error())
+		// Try a quick ping to see if it's still good
+		if err := c.Ping(); err == nil {
+			resp.DataSourceData = c
+			resp.ResourceData = c
 			return
 		}
+	}
+
+	// Always try to authenticate if we have OIDC credentials,
+	// as Authenticate now handles the caching and key reuse internally.
+	// Always try to authenticate if we have OIDC credentials,
+	// as Authenticate now handles the caching and key reuse internally.
+	if clientID != "" && clientSecret != "" {
+		// Pass the existing apiKey (if any) to the client so it can try to use it first
+		if apiKey != "" {
+			c.SetAuth(apiKey)
+		}
+		err := c.Authenticate(oidcUrl, clientID, clientSecret, force)
+		if err != nil {
+			resp.Diagnostics.AddError("Authentication Failed", err.Error())
+			return
+		}
+	} else if apiKey != "" {
+		c.SetAuth(apiKey)
 	} else {
 		resp.Diagnostics.AddError("Missing Credentials", "Either OIDC credentials (client_id and client_secret) or an API Key must be configured.")
 		return
@@ -128,6 +153,7 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 
 func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewPingDataSource,
 		NewTrafficConfigsDataSource,
 		NewCertificatesDataSource,
 		NewCaBundlesDataSource,

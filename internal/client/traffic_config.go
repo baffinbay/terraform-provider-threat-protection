@@ -24,6 +24,7 @@ type TrafficConfigRequest struct {
 			Announced    bool       `json:"announced,omitempty"`
 			WAF          *WAF       `json:"waf,omitempty"`
 			RateLimiting *RateLimit `json:"rateLimiting,omitempty"`
+			ProtocolSettings *ProtocolSettings `json:"protocolSettings,omitempty"`
 		} `json:"attributes"`
 		Relationships struct {
 			BelongsTo struct {
@@ -64,6 +65,7 @@ type RateLimit struct {
 type Frontend struct {
 	IPv4 string `json:"ipv4,omitempty"`
 	IPv6 string `json:"ipv6,omitempty"`
+	IP   string `json:"ip,omitempty"`
 	Port int64  `json:"port,omitempty"`
 }
 
@@ -76,6 +78,12 @@ type Backend struct {
 type Host struct {
 	Address string `json:"address"`
 	Port    int64  `json:"port"`
+}
+
+type ProtocolSettings struct {
+	Version          string `json:"version"`
+	EnableWebsockets bool   `json:"enableWebsockets"`
+	Multiplexing     bool   `json:"multiplexing"`
 }
 
 type TrafficConfigResponse struct {
@@ -112,7 +120,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -155,7 +163,7 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -180,7 +188,7 @@ func (c *Client) DeleteTrafficConfig(id string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("failed to delete traffic config (status %d)", resp.StatusCode)
@@ -209,7 +217,7 @@ func (c *Client) GetTrafficConfigs() (*TrafficConfigsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

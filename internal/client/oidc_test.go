@@ -29,7 +29,7 @@ func TestAuthenticate(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(OIDCAuthResponse{
+		 _ = json.NewEncoder(w).Encode(OIDCAuthResponse{
 			AccessToken: "test-access-token",
 			TokenType:   "Bearer",
 			ExpiresIn:   86400,
@@ -38,7 +38,8 @@ func TestAuthenticate(t *testing.T) {
 	defer server.Close()
 
 	c := NewClient("https://api.baffinbay.com")
-	err := c.Authenticate(server.URL, "test-client-id", "test-client-secret")
+	c.BaseDir = t.TempDir()
+	err := c.Authenticate(server.URL, "test-client-id", "test-client-secret", false)
 	if err != nil {
 		t.Fatalf("Authenticate failed: %v", err)
 	}

@@ -13,6 +13,7 @@ type Client struct {
 	HTTPClient *http.Client
 	Token      string
 	AccountID  string
+	BaseDir    string // New: Allows tests to redirect .env and .token_time
 }
 
 func NewClient(host string) *Client {
@@ -38,33 +39,27 @@ func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request,
 }
 
 func (c *Client) Ping() error {
-
-	req, err := c.NewRequest("GET", "/ping", nil)
-
+	// Use TPC IP Sources as a lightweight ping endpoint
+	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
 	if err != nil {
-
 		return err
-
 	}
 
 	resp, err := c.HTTPClient.Do(req)
-
 	if err != nil {
-
 		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("ping failed: unauthorized")
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("ping failed: %d", resp.StatusCode)
-
 	}
 
 	return nil
-
 }
 
 
@@ -102,14 +97,10 @@ func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 
 
 	resp, err := c.HTTPClient.Do(req)
-
 	if err != nil {
-
 		return nil, err
-
 	}
-
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 
 

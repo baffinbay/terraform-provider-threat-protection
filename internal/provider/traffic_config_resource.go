@@ -364,9 +364,13 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 		}
 		if !data.Frontend.IPv4.IsNull() {
 			reqData.Data.Attributes.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
+			reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv4.ValueString()
 		}
 		if !data.Frontend.IPv6.IsNull() {
 			reqData.Data.Attributes.Frontend.IPv6 = data.Frontend.IPv6.ValueString()
+			if reqData.Data.Attributes.Frontend.IP == "" {
+				reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv6.ValueString()
+			}
 		}
 	}
 
@@ -395,6 +399,14 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	}
 
 	if data.Type.ValueString() == "httpProxy" {
+		if data.ProtocolSettings != nil {
+			reqData.Data.Attributes.ProtocolSettings = &client.ProtocolSettings{
+				Version:          data.ProtocolSettings.Version.ValueString(),
+				EnableWebsockets: data.ProtocolSettings.EnableWebsockets.ValueBool(),
+				Multiplexing:     data.ProtocolSettings.Multiplexing.ValueBool(),
+			}
+		}
+
 		if data.WAF != nil {
 			reqData.Data.Attributes.WAF = &client.WAF{
 				Enforcement:   data.WAF.Enforcement.ValueString(),

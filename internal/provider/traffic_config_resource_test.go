@@ -13,19 +13,19 @@ func TestAccTrafficConfigResource(t *testing.T) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 		
 		if r.URL.Path == "/oauth/token" {
-			w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
+			 _, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
 		}
 
 		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "traffic-config-id", "type": "l4Proxy", "attributes": {"name": "test-l4"}}}`))
+			 _, _ = w.Write([]byte(`{"data": {"id": "traffic-config-id", "type": "l4Proxy", "attributes": {"name": "test-l4"}}}`))
 			return
 		}
 
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"data": {"id": "traffic-config-id", "type": "l4Proxy", "attributes": {"name": "test-l4"}}}`))
+			 _, _ = w.Write([]byte(`{"data": {"id": "traffic-config-id", "type": "l4Proxy", "attributes": {"name": "test-l4"}}}`))
 			return
 		}
 
