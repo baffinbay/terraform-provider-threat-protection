@@ -84,3 +84,32 @@ Acceptance tests run against the actual Baffin Bay API. **Warning:** These tests
     ```bash
     TF_ACC=1 go test -v ./...
     ```
+
+## Troubleshooting Utility (bb-tool)
+
+A CLI tool is included to help troubleshoot API connectivity and verify resource states independently of Terraform.
+
+### Building bb-tool
+```bash
+go build -o bb-tool ./cmd/bb-tool/main.go
+```
+
+### Usage
+Ensure your `.env` is set up correctly.
+
+*   **Ping API:**
+    ```bash
+    ./bb-tool ping
+    ```
+
+*   **List Resources:**
+    ```bash
+    ./bb-tool ls --type traffic-config
+    ./bb-tool ls --type cert
+    ./bb-tool ls --type custom-page
+    ```
+
+*   **Delete Resource:**
+    ```bash
+    ./bb-tool rm --type traffic-config --id <uuid>
+    ```

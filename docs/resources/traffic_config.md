@@ -66,8 +66,8 @@ Required:
 Optional:
 
 - `hsts` (Attributes) (see [below for nested schema](#nestedatt--frontend--hsts))
-- `ipv4` (String) The frontend IPv4 address.
-- `ipv6` (String) The frontend IPv6 address.
+- `ipv4` (String) The frontend IPv4 address. Required for l4Proxy and routedDsr.
+- `ipv6` (String) The frontend IPv6 address. Required if ipv4 is not provided for l4Proxy and routedDsr.
 - `redirect_http` (Boolean) Whether to redirect HTTP to HTTPS (SECURE only).
 
 <a id="nestedatt--frontend--hosts"></a>
