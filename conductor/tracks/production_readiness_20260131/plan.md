@@ -28,9 +28,11 @@
     - [x] Sub-task: Fix current failing unit tests (`TestAuthenticate`, `TestProviderConfigure_OIDC`).
 - [ ] Task: Final Build & Linting
     - [x] Task: Run `golangci-lint` and fix high-priority warnings.
+- [x] Task: API Troubleshooting Utility
+    - [x] Sub-task: Implement a small tool to troubleshoot the API and manually manage resources during the testing phase.
 - [~] Task: Real Resource Verification
-    - [/] Sub-task: Fix "IP Bug" (frontend.ip mapping) in Traffic Configuration resource.
-    - [/] Sub-task: Fix ProtocolSettings validation error in Traffic Configuration schema.
+    - [x] Sub-task: Fix "IP Bug" (frontend.ip mapping) in Traffic Configuration resource.
+    - [x] Sub-task: Fix ProtocolSettings validation error in Traffic Configuration schema.
     - [ ] Sub-task: Run data source tests against Live API to verify Read logic.
     - [ ] Sub-task: Create, Update, and Destroy **Traffic Configuration** resource and verify manually in Portal.
     - [ ] Sub-task: Create, Update, and Destroy **Certificate** resource and verify manually in Portal.
