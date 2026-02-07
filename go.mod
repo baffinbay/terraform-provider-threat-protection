@@ -1,6 +1,6 @@
 module github.com/baffinbay/terraform-provider-baffinbay
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.24.0
