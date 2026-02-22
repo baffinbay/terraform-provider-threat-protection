@@ -68,7 +68,7 @@ jobs:
         run: go build -v -o terraform-provider-baffinbay .
 
       - name: Build bb-tool
-        run: go build -v -o bb-tool ./cmd/bb-tool/main.go
+        run: go build -v -o bb-tool ./cmd/bb-tool
 
       - name: Run Go Vulnerability Check
         run: |
