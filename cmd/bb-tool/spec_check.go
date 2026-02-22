@@ -20,7 +20,7 @@ type SpecPaths struct {
 
 func handleSpecCheck(remoteURL, localPath string) {
 	_ = context.Background()
-	
+
 	fetchData := func(uStr string) ([]byte, error) {
 		req, err := http.NewRequest(http.MethodGet, uStr, nil)
 		if err != nil {
@@ -150,7 +150,7 @@ func validateClientImplementation(paths map[string]map[string]interface{}) {
 		matches := pathRegex.FindAllString(string(content), -1)
 		for _, match := range matches {
 			rawPath := strings.Trim(match, `"`)
-			
+
 			// If path ends with /, it's likely a concatenation like "/path/"+id
 			lookupPath := rawPath
 			if strings.HasSuffix(rawPath, "/") {
