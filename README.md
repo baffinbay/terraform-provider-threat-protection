@@ -85,6 +85,23 @@ Acceptance tests run against the actual Baffin Bay API. **Warning:** These tests
     TF_ACC=1 go test -v ./...
     ```
 
+## Documentation
+
+The provider documentation is automatically generated using [terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs). This ensures that the documentation is always in sync with the provider's schema.
+
+*   The source templates are located in `templates/`.
+*   The generated markdown is stored in `docs/`.
+*   To update the documentation after changing the schema, run:
+    ```bash
+    go generate ./...
+    ```
+    or
+    ```bash
+    go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+    ```
+
+As long as the code and schema descriptions are maintained, the documentation requires minimal manual intervention.
+
 ## Troubleshooting Utility (bb-tool)
 
 A CLI tool is included to help troubleshoot API connectivity and verify resource states independently of Terraform.

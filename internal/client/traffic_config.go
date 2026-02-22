@@ -90,13 +90,25 @@ type HSTS struct {
 type ClientCertificateVerification struct {
 	Mode        string   `json:"mode"`
 	VerifyCrl   bool     `json:"verifyCrl,omitempty"`
-	CaBundleIds []string `json:"caBundleIds,omitempty"`
+	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
 }
 
 type Backend struct {
-	Hosts          []Host `json:"hosts"`
-	DeliveryMethod string `json:"deliveryMethod"`
-	ServerName     string `json:"serverName"`
+	Hosts          []Host       `json:"hosts"`
+	DeliveryMethod string       `json:"deliveryMethod"`
+	ServerName     string       `json:"serverName"`
+	TLSSettings    *TLSSettings `json:"tlsSettings,omitempty"`
+}
+
+type TLSSettings struct {
+	ClientCertificateID string             `json:"clientCertificateId,omitempty"`
+	VerifyCertificate   *VerifyCertificate `json:"verifyCertificate,omitempty"`
+}
+
+type VerifyCertificate struct {
+	Mode             string   `json:"mode"`
+	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
+	VerifyCrl        bool     `json:"verifyCrl,omitempty"`
 }
 
 type Host struct {

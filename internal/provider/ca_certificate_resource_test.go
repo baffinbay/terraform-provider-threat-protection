@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccCaBundleResource(t *testing.T) {
+func TestAccCaCertificateResource(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 
@@ -17,15 +17,15 @@ func TestAccCaBundleResource(t *testing.T) {
 			return
 		}
 
-		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/ca-bundles" {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates" {
 			w.WriteHeader(http.StatusOK)
-			 _, _ = w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-ca"}}}`))
+			 _, _ = w.Write([]byte(`{"data": {"id": "ca-cert-id", "type": "caCertificate", "attributes": {"name": "test-ca"}}}`))
 			return
 		}
 
-		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/ca-bundles/ca-bundle-id" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates/ca-cert-id" {
 			w.WriteHeader(http.StatusOK)
-			 _, _ = w.Write([]byte(`{"data": {"id": "ca-bundle-id", "type": "caBundle", "attributes": {"name": "test-ca"}}}`))
+			 _, _ = w.Write([]byte(`{"data": {"id": "ca-cert-id", "type": "caCertificate", "attributes": {"name": "test-ca"}}}`))
 			return
 		}
 
@@ -50,14 +50,14 @@ func TestAccCaBundleResource(t *testing.T) {
 					account_id    = "test-account-id"
 				}
 
-				resource "baffinbay_ca_bundle" "test" {
+				resource "baffinbay_ca_certificate" "test" {
 					name        = "test-ca"
 					certificate = "ca-content"
 				}
 				`,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "id", "ca-bundle-id"),
-					resource.TestCheckResourceAttr("baffinbay_ca_bundle.test", "name", "test-ca"),
+					resource.TestCheckResourceAttr("baffinbay_ca_certificate.test", "id", "ca-cert-id"),
+					resource.TestCheckResourceAttr("baffinbay_ca_certificate.test", "name", "test-ca"),
 				),
 			},
 		},

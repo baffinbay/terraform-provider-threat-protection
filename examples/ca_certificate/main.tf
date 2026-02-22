@@ -8,7 +8,7 @@ terraform {
 
 provider "baffinbay" {}
 
-resource "baffinbay_ca_bundle" "test" {
+resource "baffinbay_ca_certificate" "test" {
   name        = "terraform-test-ca"
   certificate = file("${path.module}/../certificate/cert.pem")
 }

@@ -112,7 +112,7 @@ func (c *Client) DeleteCertificate(id string) error {
 	return nil
 }
 
-type CaBundleRequest struct {
+type CaCertificateRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
@@ -130,19 +130,19 @@ type CaBundleRequest struct {
 	} `json:"data"`
 }
 
-type CaBundleResponse struct {
+type CaCertificateResponse struct {
 	Data struct {
 		ID string `json:"id"`
 	} `json:"data"`
 }
 
-func (c *Client) CreateCaBundle(name, certificate string) (*CaBundleResponse, error) {
+func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateResponse, error) {
 	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a CA bundle")
+		return nil, fmt.Errorf("account_id is required to create a CA certificate")
 	}
 
-	reqData := CaBundleRequest{}
-	reqData.Data.Type = "caBundle"
+	reqData := CaCertificateRequest{}
+	reqData.Data.Type = "caCertificate"
 	reqData.Data.Attributes.Name = name
 	reqData.Data.Attributes.Certificate = certificate
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
@@ -153,7 +153,7 @@ func (c *Client) CreateCaBundle(name, certificate string) (*CaBundleResponse, er
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/ca-bundles", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -171,10 +171,10 @@ func (c *Client) CreateCaBundle(name, certificate string) (*CaBundleResponse, er
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create CA bundle (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("failed to create CA certificate (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var caResp CaBundleResponse
+	var caResp CaCertificateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&caResp); err != nil {
 		return nil, err
 	}
@@ -182,8 +182,8 @@ func (c *Client) CreateCaBundle(name, certificate string) (*CaBundleResponse, er
 	return &caResp, nil
 }
 
-func (c *Client) DeleteCaBundle(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/ca-bundles/"+id, nil)
+func (c *Client) DeleteCaCertificate(id string) error {
+	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (c *Client) DeleteCaBundle(id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete CA bundle (status %d)", resp.StatusCode)
+		return fmt.Errorf("failed to delete CA certificate (status %d)", resp.StatusCode)
 	}
 
 	return nil
@@ -236,7 +236,7 @@ func (c *Client) GetCertificates() (*CertificatesResponse, error) {
 	return &certsResp, nil
 }
 
-type CaBundlesResponse struct {
+type CaCertificatesResponse struct {
 	Data []struct {
 		ID         string `json:"id"`
 		Type       string `json:"type"`
@@ -246,8 +246,8 @@ type CaBundlesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCaBundles() (*CaBundlesResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/ca-bundles", nil)
+func (c *Client) GetCaCertificates() (*CaCertificatesResponse, error) {
+	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/ca-certificates", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -260,10 +260,10 @@ func (c *Client) GetCaBundles() (*CaBundlesResponse, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get CA bundles (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("failed to get CA certificates (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var caResp CaBundlesResponse
+	var caResp CaCertificatesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&caResp); err != nil {
 		return nil, err
 	}

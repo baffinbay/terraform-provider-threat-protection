@@ -39,13 +39,14 @@ type TrafficConfigResourceModel struct {
 }
 
 type FrontendModel struct {
-	ConnectionType types.String        `tfsdk:"connection_type"`
-	Port           types.Int64         `tfsdk:"port"`
-	IPv4           types.String        `tfsdk:"ipv4"`
-	IPv6           types.String        `tfsdk:"ipv6"`
-	RedirectHttp   types.Bool          `tfsdk:"redirect_http"`
-	Hosts          []FrontendHostModel `tfsdk:"hosts"`
-	HSTS           *HstsModel          `tfsdk:"hsts"`
+	ConnectionType                types.String                   `tfsdk:"connection_type"`
+	Port                          types.Int64                    `tfsdk:"port"`
+	IPv4                          types.String                   `tfsdk:"ipv4"`
+	IPv6                          types.String                   `tfsdk:"ipv6"`
+	RedirectHttp                  types.Bool                     `tfsdk:"redirect_http"`
+	Hosts                         []FrontendHostModel            `tfsdk:"hosts"`
+	HSTS                          *HstsModel                     `tfsdk:"hsts"`
+	ClientCertificateVerification *ClientCertificateVerification `tfsdk:"client_certificate_verification"`
 }
 
 type FrontendHostModel struct {
@@ -61,6 +62,12 @@ type HstsModel struct {
 	Preload           types.Bool  `tfsdk:"preload"`
 }
 
+type ClientCertificateVerification struct {
+	Mode             types.String   `tfsdk:"mode"`
+	VerifyCrl        types.Bool     `tfsdk:"verify_crl"`
+	CaCertificateIds []types.String `tfsdk:"ca_certificate_ids"`
+}
+
 type ProtocolSettingsModel struct {
 	Version          types.String `tfsdk:"version"`
 	EnableWebsockets types.Bool   `tfsdk:"enable_websockets"`
@@ -71,6 +78,18 @@ type BackendModel struct {
 	Hosts          []BackendHostModel `tfsdk:"hosts"`
 	DeliveryMethod types.String       `tfsdk:"delivery_method"`
 	ServerName     types.String       `tfsdk:"server_name"`
+	TLSSettings    *TlsSettingsModel  `tfsdk:"tls_settings"`
+}
+
+type TlsSettingsModel struct {
+	ClientCertificateID types.String               `tfsdk:"client_certificate_id"`
+	VerifyCertificate   *VerifyCertificateSettings `tfsdk:"verify_certificate"`
+}
+
+type VerifyCertificateSettings struct {
+	Mode             types.String   `tfsdk:"mode"`
+	CaCertificateIds []types.String `tfsdk:"ca_certificate_ids"`
+	VerifyCrl        types.Bool     `tfsdk:"verify_crl"`
 }
 
 type BackendHostModel struct {
@@ -79,12 +98,12 @@ type BackendHostModel struct {
 }
 
 type WafModel struct {
-	Enforcement      types.String          `tfsdk:"enforcement"`
-	ParanoidLevel    types.Int64           `tfsdk:"paranoid_level"`
-	CoreRuleSetID    types.String          `tfsdk:"core_rule_set_id"`
-	SourceExclusions []types.String        `tfsdk:"source_exclusions"`
-	HttpCompliance   *HttpComplianceModel  `tfsdk:"http_compliance"`
-	Exclusions       []WafExclusionModel   `tfsdk:"exclusions"`
+	Enforcement      types.String         `tfsdk:"enforcement"`
+	ParanoidLevel    types.Int64          `tfsdk:"paranoid_level"`
+	CoreRuleSetID    types.String         `tfsdk:"core_rule_set_id"`
+	SourceExclusions []types.String       `tfsdk:"source_exclusions"`
+	HttpCompliance   *HttpComplianceModel `tfsdk:"http_compliance"`
+	Exclusions       []WafExclusionModel  `tfsdk:"exclusions"`
 }
 
 type HttpComplianceModel struct {
@@ -177,6 +196,17 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 							"max_age":            schema.Int64Attribute{Optional: true},
 							"include_subdomains": schema.BoolAttribute{Optional: true},
 							"preload":            schema.BoolAttribute{Optional: true},
+						},
+					},
+					"client_certificate_verification": schema.SingleNestedAttribute{
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"mode":       schema.StringAttribute{Required: true, MarkdownDescription: "DISABLED, VERIFY_AND_REJECT"},
+							"verify_crl": schema.BoolAttribute{Optional: true},
+							"ca_certificate_ids": schema.ListAttribute{
+								Optional:    true,
+								ElementType: types.StringType,
+							},
 						},
 					},
 				},
@@ -274,6 +304,23 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 					},
 					"server_name": schema.StringAttribute{
 						Required: true,
+					},
+					"tls_settings": schema.SingleNestedAttribute{
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"client_certificate_id": schema.StringAttribute{Optional: true},
+							"verify_certificate": schema.SingleNestedAttribute{
+								Optional: true,
+								Attributes: map[string]schema.Attribute{
+									"mode": schema.StringAttribute{Required: true, MarkdownDescription: "DISABLED, SYSTEM_TRUSTSTORE, CUSTOM_TRUSTSTORE"},
+									"ca_certificate_ids": schema.ListAttribute{
+										Optional:    true,
+										ElementType: types.StringType,
+									},
+									"verify_crl": schema.BoolAttribute{Optional: true},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -395,6 +442,16 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 				Preload:           data.Frontend.HSTS.Preload.ValueBool(),
 			}
 		}
+
+		if data.Frontend.ClientCertificateVerification != nil {
+			reqData.Data.Attributes.Frontend.ClientCertificateVerification = &client.ClientCertificateVerification{
+				Mode:      data.Frontend.ClientCertificateVerification.Mode.ValueString(),
+				VerifyCrl: data.Frontend.ClientCertificateVerification.VerifyCrl.ValueBool(),
+			}
+			for _, id := range data.Frontend.ClientCertificateVerification.CaCertificateIds {
+				reqData.Data.Attributes.Frontend.ClientCertificateVerification.CaCertificateIds = append(reqData.Data.Attributes.Frontend.ClientCertificateVerification.CaCertificateIds, id.ValueString())
+			}
+		}
 	}
 
 	if data.Backend != nil {
@@ -407,6 +464,20 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 				Address: host.Address.ValueString(),
 				Port:    host.Port.ValueInt64(),
 			})
+		}
+		if data.Backend.TLSSettings != nil {
+			reqData.Data.Attributes.Backend.TLSSettings = &client.TLSSettings{
+				ClientCertificateID: data.Backend.TLSSettings.ClientCertificateID.ValueString(),
+			}
+			if data.Backend.TLSSettings.VerifyCertificate != nil {
+				reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate = &client.VerifyCertificate{
+					Mode:      data.Backend.TLSSettings.VerifyCertificate.Mode.ValueString(),
+					VerifyCrl: data.Backend.TLSSettings.VerifyCertificate.VerifyCrl.ValueBool(),
+				}
+				for _, id := range data.Backend.TLSSettings.VerifyCertificate.CaCertificateIds {
+					reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate.CaCertificateIds = append(reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate.CaCertificateIds, id.ValueString())
+				}
+			}
 		}
 	}
 

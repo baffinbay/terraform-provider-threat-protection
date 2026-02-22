@@ -9,5 +9,14 @@
 ## Error Handling
 - **Informative and Actionable:** Error messages must provide clear context on the failure and, where possible, offer guidance on how to resolve the issue. This is critical for security configurations where ambiguity can lead to vulnerabilities.
 
-## Security and Sensitive Data
-- **Strict Secrecy:** Sensitive credentials (like API keys) must be handled with care. The provider should prioritize obtaining these from environment variables or secure provider configurations. Documentation must explicitly discourage hardcoding secrets and provide clear examples of secure management.
+## Infrastructure Management Patterns
+- **Shadow Utility:** For complex API integrations, implement a companion CLI tool (e.g., `bb-tool`) that shares the client library. This provides a direct path for troubleshooting and API exploration independent of the Terraform lifecycle.
+- **Async Handling:** Treat asynchronous status codes (e.g., `202 Accepted`) as successful task initiations for Create/Update operations.
+
+## Pull Request Hygiene
+- **Verbose Descriptions:** PR descriptions for phase completions must be detailed and categorized. They must capture:
+    - Implemented Resources and Data Sources.
+    - Build and CI/CD enhancements.
+    - Troubleshooting utilities developed.
+    - Testing results (Unit, Acceptance, and Live verification).
+    - Technical fixes and architectural improvements.

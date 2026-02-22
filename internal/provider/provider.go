@@ -156,7 +156,7 @@ func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource
 		NewPingDataSource,
 		NewTrafficConfigsDataSource,
 		NewCertificatesDataSource,
-		NewCaBundlesDataSource,
+		NewCaCertificatesDataSource,
 		NewCustomPagesDataSource,
 		NewIpSourcesDataSource,
 	}
@@ -165,7 +165,7 @@ func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource
 func (p *BaffinBayProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewCertificateResource,
-		NewCaBundleResource,
+		NewCaCertificateResource,
 		NewCustomPageResource,
 		NewTrafficConfigResource,
 	}

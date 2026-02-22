@@ -34,5 +34,15 @@
 - **Action:**
   - **Commit Frequency:** Commit changes **After Each Task**.
   - **Commit Message:** Use Conventional Commits (e.g., `feat: add user authentication`, `fix: resolve timeout issue`). Provide a brief summary in the message body.
-  - **Task Tracking:** Use Git Notes to record detailed task summaries and status updates.
-    - Command: `git notes add -m "Task Summary: [Details]"`
+## 6. Production Readiness
+- **Security Baseline:**
+    - Mandatory automated vulnerability scanning (e.g., `govulncheck`).
+    - Automated dependency updates configured (e.g., Dependabot or platform equivalent).
+    - Toolchain alignment (CI version matches `go.mod`).
+- **Live Verification:**
+    - Perform a full CRUD lifecycle check against the Live API for all core resources.
+    - Verify asynchronous resource state transitions.
+- **Documentation:**
+    - Generate documentation using `tfplugindocs`.
+    - Provide complete examples for all resource types.
+    - Clear onboarding instructions in `README.md` and `.env.example`.
