@@ -29,6 +29,10 @@ Ensure you have the following installed:
     go build -o terraform-provider-baffinbay
     ```
 
+### API Specification
+
+The provider is built against the Baffin Bay Traffic Management API. The latest OpenAPI specification can always be found at: [https://docs.baffinbay.com/openapi/traffic-mgmt.yml](https://docs.baffinbay.com/openapi/traffic-mgmt.yml)
+
 ### Developer Overrides
 
 To test the provider locally without publishing it to the Terraform Registry, you can use the development overrides feature.
