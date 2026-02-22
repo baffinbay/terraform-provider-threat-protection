@@ -45,6 +45,7 @@ func TestAccCustomPageResource(t *testing.T) {
 				Config: `provider "baffinbay" {
 					client_id     = "test-id"
 					client_secret = "test-secret"
+					api_key       = "mock-token"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
 					account_id    = "test-account-id"

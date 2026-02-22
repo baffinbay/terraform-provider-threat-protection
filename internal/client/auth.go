@@ -159,7 +159,8 @@ func (c *Client) performOIDC(oidcURL, clientID, clientSecret string) error {
 
 	// 5. Update .env and .token_time
 	// Only persist if we aren't in a test environment (BaseDir would be set in tests)
-	if c.BaseDir == "" {
+	// Also skip if TF_ACC=1 to avoid overwriting real .env with mock-token
+	if c.BaseDir == "" && os.Getenv("TF_ACC") != "1" {
 		if err := c.updateEnvFile(c.Token); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to update .env file: %v\n", err)
 		}
