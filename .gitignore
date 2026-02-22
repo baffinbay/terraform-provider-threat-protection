@@ -8,6 +8,7 @@
 *.so
 *.dylib
 terraform-provider-baffinbay
+bb-tool
 
 # Test binary, built with `go test -c`
 *.test
@@ -31,9 +32,12 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+local.terraformrc
 
 # Local Environment
 .env
+.token_time
+internal/provider/.token_time
 
 # OS/Editors
 .DS_Store
