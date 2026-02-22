@@ -8,7 +8,7 @@
 *.so
 *.dylib
 terraform-provider-baffinbay
-bb-tool
+/bb-tool
 
 # Test binary, built with `go test -c`
 *.test

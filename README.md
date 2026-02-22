@@ -134,3 +134,13 @@ Ensure your `.env` is set up correctly.
     ```bash
     ./bb-tool rm --type traffic-config --id <uuid>
     ```
+
+*   **Check OpenAPI Spec:**
+    Validates the local API specification and implementation against the live OpenAPI definition.
+    ```bash
+    ./bb-tool spec-check
+    ```
+    You can also specify custom paths:
+    ```bash
+    ./bb-tool spec-check --remote-url https://example.com/spec.yml --local-path path/to/spec.yml
+    ```

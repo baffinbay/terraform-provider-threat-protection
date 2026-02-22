@@ -20,8 +20,12 @@ func main() {
 	rmType := rmCmd.String("type", "", "Resource type to delete (traffic-config, cert, custom-page, ca-certificate)")
 	rmID := rmCmd.String("id", "", "Resource ID to delete")
 
+	specCheckCmd := flag.NewFlagSet("spec-check", flag.ExitOnError)
+	specRemoteURL := specCheckCmd.String("remote-url", "https://docs.baffinbay.com/openapi/traffic-mgmt.yml", "Remote OpenAPI URL")
+	specLocalPath := specCheckCmd.String("local-path", "api-spec/traffic-mgmt-2.yml", "Local OpenAPI file path")
+
 	if len(os.Args) < 2 {
-		fmt.Println("expected 'ping', 'ls' or 'rm' subcommands")
+		fmt.Println("expected 'ping', 'ls', 'rm' or 'spec-check' subcommands")
 		os.Exit(1)
 	}
 
@@ -45,8 +49,12 @@ func main() {
 		_ = rmCmd.Parse(os.Args[2:])
 		handleRm(c, *rmType, *rmID)
 
+	case "spec-check":
+		_ = specCheckCmd.Parse(os.Args[2:])
+		handleSpecCheck(*specRemoteURL, *specLocalPath)
+
 	default:
-		fmt.Println("expected 'ping', 'ls' or 'rm' subcommands")
+		fmt.Println("expected 'ping', 'ls', 'rm' or 'spec-check' subcommands")
 		os.Exit(1)
 	}
 }
