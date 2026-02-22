@@ -62,27 +62,17 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-
-
 type IPSourcesResponse struct {
-
 	Data []struct {
+		ID string `json:"id"`
 
-		ID         string `json:"id"`
-
-		Type       string `json:"type"`
+		Type string `json:"type"`
 
 		Attributes struct {
-
 			CIDR string `json:"cidr"`
-
 		} `json:"attributes"`
-
 	} `json:"data"`
-
 }
-
-
 
 func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 
@@ -94,15 +84,11 @@ func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 
 	}
 
-
-
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-
-
 
 	if resp.StatusCode != http.StatusOK {
 
@@ -112,8 +98,6 @@ func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 
 	}
 
-
-
 	var ipResp IPSourcesResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&ipResp); err != nil {
@@ -121,8 +105,6 @@ func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 		return nil, err
 
 	}
-
-
 
 	return &ipResp, nil
 

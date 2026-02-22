@@ -21,7 +21,7 @@ type IpSourcesDataSource struct {
 }
 
 type IpSourcesDataSourceModel struct {
-	ID        types.String   `tfsdk:"id"`
+	ID        types.String    `tfsdk:"id"`
 	IpSources []IpSourceModel `tfsdk:"ip_sources"`
 }
 

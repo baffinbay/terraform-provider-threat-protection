@@ -114,7 +114,7 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 	c := client.NewClient(apiUrl)
 	c.AccountID = accountID
 
-	// If we are in acceptance test mode and have a cached token, let's just use it 
+	// If we are in acceptance test mode and have a cached token, let's just use it
 	// without calling Authenticate if it looks like a real token.
 	if os.Getenv("TF_ACC") == "1" && apiKey != "" && apiKey != "mock-token" && len(apiKey) > 20 {
 		c.SetAuth(apiKey)

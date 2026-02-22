@@ -18,7 +18,7 @@ func TestAccProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {
 			w.Header().Set("Content-Type", "application/json")
-			 _, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
+			_, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
 		}
 		if r.URL.Path == "/api/v2/traffic-mgmt/tpc-ip-sources" {
@@ -29,7 +29,7 @@ func TestAccProvider(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/vnd.api+json")
-			 _, _ = w.Write([]byte(`{"data": []}`))
+			_, _ = w.Write([]byte(`{"data": []}`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)

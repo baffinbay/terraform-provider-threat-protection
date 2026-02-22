@@ -29,7 +29,7 @@ func TestAuthenticate(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		 _ = json.NewEncoder(w).Encode(OIDCAuthResponse{
+		_ = json.NewEncoder(w).Encode(OIDCAuthResponse{
 			AccessToken: "test-access-token",
 			TokenType:   "Bearer",
 			ExpiresIn:   86400,

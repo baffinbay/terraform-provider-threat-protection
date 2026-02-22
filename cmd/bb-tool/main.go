@@ -12,7 +12,7 @@ import (
 
 func main() {
 	pingCmd := flag.NewFlagSet("ping", flag.ExitOnError)
-	
+
 	lsCmd := flag.NewFlagSet("ls", flag.ExitOnError)
 	lsType := lsCmd.String("type", "all", "Resource type to list (traffic-config, cert, custom-page, ca-bundle, ip-sources, all)")
 

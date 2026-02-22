@@ -37,4 +37,3 @@ func TestNewRequest(t *testing.T) {
 		t.Errorf("Expected Authorization header 'Bearer test-token', got '%s'", auth)
 	}
 }
-

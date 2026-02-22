@@ -19,11 +19,11 @@ type TrafficConfigRequest struct {
 			Deployment struct {
 				State string `json:"state"`
 			} `json:"deployment"`
-			Protocols    []string   `json:"protocols,omitempty"`
-			Prefix       string     `json:"prefix,omitempty"`
-			Announced    bool       `json:"announced,omitempty"`
-			WAF          *WAF       `json:"waf,omitempty"`
-			RateLimiting *RateLimit `json:"rateLimiting,omitempty"`
+			Protocols        []string          `json:"protocols,omitempty"`
+			Prefix           string            `json:"prefix,omitempty"`
+			Announced        bool              `json:"announced,omitempty"`
+			WAF              *WAF              `json:"waf,omitempty"`
+			RateLimiting     *RateLimit        `json:"rateLimiting,omitempty"`
 			ProtocolSettings *ProtocolSettings `json:"protocolSettings,omitempty"`
 		} `json:"attributes"`
 		Relationships struct {
@@ -88,8 +88,8 @@ type HSTS struct {
 }
 
 type ClientCertificateVerification struct {
-	Mode        string   `json:"mode"`
-	VerifyCrl   bool     `json:"verifyCrl,omitempty"`
+	Mode             string   `json:"mode"`
+	VerifyCrl        bool     `json:"verifyCrl,omitempty"`
 	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
 }
 

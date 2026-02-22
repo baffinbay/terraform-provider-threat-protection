@@ -13,19 +13,19 @@ func TestAccCertificateResource(t *testing.T) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 
 		if r.URL.Path == "/oauth/token" {
-			 _, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
+			_, _ = w.Write([]byte(`{"access_token": "mock-token", "token_type": "Bearer", "expires_in": 3600}`))
 			return
 		}
 
 		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/certificates/pem" {
 			w.WriteHeader(http.StatusOK)
-			 _, _ = w.Write([]byte(`{"data": {"id": "cert-id", "type": "importPemCertificate", "attributes": {"fqdn": "example.com"}}}`))
+			_, _ = w.Write([]byte(`{"data": {"id": "cert-id", "type": "importPemCertificate", "attributes": {"fqdn": "example.com"}}}`))
 			return
 		}
 
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/certificates/cert-id" {
 			w.WriteHeader(http.StatusOK)
-			 _, _ = w.Write([]byte(`{"data": {"id": "cert-id", "type": "importPemCertificate", "attributes": {"fqdn": "example.com"}}}`))
+			_, _ = w.Write([]byte(`{"data": {"id": "cert-id", "type": "importPemCertificate", "attributes": {"fqdn": "example.com"}}}`))
 			return
 		}
 
