@@ -128,8 +128,6 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 
 	// Always try to authenticate if we have OIDC credentials,
 	// as Authenticate now handles the caching and key reuse internally.
-	// Always try to authenticate if we have OIDC credentials,
-	// as Authenticate now handles the caching and key reuse internally.
 	if clientID != "" && clientSecret != "" {
 		// Pass the existing apiKey (if any) to the client so it can try to use it first
 		if apiKey != "" {
