@@ -66,7 +66,9 @@ func initClient() *client.Client {
 				val := strings.TrimSpace(parts[1])
 				// Remove quotes if present
 				val = strings.Trim(val, `"'`)
-				os.Setenv(key, val)
+				if err := os.Setenv(key, val); err != nil {
+					fmt.Printf("Warning: failed to set environment variable %s: %v\n", key, err)
+				}
 			}
 		}
 		_ = file.Close()
