@@ -3,8 +3,24 @@ name: Build and Test
 on:
   push:
     branches: [ master, initial-repo ]
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - 'conductor/**'
+      - 'README.md'
+      - '.gitignore'
+      - 'api-spec/**'
+      - 'templates/**'
   pull_request:
     branches: [ master, initial-repo ]
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - 'conductor/**'
+      - 'README.md'
+      - '.gitignore'
+      - 'api-spec/**'
+      - 'templates/**'
 
 jobs:
   lint:
