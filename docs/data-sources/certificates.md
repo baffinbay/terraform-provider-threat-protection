@@ -24,6 +24,6 @@ Retrieves all Baffin Bay Certificates.
 
 Read-Only:
 
-- `fqdn` (String)
+- `common_name` (String)
 - `id` (String)
 - `type` (String)

@@ -44,6 +44,10 @@ Required:
 - `hosts` (Attributes List) (see [below for nested schema](#nestedatt--backend--hosts))
 - `server_name` (String)
 
+Optional:
+
+- `tls_settings` (Attributes) (see [below for nested schema](#nestedatt--backend--tls_settings))
+
 <a id="nestedatt--backend--hosts"></a>
 ### Nested Schema for `backend.hosts`
 
@@ -53,6 +57,28 @@ Required:
 - `port` (Number)
 
 
+<a id="nestedatt--backend--tls_settings"></a>
+### Nested Schema for `backend.tls_settings`
+
+Optional:
+
+- `client_certificate_id` (String)
+- `verify_certificate` (Attributes) (see [below for nested schema](#nestedatt--backend--tls_settings--verify_certificate))
+
+<a id="nestedatt--backend--tls_settings--verify_certificate"></a>
+### Nested Schema for `backend.tls_settings.verify_certificate`
+
+Required:
+
+- `mode` (String) DISABLED, SYSTEM_TRUSTSTORE, CUSTOM_TRUSTSTORE
+
+Optional:
+
+- `ca_certificate_ids` (List of String)
+- `verify_crl` (Boolean)
+
+
+
 
 <a id="nestedatt--frontend"></a>
 ### Nested Schema for `frontend`
@@ -60,15 +86,29 @@ Required:
 Required:
 
 - `connection_type` (String) The connection type (SECURE, PLAINTEXT).
-- `hosts` (Attributes List) (see [below for nested schema](#nestedatt--frontend--hosts))
 - `port` (Number) The frontend port.
 
 Optional:
 
+- `client_certificate_verification` (Attributes) (see [below for nested schema](#nestedatt--frontend--client_certificate_verification))
+- `hosts` (Attributes List) (see [below for nested schema](#nestedatt--frontend--hosts))
 - `hsts` (Attributes) (see [below for nested schema](#nestedatt--frontend--hsts))
-- `ipv4` (String) The frontend IPv4 address. Required for l4Proxy and routedDsr.
-- `ipv6` (String) The frontend IPv6 address. Required if ipv4 is not provided for l4Proxy and routedDsr.
+- `ipv4` (String) The frontend IPv4 address.
+- `ipv6` (String) The frontend IPv6 address.
 - `redirect_http` (Boolean) Whether to redirect HTTP to HTTPS (SECURE only).
+
+<a id="nestedatt--frontend--client_certificate_verification"></a>
+### Nested Schema for `frontend.client_certificate_verification`
+
+Required:
+
+- `mode` (String) DISABLED, VERIFY_AND_REJECT
+
+Optional:
+
+- `ca_certificate_ids` (List of String)
+- `verify_crl` (Boolean)
+
 
 <a id="nestedatt--frontend--hosts"></a>
 ### Nested Schema for `frontend.hosts`
@@ -86,7 +126,7 @@ Optional:
 <a id="nestedatt--frontend--hsts"></a>
 ### Nested Schema for `frontend.hsts`
 
-Required:
+Optional:
 
 - `enabled` (Boolean)
 - `include_subdomains` (Boolean)
