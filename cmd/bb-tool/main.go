@@ -14,10 +14,10 @@ func main() {
 	pingCmd := flag.NewFlagSet("ping", flag.ExitOnError)
 
 	lsCmd := flag.NewFlagSet("ls", flag.ExitOnError)
-	lsType := lsCmd.String("type", "all", "Resource type to list (traffic-config, cert, custom-page, ca-bundle, ip-sources, all)")
+	lsType := lsCmd.String("type", "all", "Resource type to list (traffic-config, cert, custom-page, ca-certificate, ip-sources, all)")
 
 	rmCmd := flag.NewFlagSet("rm", flag.ExitOnError)
-	rmType := rmCmd.String("type", "", "Resource type to delete (traffic-config, cert, custom-page, ca-bundle)")
+	rmType := rmCmd.String("type", "", "Resource type to delete (traffic-config, cert, custom-page, ca-certificate)")
 	rmID := rmCmd.String("id", "", "Resource ID to delete")
 
 	if len(os.Args) < 2 {
@@ -149,9 +149,9 @@ func handleLs(c *client.Client, resourceType string) {
 		}
 	}
 
-	if resourceType == "all" || resourceType == "ca-bundle" {
-		fmt.Println("\\n--- CA Bundles ---")
-		resp, err := c.GetCaBundles()
+	if resourceType == "all" || resourceType == "ca-certificate" {
+		fmt.Println("\\n--- CA Certificates ---")
+		resp, err := c.GetCaCertificates()
 		if err != nil {
 			fmt.Printf("Error: %v\\n", err)
 		} else {
@@ -188,8 +188,8 @@ func handleRm(c *client.Client, resourceType, id string) {
 		err = c.DeleteCertificate(id)
 	case "custom-page":
 		err = c.DeleteCustomPage(id)
-	case "ca-bundle":
-		err = c.DeleteCaBundle(id)
+	case "ca-certificate":
+		err = c.DeleteCaCertificate(id)
 	default:
 		fmt.Printf("Invalid resource type: %s\\n", resourceType)
 		os.Exit(1)
