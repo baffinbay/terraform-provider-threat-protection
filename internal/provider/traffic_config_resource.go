@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -301,6 +303,9 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 					"delivery_method": schema.StringAttribute{
 						Required:            true,
 						MarkdownDescription: "ROUND_ROBIN or LEAST_CONNECTIONS",
+						Validators: []validator.String{
+							stringvalidator.OneOf("ROUND_ROBIN", "LEAST_CONNECTIONS"),
+						},
 					},
 					"server_name": schema.StringAttribute{
 						Required: true,
@@ -565,3 +570,4 @@ func (r *TrafficConfigResource) Delete(ctx context.Context, req resource.DeleteR
 func (r *TrafficConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
+

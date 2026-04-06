@@ -1407,7 +1407,7 @@ components:
           properties:
             cidr:
               type: string
-              example: 2a0a:56c4:8001:3::/64
+              example: 2001:db8::/64
     StateChange:
       type: object
       required:
@@ -4341,3 +4341,4 @@ components:
                 type: string
               reason:
                 type: string
+string

@@ -21,7 +21,7 @@ resource "baffinbay_traffic_config" "http_example" {
   frontend = {
     connection_type = "PLAINTEXT"
     port            = 80
-    ipv4            = "185.195.93.212" # Assigning one of our reserved IPs
+    ipv4            = "203.0.113.1" # Example IP address
     hosts = [
       {
         host           = "tf-test.example.com"

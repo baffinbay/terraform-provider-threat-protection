@@ -15,7 +15,7 @@ resource "baffinbay_traffic_config" "l4_example" {
   frontend = {
     connection_type = "PLAINTEXT"
     port            = 8080
-    ipv4            = "185.195.93.210"
+    ipv4            = "203.0.113.2"
   }
   
   backend = {
