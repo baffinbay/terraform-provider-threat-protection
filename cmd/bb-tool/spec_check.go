@@ -32,7 +32,7 @@ func handleSpecCheck(remoteURL, localPath string) {
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("failed to fetch %s: %s", uStr, resp.Status)

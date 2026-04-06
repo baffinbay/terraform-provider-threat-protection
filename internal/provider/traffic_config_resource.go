@@ -570,4 +570,3 @@ func (r *TrafficConfigResource) Delete(ctx context.Context, req resource.DeleteR
 func (r *TrafficConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
-
