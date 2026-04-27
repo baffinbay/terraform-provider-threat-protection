@@ -6,14 +6,15 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type Client struct {
-	HostURL    string
-	HTTPClient *http.Client
-	Token      string
-	AccountID  string
-	BaseDir    string // New: Allows tests to redirect .env and .token_time
+	HostURL     string
+	HTTPClient  *http.Client
+	TokenSource oauth2.TokenSource
+	AccountID   string
 }
 
 func NewClient(host string) *Client {
@@ -31,8 +32,12 @@ func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request,
 		return nil, err
 	}
 
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
+	if c.TokenSource != nil {
+		tok, err := c.TokenSource.Token()
+		if err != nil {
+			return nil, fmt.Errorf("acquire bearer token: %w", err)
+		}
+		req.Header.Set("Authorization", tok.Type()+" "+tok.AccessToken)
 	}
 
 	return req, nil

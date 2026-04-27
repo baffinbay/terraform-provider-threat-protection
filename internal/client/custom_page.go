@@ -75,15 +75,12 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/custom-pages", body)
+	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/custom-pages", body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

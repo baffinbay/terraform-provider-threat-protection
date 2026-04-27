@@ -2,7 +2,19 @@ package client
 
 import (
 	"testing"
+	"time"
+
+	"golang.org/x/oauth2"
 )
+
+type stubTokenSource struct {
+	tok *oauth2.Token
+	err error
+}
+
+func (s *stubTokenSource) Token() (*oauth2.Token, error) {
+	return s.tok, s.err
+}
 
 func TestNewClient(t *testing.T) {
 	c := NewClient("https://api.baffinbay.com")
@@ -14,26 +26,30 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestSetAuth(t *testing.T) {
+func TestNewRequest_WithTokenSource(t *testing.T) {
 	c := NewClient("https://api.baffinbay.com")
-	c.SetAuth("test-token")
-
-	if c.Token != "test-token" {
-		t.Errorf("Expected Token to be 'test-token', got '%s'", c.Token)
-	}
-}
-
-func TestNewRequest(t *testing.T) {
-	c := NewClient("https://api.baffinbay.com")
-	c.SetAuth("test-token")
+	c.TokenSource = &stubTokenSource{tok: &oauth2.Token{
+		AccessToken: "test-token",
+		TokenType:   "Bearer",
+		Expiry:      time.Now().Add(time.Hour),
+	}}
 
 	req, err := c.NewRequest("GET", "/test", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	if got := req.Header.Get("Authorization"); got != "Bearer test-token" {
+		t.Errorf("Expected Authorization 'Bearer test-token', got '%s'", got)
+	}
+}
 
-	auth := req.Header.Get("Authorization")
-	if auth != "Bearer test-token" {
-		t.Errorf("Expected Authorization header 'Bearer test-token', got '%s'", auth)
+func TestNewRequest_NoTokenSource_NoAuthHeader(t *testing.T) {
+	c := NewClient("https://api.baffinbay.com")
+	req, err := c.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if got := req.Header.Get("Authorization"); got != "" {
+		t.Errorf("Expected no Authorization header, got '%s'", got)
 	}
 }

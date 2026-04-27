@@ -17,7 +17,6 @@ var _ provider.Provider = &BaffinBayProvider{}
 type BaffinBayProvider struct{}
 
 type BaffinBayProviderModel struct {
-	APIKey       types.String `tfsdk:"api_key"`
 	APIURL       types.String `tfsdk:"api_url"`
 	ClientID     types.String `tfsdk:"client_id"`
 	ClientSecret types.String `tfsdk:"client_secret"`
@@ -36,21 +35,16 @@ func (p *BaffinBayProvider) Metadata(ctx context.Context, req provider.MetadataR
 func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"api_key": schema.StringAttribute{
-				MarkdownDescription: "The API Key for Baffin Bay Threat Protection API. Deprecated: Use OIDC authentication instead.",
-				Optional:            true,
-				Sensitive:           true,
-			},
 			"api_url": schema.StringAttribute{
 				MarkdownDescription: "The API URL for Baffin Bay Threat Protection API. Defaults to production URL.",
 				Optional:            true,
 			},
 			"client_id": schema.StringAttribute{
-				MarkdownDescription: "The OIDC Client ID for authentication.",
+				MarkdownDescription: "The OIDC Client ID for authentication. May also be set via the `BAFFINBAY_CLIENT_ID` environment variable.",
 				Optional:            true,
 			},
 			"client_secret": schema.StringAttribute{
-				MarkdownDescription: "The OIDC Client Secret for authentication.",
+				MarkdownDescription: "The OIDC Client Secret for authentication. May also be set via the `BAFFINBAY_CLIENT_SECRET` environment variable.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -75,12 +69,6 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		return
 	}
 
-	// Environment variable fallbacks
-	apiKey := data.APIKey.ValueString()
-	if data.APIKey.IsNull() {
-		apiKey = os.Getenv("BAFFINBAY_API_KEY")
-	}
-
 	clientID := data.ClientID.ValueString()
 	if data.ClientID.IsNull() {
 		clientID = os.Getenv("BAFFINBAY_CLIENT_ID")
@@ -91,14 +79,14 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		clientSecret = os.Getenv("BAFFINBAY_CLIENT_SECRET")
 	}
 
-	apiUrl := "https://portal.baffinbay.com"
+	apiURL := "https://portal.baffinbay.com"
 	if !data.APIURL.IsNull() {
-		apiUrl = data.APIURL.ValueString()
+		apiURL = data.APIURL.ValueString()
 	}
 
-	oidcUrl := "https://m2m-auth.baffinbay.com/oauth/token"
+	oidcURL := "https://m2m-auth.baffinbay.com/oauth/token"
 	if !data.OIDCURL.IsNull() {
-		oidcUrl = data.OIDCURL.ValueString()
+		oidcURL = data.OIDCURL.ValueString()
 	}
 
 	accountID := data.AccountID.ValueString()
@@ -106,44 +94,27 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		accountID = os.Getenv("BAFFINBAY_ACCOUNT_ID")
 	}
 
-	// Determine if we should force a refresh (e.g., in acceptance tests)
-	// We force it if TF_ACC is set, UNLESS we already have an API key.
-	// Note: We use the local token from .env/cache first if available.
-	force := os.Getenv("TF_ACC") == "1" && (apiKey == "" || apiKey == "mock-token")
-
-	c := client.NewClient(apiUrl)
-	c.AccountID = accountID
-
-	// If we are in acceptance test mode and have a cached token, let's just use it
-	// without calling Authenticate if it looks like a real token.
-	if os.Getenv("TF_ACC") == "1" && apiKey != "" && apiKey != "mock-token" && len(apiKey) > 20 {
-		c.SetAuth(apiKey)
-		// Try a quick ping to see if it's still good
-		if err := c.Ping(); err == nil {
-			resp.DataSourceData = c
-			resp.ResourceData = c
-			return
-		}
-	}
-
-	// Always try to authenticate if we have OIDC credentials,
-	// as Authenticate now handles the caching and key reuse internally.
-	if clientID != "" && clientSecret != "" {
-		// Pass the existing apiKey (if any) to the client so it can try to use it first
-		if apiKey != "" {
-			c.SetAuth(apiKey)
-		}
-		err := c.Authenticate(oidcUrl, clientID, clientSecret, force)
-		if err != nil {
-			resp.Diagnostics.AddError("Authentication Failed", err.Error())
-			return
-		}
-	} else if apiKey != "" {
-		c.SetAuth(apiKey)
-	} else {
-		resp.Diagnostics.AddError("Missing Credentials", "Either OIDC credentials (client_id and client_secret) or an API Key must be configured.")
+	if clientID == "" || clientSecret == "" {
+		resp.Diagnostics.AddError(
+			"Missing OIDC Credentials",
+			"Both client_id and client_secret must be set (via provider config or BAFFINBAY_CLIENT_ID / BAFFINBAY_CLIENT_SECRET environment variables).",
+		)
 		return
 	}
+
+	ts, err := client.BuildTokenSource(ctx, client.TokenSourceConfig{
+		OIDCURL:      oidcURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Token Source Initialization Failed", err.Error())
+		return
+	}
+
+	c := client.NewClient(apiURL)
+	c.AccountID = accountID
+	c.TokenSource = ts
 
 	resp.DataSourceData = c
 	resp.ResourceData = c

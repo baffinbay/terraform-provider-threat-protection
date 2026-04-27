@@ -16,10 +16,6 @@ func TestProviderSchema(t *testing.T) {
 		t.Fatalf("Schema generation failed: %s", resp.Diagnostics)
 	}
 
-	// Check for attributes
-	if _, ok := resp.Schema.Attributes["api_key"]; !ok {
-		t.Error("Missing api_key attribute")
-	}
 	if _, ok := resp.Schema.Attributes["api_url"]; !ok {
 		t.Error("Missing api_url attribute")
 	}
@@ -29,7 +25,13 @@ func TestProviderSchema(t *testing.T) {
 	if _, ok := resp.Schema.Attributes["client_secret"]; !ok {
 		t.Error("Missing client_secret attribute")
 	}
+	if _, ok := resp.Schema.Attributes["oidc_url"]; !ok {
+		t.Error("Missing oidc_url attribute")
+	}
 	if _, ok := resp.Schema.Attributes["account_id"]; !ok {
 		t.Error("Missing account_id attribute")
+	}
+	if _, ok := resp.Schema.Attributes["api_key"]; ok {
+		t.Error("Unexpected api_key attribute — should have been removed")
 	}
 }

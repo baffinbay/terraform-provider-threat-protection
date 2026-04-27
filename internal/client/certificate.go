@@ -64,15 +64,12 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+path, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest("POST", path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -153,15 +150,12 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

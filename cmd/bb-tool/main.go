@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 )
@@ -36,7 +35,7 @@ func main() {
 		_ = pingCmd.Parse(os.Args[2:])
 		err := c.Ping()
 		if err != nil {
-			fmt.Printf("Ping failed: %v\\n", err)
+			fmt.Printf("Ping failed: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("Ping successful!")
@@ -60,28 +59,6 @@ func main() {
 }
 
 func initClient() *client.Client {
-	// Manually parse .env since we don't have godotenv
-	if file, err := os.Open(".env"); err == nil {
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				val := strings.TrimSpace(parts[1])
-				// Remove quotes if present
-				val = strings.Trim(val, `"'`)
-				if err := os.Setenv(key, val); err != nil {
-					fmt.Printf("Warning: failed to set environment variable %s: %v\n", key, err)
-				}
-			}
-		}
-		_ = file.Close()
-	}
-
 	apiURL := os.Getenv("BAFFINBAY_API_URL")
 	if apiURL == "" {
 		apiURL = "https://portal.baffinbay.com"
@@ -93,32 +70,25 @@ func initClient() *client.Client {
 	clientID := os.Getenv("BAFFINBAY_CLIENT_ID")
 	clientSecret := os.Getenv("BAFFINBAY_CLIENT_SECRET")
 	accountID := os.Getenv("BAFFINBAY_ACCOUNT_ID")
-	apiKey := os.Getenv("BAFFINBAY_API_KEY")
 
-	c := client.NewClient(apiURL)
-	c.AccountID = accountID
-
-	if apiKey != "" {
-		c.Token = apiKey
-		// Check if current token is valid
-		if err := c.Ping(); err == nil {
-			return c
-		}
-		fmt.Println("Existing API key invalid, attempting to refresh...")
-	}
-
-	if clientID != "" && clientSecret != "" {
-		// Force refresh if the key we had didn't work
-		err := c.Authenticate(oidcURL, clientID, clientSecret, true)
-		if err != nil {
-			fmt.Printf("Authentication failed: %v\\n", err)
-			os.Exit(1)
-		}
-	} else if c.Token == "" {
-		fmt.Println("Either BAFFINBAY_API_KEY or (BAFFINBAY_CLIENT_ID and BAFFINBAY_CLIENT_SECRET) must be set")
+	if clientID == "" || clientSecret == "" {
+		fmt.Println("BAFFINBAY_CLIENT_ID and BAFFINBAY_CLIENT_SECRET must be set")
 		os.Exit(1)
 	}
 
+	ts, err := client.BuildTokenSource(context.Background(), client.TokenSourceConfig{
+		OIDCURL:      oidcURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+	})
+	if err != nil {
+		fmt.Printf("Token source initialization failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	c := client.NewClient(apiURL)
+	c.AccountID = accountID
+	c.TokenSource = ts
 	return c
 }
 
@@ -127,58 +97,58 @@ func handleLs(c *client.Client, resourceType string) {
 		fmt.Println("--- Traffic Configurations ---")
 		resp, err := c.GetTrafficConfigs()
 		if err != nil {
-			fmt.Printf("Error: %v\\n", err)
+			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, tc := range resp.Data {
-				fmt.Printf("ID: %s, Name: %s\\n", tc.ID, tc.Attributes.Name)
+				fmt.Printf("ID: %s, Name: %s\n", tc.ID, tc.Attributes.Name)
 			}
 		}
 	}
 
 	if resourceType == "all" || resourceType == "cert" {
-		fmt.Println("\\n--- Certificates ---")
+		fmt.Println("\n--- Certificates ---")
 		resp, err := c.GetCertificates()
 		if err != nil {
-			fmt.Printf("Error: %v\\n", err)
+			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, cert := range resp.Data {
-				fmt.Printf("ID: %s, Common Name: %s\\n", cert.ID, cert.Attributes.CommonName)
+				fmt.Printf("ID: %s, Common Name: %s\n", cert.ID, cert.Attributes.CommonName)
 			}
 		}
 	}
 
 	if resourceType == "all" || resourceType == "custom-page" {
-		fmt.Println("\\n--- Custom Pages ---")
+		fmt.Println("\n--- Custom Pages ---")
 		resp, err := c.GetCustomPages(c.AccountID)
 		if err != nil {
-			fmt.Printf("Error: %v\\n", err)
+			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, cp := range resp.Data {
-				fmt.Printf("ID: %s, Name: %s\\n", cp.ID, cp.Attributes.Name)
+				fmt.Printf("ID: %s, Name: %s\n", cp.ID, cp.Attributes.Name)
 			}
 		}
 	}
 
 	if resourceType == "all" || resourceType == "ca-certificate" {
-		fmt.Println("\\n--- CA Certificates ---")
+		fmt.Println("\n--- CA Certificates ---")
 		resp, err := c.GetCaCertificates()
 		if err != nil {
-			fmt.Printf("Error: %v\\n", err)
+			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, ca := range resp.Data {
-				fmt.Printf("ID: %s, Name: %s\\n", ca.ID, ca.Attributes.Name)
+				fmt.Printf("ID: %s, Name: %s\n", ca.ID, ca.Attributes.Name)
 			}
 		}
 	}
 
 	if resourceType == "all" || resourceType == "ip-sources" {
-		fmt.Println("\\n--- IP Sources ---")
+		fmt.Println("\n--- IP Sources ---")
 		resp, err := c.GetIpSources()
 		if err != nil {
-			fmt.Printf("Error: %v\\n", err)
+			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, ip := range resp.Data {
-				fmt.Printf("ID: %s, CIDR: %s\\n", ip.ID, ip.Attributes.CIDR)
+				fmt.Printf("ID: %s, CIDR: %s\n", ip.ID, ip.Attributes.CIDR)
 			}
 		}
 	}
@@ -201,14 +171,14 @@ func handleRm(c *client.Client, resourceType, id string) {
 	case "ca-certificate":
 		err = c.DeleteCaCertificate(id)
 	default:
-		fmt.Printf("Invalid resource type: %s\\n", resourceType)
+		fmt.Printf("Invalid resource type: %s\n", resourceType)
 		os.Exit(1)
 	}
 
 	if err != nil {
-		fmt.Printf("Failed to delete %s %s: %v\\n", resourceType, id, err)
+		fmt.Printf("Failed to delete %s %s: %v\n", resourceType, id, err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Successfully deleted %s %s\\n", resourceType, id)
+	fmt.Printf("Successfully deleted %s %s\n", resourceType, id)
 }

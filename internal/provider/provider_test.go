@@ -22,9 +22,8 @@ func TestAccProvider(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/api/v2/traffic-mgmt/tpc-ip-sources" {
-			auth := r.Header.Get("Authorization")
-			if auth != "Bearer test" && auth != "Bearer mock-token" {
-				t.Logf("IP Sources Unauthorized: Got %s", auth)
+			if r.Header.Get("Authorization") != "Bearer mock-token" {
+				t.Logf("IP Sources Unauthorized: Got %s", r.Header.Get("Authorization"))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -36,30 +35,19 @@ func TestAccProvider(t *testing.T) {
 	}))
 	defer server.Close()
 
+	t.Setenv("BAFFINBAY_TOKEN_CACHE", t.TempDir()+"/token-cache.json")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `provider "baffinbay" {
-                    api_key = "test"
-                    api_url = "` + server.URL + `"
-                }
-                
-                data "baffinbay_ip_sources" "api_key_test" {}
-                `,
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.baffinbay_ip_sources.api_key_test", "id"),
-				),
-			},
-			{
-				Config: `provider "baffinbay" {
                     client_id     = "test-id"
                     client_secret = "test-secret"
-                    api_key       = ""
                     api_url       = "` + server.URL + `"
                     oidc_url      = "` + server.URL + `/oauth/token"
                 }
-                
+
                 data "baffinbay_ip_sources" "oidc_test" {}
                 `,
 				Check: resource.ComposeTestCheckFunc(

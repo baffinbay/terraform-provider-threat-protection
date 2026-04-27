@@ -142,15 +142,12 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -185,15 +182,12 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 		return nil, err
 	}
 
-	req, err := http.NewRequest("PATCH", c.HostURL+"/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest("PATCH", "/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

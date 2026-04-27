@@ -38,6 +38,8 @@ func TestAccCustomPageResource(t *testing.T) {
 	}))
 	defer server.Close()
 
+	t.Setenv("BAFFINBAY_TOKEN_CACHE", t.TempDir()+"/token-cache.json")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -45,7 +47,6 @@ func TestAccCustomPageResource(t *testing.T) {
 				Config: `provider "baffinbay" {
 					client_id     = "test-id"
 					client_secret = "test-secret"
-					api_key       = "mock-token"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
 					account_id    = "test-account-id"
