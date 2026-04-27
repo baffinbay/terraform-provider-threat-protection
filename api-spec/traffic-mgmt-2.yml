@@ -1,0 +1,4328 @@
+openapi: 3.0.0
+info:
+  title: Baffin Bay Traffic Management API
+  description: Baffin Bay Public API
+  version: 0.0.1
+servers:
+  - url: https://portal.baffinbay.com
+    description: Production
+paths:
+  /api/v2/traffic-mgmt/tpc-ip-sources:
+    get:
+      tags:
+        - TPC IP Sources
+      summary: Get all TPC IP Sources
+      responses:
+        200:
+          description: List of all TPC IP Sources.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/Ipv4Source'
+                        - $ref: '#/components/schemas/Ipv6Source'
+  /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}/changelog/{changeId}:
+    get:
+      tags:
+        - Traffic Management
+      summary: Get a Change Log entry
+      parameters:
+        - $ref: '#/components/parameters/trafficConfigId'
+        - $ref: '#/components/parameters/changeId'
+      responses:
+        200:
+          description: Traffic Configuration change status.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                oneOf:
+                  - $ref: '#/components/schemas/StateChange'
+                  - $ref: '#/components/schemas/StateApplied'
+                  - $ref: '#/components/schemas/StateFailed'
+  /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}:
+    get:
+      tags:
+        - Traffic Management
+      summary: Get a Traffic Configuration
+      parameters:
+        - in: query
+          name: include
+          schema:
+            type: string
+            example: managedConfig
+            enum:
+              - managedConfig
+      responses:
+        200:
+          description: Collection of all Traffic Configurations that the given user has read access to.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                          - routedDsr
+                          - l4Proxy
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        oneOf:
+                          - $ref: '#/components/schemas/HttpProxy'
+                          - $ref: '#/components/schemas/RoutedDsr'
+                          - $ref: '#/components/schemas/L4Proxy'
+                      relationships:
+                        type: object
+                        properties:
+                          activeChange:
+                            type: object
+                            properties:
+                              links:
+                                type: object
+                                properties:
+                                  self:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/e85b8585-af30-4526-b07d-58b18ef9ffe6/relationships/active-change
+                                  related:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/active-change
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: routedDsr
+                                  id:
+                                    type: string
+                                    format: uuid
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          availableCoreRuleSets:
+                            type: object
+                            properties:
+                              data:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: coreRuleSet
+                                    id:
+                                      type: string
+                                      example: crs-v4.22.0
+                          managedConfig:
+                            $ref: '#/components/schemas/ManagedConfig'
+                  included:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/IncludedManagedConfig'
+    patch:
+      summary: Patch a Traffic Configuration
+      tags:
+        - Traffic Management
+      description: Patch a Traffic Configuration
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  required:
+                    - type
+                    - attributes
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - httpProxy
+                        - l4Proxy
+                        - routedDsr
+                    attributes:
+                      oneOf:
+                        - $ref: '#/components/schemas/PatchHttpProxy'
+                        - $ref: '#/components/schemas/PatchL4Proxy'
+                        - $ref: '#/components/schemas/PatchRoutedDsr'
+      responses:
+        202:
+          description: Response object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                          - l4Proxy
+                          - routedDsr
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        oneOf:
+                          - $ref: '#/components/schemas/PatchHttpProxy'
+                          - $ref: '#/components/schemas/PatchL4Proxy'
+                          - $ref: '#/components/schemas/PatchRoutedDsr'
+                      relationships:
+                        type: object
+                        properties:
+                          activeChange:
+                            type: object
+                            properties:
+                              links:
+                                type: object
+                                properties:
+                                  self:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/16e06a1c-81a1-41f5-8c09-16f2e5b2ca87/relationships/active-change
+                                  related:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/e0d0bf18-b77b-462b-83fb-d7a702392fc5/active-change
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    enum:
+                                      - l4Proxy
+                                      - routedDsr
+                                      - httpProxy
+                                  id:
+                                    type: string
+                                    format: uuid
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          availableCoreRuleSets:
+                            type: object
+                            properties:
+                              data:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: coreRuleSet
+                                    id:
+                                      type: string
+                                      example: crs-v4.22.0
+                          managedConfig:
+                            $ref: '#/components/schemas/ManagedConfig'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+    put:
+      summary: Update a Traffic Configuration
+      tags:
+        - Traffic Management
+      requestBody:
+        required: true
+        description: ""
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - httpProxy
+                        - l4Proxy
+                        - routedDsr
+                    attributes:
+                      oneOf:
+                        - $ref: '#/components/schemas/HttpProxy'
+                        - $ref: '#/components/schemas/L4Proxy'
+                        - $ref: '#/components/schemas/RoutedDsr'
+                    relationships:
+                      type: object
+                      properties:
+                        belongsTo:
+                          type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+      responses:
+        202:
+          description: The created object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                          - l4Proxy
+                          - routedDsr
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        oneOf:
+                          - $ref: '#/components/schemas/HttpProxy'
+                          - $ref: '#/components/schemas/L4Proxy'
+                          - $ref: '#/components/schemas/RoutedDsr'
+                      relationships:
+                        type: object
+                        properties:
+                          activeChange:
+                            type: object
+                            properties:
+                              links:
+                                type: object
+                                properties:
+                                  self:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/16e06a1c-81a1-41f5-8c09-16f2e5b2ca87/relationships/active-change
+                                  related:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/e0d0bf18-b77b-462b-83fb-d7a702392fc5/active-change
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: routedDsr
+                                  id:
+                                    type: string
+                                    format: uuid
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          availableCoreRuleSets:
+                            type: object
+                            properties:
+                              data:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: coreRuleSet
+                                    id:
+                                      type: string
+                                      example: crs-v4.22.0
+                          managedConfig:
+                            $ref: '#/components/schemas/ManagedConfig'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+    delete:
+      tags:
+        - Traffic Management
+      summary: Delete a Traffic Configuration
+      parameters:
+        - $ref: '#/components/parameters/trafficConfigId'
+      responses:
+        200:
+          description: Ok
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/custom-pages:
+    get:
+      description: List of all available Custom Pages.
+      parameters:
+        - name: filter[tenantId]
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Tenant id
+      tags:
+        - Custom Pages Management
+      summary: Get all Custom Pages
+      responses:
+        200:
+          description: Ok
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 90d4565e-b39d-48ec-accf-c9c9f98338b0
+                        type:
+                          type: string
+                          example: custom-page
+                        attributes:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: file name
+                            createdAt:
+                              type: string
+                              example: 2025-09-16T07:58:30.359Z
+                              format: date-time
+                        relationships:
+                          type: object
+                          required:
+                            - belongsTo
+                          properties:
+                            belongsTo:
+                              type: object
+                              properties:
+                                data:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: account
+                                    id:
+                                      type: string
+                                      format: uuid
+                            appliedTo:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  data:
+                                    type: object
+                                    properties:
+                                      id:
+                                        type: string
+                                        example: ace5a3e5-2a51-440c-99c0-d2bab7ab833f
+                                      type:
+                                        type: string
+                                        example: traffic-config
+        403:
+          description: Forbidden
+        500:
+          description: Internal Server Error
+    post:
+      tags:
+        - Custom Pages Management
+      summary: Upload a Custom Page
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - data
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: An HTML file
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      example: custom-page
+                    relationships:
+                      type: object
+                      properties:
+                        belongsTo:
+                          type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+            encoding:
+              file:
+                contentType: text/html
+              data:
+                contentType: application/vnd.api+json
+      responses:
+        200:
+          description: Ok
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: 90d4565e-b39d-48ec-accf-c9c9f98338b0
+                      type:
+                        type: string
+                        example: custom-page
+                      attributes:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: file name
+                          createdAt:
+                            type: string
+                            example: 2025-09-16T07:58:30.359Z
+                            format: date-time
+                      relationships:
+                        type: object
+                        required:
+                          - belongsTo
+                        properties:
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          appliedTo:
+                            type: array
+                            example: []
+                            items:
+                              type: object
+                              properties:
+                                data:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: traffic_config
+                                    id:
+                                      type: string
+                                      format: uuid
+        400:
+          description: Bad Request
+        403:
+          description: Forbidden
+        409:
+          description: Conflict
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/custom-pages/{custom-page-id}:
+    delete:
+      description: Delete a Custom Page by id
+      tags:
+        - Custom Pages Management
+      summary: Delete a Custom Page
+      responses:
+        204:
+          description: No Content
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        409:
+          description: Conflict
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/custom-pages/{custom-page-id}/file:
+    get:
+      description: Download a Custom Page by id
+      tags:
+        - Custom Pages Management
+      summary: Download a Custom Page
+      responses:
+        200:
+          description: HTML file returned successfully
+          content:
+            text/html:
+              schema:
+                type: string
+                format: binary
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/traffic-configs:
+    get:
+      tags:
+        - Traffic Management
+      summary: Get all Traffic Configurations
+      parameters:
+        - name: filter[tenant]
+          in: query
+          schema:
+            type: string
+            format: uuid
+            example: daae2b80-12cd-49b4-9831-c5bab8f8a7ad
+        - in: query
+          name: include
+          schema:
+            type: string
+            example: managedConfig
+            enum:
+              - managedConfig
+      responses:
+        200:
+          description: Collection of all Traffic Configurations that the given user has read access to.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - httpProxy
+                            - routedDsr
+                            - l4Proxy
+                        id:
+                          type: string
+                          format: uuid
+                        attributes:
+                          oneOf:
+                            - $ref: '#/components/schemas/HttpProxy'
+                            - $ref: '#/components/schemas/RoutedDsr'
+                            - $ref: '#/components/schemas/L4Proxy'
+                        relationships:
+                          type: object
+                          properties:
+                            activeChange:
+                              type: object
+                              properties:
+                                links:
+                                  type: object
+                                  properties:
+                                    self:
+                                      type: string
+                                      example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/relationships/active-change
+                                    related:
+                                      type: string
+                                      example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/active-change
+                                data:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: routedDsr
+                                    id:
+                                      type: string
+                                      format: uuid
+                            belongsTo:
+                              type: object
+                              properties:
+                                data:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: account
+                                    id:
+                                      type: string
+                                      format: uuid
+                            availableCoreRuleSets:
+                              type: object
+                              properties:
+                                data:
+                                  type: array
+                                  items:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
+                                        example: coreRuleSet
+                                      id:
+                                        type: string
+                                        example: crs-v4.22.0
+                            managedConfig:
+                              $ref: '#/components/schemas/ManagedConfig'
+                  included:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/IncludedManagedConfig'
+    post:
+      summary: Create a Traffic Configuration
+      tags:
+        - Traffic Management
+      description: Create a Traffic Configuration
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  required:
+                    - type
+                    - attributes
+                    - relationships
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - httpProxy
+                        - routedDsr
+                        - l4Proxy
+                    attributes:
+                      oneOf:
+                        - $ref: '#/components/schemas/CreateHttpProxy'
+                        - $ref: '#/components/schemas/CreateRoutedDsr'
+                        - $ref: '#/components/schemas/CreateL4Proxy'
+                    relationships:
+                      type: object
+                      required:
+                        - belongsTo
+                      properties:
+                        belongsTo:
+                          type: object
+                          required:
+                            - data
+                          properties:
+                            data:
+                              type: object
+                              required:
+                                - type
+                                - id
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+      responses:
+        202:
+          description: The created object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                          - l4Proxy
+                          - routedDsr
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        oneOf:
+                          - $ref: '#/components/schemas/HttpProxy'
+                          - $ref: '#/components/schemas/L4Proxy'
+                          - $ref: '#/components/schemas/RoutedDsr'
+                      relationships:
+                        type: object
+                        properties:
+                          activeChange:
+                            type: object
+                            properties:
+                              links:
+                                type: object
+                                properties:
+                                  self:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/7e54738d-6c87-4a3f-b283-45e3953b7b10/relationships/active-change
+                                  related:
+                                    type: string
+                                    example: /api/v2/traffic-mgmt/traffic-configs/7e54738d-6c87-4a3f-b283-45e3953b7b10/active-change
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    enum:
+                                      - httpProxy
+                                      - l4Proxy
+                                      - routedDsr
+                                  id:
+                                    type: string
+                                    example: 7e54738d-6c87-4a3f-b283-45e3953b7b10
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          managedConfig:
+                            $ref: '#/components/schemas/ManagedConfig'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+  /api/v2/traffic-mgmt/certificates:
+    get:
+      tags:
+        - Certificate Management
+      summary: Get all Certificates (all types)
+      responses:
+        200:
+          description: Collection of all Certificate configs that the given user has read access to.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/ImportedCertificateConfigData'
+                        - $ref: '#/components/schemas/LetsEncryptConfigData'
+  /api/v2/traffic-mgmt/certificates/lets-encrypt:
+    post:
+      tags:
+        - Certificate Management
+      summary: Create a Let's Encrypt configuration
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      example: letsEncrypt
+                    attributes:
+                      type: object
+                      properties:
+                        fqdn:
+                          type: string
+                    relationships:
+                      type: object
+                      properties:
+                        belongsTo:
+                          type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+      responses:
+        200:
+          description: The created object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: letsEncrypt
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        type: object
+                        properties:
+                          activeCertificate:
+                            example: null
+                          createdAt:
+                            type: string
+                            format: date-time
+                          createdBy:
+                            type: string
+                          fqdn:
+                            type: string
+                          renewal:
+                            type: object
+                            properties:
+                              state:
+                                type: string
+                                enum:
+                                  - UNINITIATED
+                      relationships:
+                        $ref: '#/components/schemas/CertificateRelationships'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+  /api/v2/traffic-mgmt/certificates/pem:
+    post:
+      tags:
+        - Certificate Management
+      summary: Import a PEM Certificate
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      example: importPemCertificate
+                    attributes:
+                      type: object
+                      properties:
+                        certificate:
+                          type: string
+                          description: The certificate
+                        intermediate:
+                          type: string
+                          description: The certificate chain
+                        key:
+                          type: string
+                          description: The certificate key
+                    relationships:
+                      type: object
+                      properties:
+                        belongsTo:
+                          type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+      responses:
+        200:
+          description: The created object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: importedCertificate
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+                      relationships:
+                        $ref: '#/components/schemas/CertificateRelationships'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+  /api/v2/traffic-mgmt/certificates/{certificateConfigId}:
+    delete:
+      tags:
+        - Certificate Management
+      summary: Delete a Certificate
+      parameters:
+        - $ref: '#/components/parameters/certificateConfigId'
+      responses:
+        204:
+          description: Ok
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/certificates/lets-encrypt/{certificateConfigId}/renew:
+    post:
+      tags:
+        - Certificate Management
+      summary: Trigger manual renewal of Let's Encrypt Certificate
+      parameters:
+        - $ref: '#/components/parameters/certificateConfigId'
+      responses:
+        200:
+          description: Ok
+        404:
+          description: Not Found
+  /api/v2/traffic-mgmt/core-rule-sets/{coreRuleSetId}:
+    get:
+      tags:
+        - Core Rule Set Management
+      summary: Get a Core Rule Set
+      parameters:
+        - $ref: '#/components/parameters/coreRuleSetId'
+      responses:
+        200:
+          description: Return the core rule set corresponding to the coreRuleSetId parameter.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: crs-v4.22.0
+                      type:
+                        type: string
+                        example: coreRuleSet
+                      attributes:
+                        $ref: '#/components/schemas/CoreRuleSet'
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/ip-allocations/tenants/{tenantId}/sub-tenants/{subTenantId}/ips/{ipAddress}:
+    delete:
+      tags:
+        - IP Allocation
+      summary: Delete an IP Allocation
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Tenant ID
+        - in: path
+          name: subTenantId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Sub-Tenant ID
+        - in: path
+          name: ipAddress
+          required: true
+          schema:
+            type: string
+            description: IP Address
+      responses:
+        200:
+          description: OK
+        400:
+          description: BAD REQUEST
+        403:
+          description: FORBIDDEN
+        404:
+          description: NOT FOUND
+        409:
+          description: 'CONFLICT: when trying to delete an IP Allocation that is in use by a traffic config'
+        500:
+          description: INTERNAL ERROR
+  /api/v2/traffic-mgmt/ca-certificates:
+    post:
+      description: Create a CA Certificate
+      tags:
+        - CA Certificate Management
+      summary: Create a CA Certificate
+      requestBody:
+        description: Upload a CA Certificate
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  required:
+                    - type
+                    - attributes
+                    - relationships
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - caCertificate
+                    attributes:
+                      $ref: '#/components/schemas/CreateCaCertificate'
+                    relationships:
+                      type: object
+                      required:
+                        - belongsTo
+                      properties:
+                        belongsTo:
+                          type: object
+                          required:
+                            - data
+                          properties:
+                            data:
+                              type: object
+                              required:
+                                - type
+                                - id
+                              properties:
+                                type:
+                                  type: string
+                                  example: account
+                                id:
+                                  type: string
+                                  format: uuid
+      responses:
+        200:
+          description: The created object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - caCertificate
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        $ref: '#/components/schemas/CaCertificate'
+                      relationships:
+                        $ref: '#/components/schemas/CertificateRelationships'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+    get:
+      description: Get CA Certificates
+      tags:
+        - CA Certificate Management
+      summary: Get CA Certificates
+      parameters:
+        - $ref: ./general-components/parameters/optional-tenantId-filter.yaml
+      responses:
+        200:
+          description: A list of CA Certificates
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - caCertificate
+                        id:
+                          type: string
+                          format: uuid
+                        attributes:
+                          $ref: '#/components/schemas/CaCertificate'
+                        relationships:
+                          $ref: '#/components/schemas/CertificateRelationships'
+        403:
+          description: Forbidden
+        500:
+          description: Internal Server Error
+  /api/v2/traffic-mgmt/ca-certificates/{caCertificateId}:
+    get:
+      description: Get CA Certificate by id
+      tags:
+        - CA Certificate Management
+      summary: Get CA Certificate by id
+      responses:
+        200:
+          description: The response object
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - caCertificate
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        $ref: '#/components/schemas/CaCertificate'
+                      relationships:
+                        $ref: '#/components/schemas/CertificateRelationships'
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+    delete:
+      description: Delete a CA Certificate by id
+      tags:
+        - CA Certificate Management
+      summary: Delete a CA Certificate
+      responses:
+        200:
+          description: Ok
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        409:
+          description: Conflict
+        500:
+          description: Internal Server Error
+components:
+  parameters:
+    changeId:
+      name: changeId
+      in: path
+      description: Change Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    trafficConfigId:
+      name: trafficConfigId
+      in: path
+      description: Traffic Configuration Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    certificateConfigId:
+      name: certificateConfigId
+      in: path
+      description: Certificate Configuration Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    coreRuleSetId:
+      name: coreRuleSetId
+      in: path
+      description: Core Rule Set Id
+      required: true
+      example: crs-v4.22.0
+      schema:
+        type: string
+  schemas:
+    Ipv4Source:
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        type:
+          enum:
+            - ipv4
+        attributes:
+          properties:
+            cidr:
+              type: string
+              example: 185.195.95.0/24
+    Ipv6Source:
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        type:
+          enum:
+            - ipv6
+        attributes:
+          properties:
+            cidr:
+              type: string
+              example: 2a0a:56c4:8001:3::/64
+    StateChange:
+      type: object
+      required:
+        - id
+        - createdAt
+        - requestedBy
+        - state
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        createdAt:
+          type: string
+          format: date-time
+        requestedBy:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        state:
+          enum:
+            - DEPLOYING
+            - UNDEPLOYING
+        announced:
+          type: boolean
+    StateApplied:
+      type: object
+      required:
+        - id
+        - createdAt
+        - requestedBy
+        - finishedAt
+        - succesful
+        - state
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        createdAt:
+          type: string
+          format: date-time
+        requestedBy:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        finishedAt:
+          type: string
+          format: date-time
+        succesful:
+          type: boolean
+          enum:
+            - true
+        state:
+          enum:
+            - APPLIED
+        announced:
+          type: boolean
+    StateFailed:
+      type: object
+      required:
+        - id
+        - createdAt
+        - requestedBy
+        - finishedAt
+        - successful
+        - state
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        createdAt:
+          type: string
+          format: date-time
+        requestedBy:
+          type: string
+          format: uuid
+          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+        finishedAt:
+          type: string
+          format: date-time
+        successful:
+          type: boolean
+          enum:
+            - false
+        state:
+          enum:
+            - FAILED
+        announced:
+          type: boolean
+    L4Proxy:
+      type: object
+      required:
+        - name
+        - version
+        - frontend
+        - backend
+        - deployment
+        - protocol
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          example: 0.0.1
+        frontend:
+          type: object
+          properties:
+            ipv4:
+              type: string
+              example: 192.168.1.0
+              description: Frontend IPv4
+            ipv6:
+              type: string
+              example: 2001:db8::8a2e:370:7334
+              description: Frontend IPv6
+            port:
+              type: number
+              example: 80
+              description: Frontend port
+        backend:
+          type: object
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+        deployment:
+          type: object
+          required:
+            - state
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        protocols:
+          type: array
+          items:
+            type: string
+            enum:
+              - TCP
+              - UDP
+        ipBasedAccessControl:
+          type: object
+          properties:
+            defaultPolicy:
+              type: string
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Determines whether blocklist or allowlist is used, can also be disabled
+            rules:
+              type: object
+              properties:
+                ipRanges:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        proxyProtocol:
+          type: string
+          enum:
+            - ENABLED
+            - DISABLED
+    CreateL4Proxy:
+      type: object
+      required:
+        - name
+        - frontend
+        - backend
+        - deployment
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          default: 0.0.1
+        frontend:
+          type: object
+          description: At least one of 'ipv4' or 'ipv6' must be provided, or both can be present.
+          required:
+            - port
+          properties:
+            ipv4:
+              type: string
+              example: 192.168.1.0
+              description: Frontend IPv4
+            ipv6:
+              type: string
+              example: 2001:db8::8a2e:370:7334
+              description: Frontend IPv6
+            port:
+              type: number
+              example: 80
+              description: Frontend port
+          minProperties: 2
+          maxProperties: 3
+        backend:
+          type: object
+          required:
+            - hosts
+            - deliveryMethod
+            - serverName
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                required:
+                  - address
+                  - port
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+        deployment:
+          type: object
+          required:
+            - state
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        protocols:
+          type: array
+          default:
+            - TCP
+          items:
+            type: string
+            enum:
+              - TCP
+              - UDP
+        ipBasedAccessControl:
+          type: object
+          required:
+            - defaultPolicy
+            - rules
+          properties:
+            defaultPolicy:
+              type: string
+              default: ALLOW
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Determines whether blocklist or allowlist is used, can also be disabled
+            rules:
+              type: object
+              required:
+                - ipRanges
+                - geoLocations
+              properties:
+                ipRanges:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        proxyProtocol:
+          type: string
+          default: DISABLED
+          enum:
+            - ENABLED
+            - DISABLED
+    PatchL4Proxy:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          example: 0.0.1
+        frontend:
+          type: object
+          minProperties: 1
+          properties:
+            ipv4:
+              type: string
+              example: 192.168.1.0
+              description: Frontend IPv4
+            ipv6:
+              type: string
+              example: 2001:db8::8a2e:370:7334
+              description: Frontend IPv6
+            port:
+              type: number
+              example: 80
+              description: Frontend port
+        backend:
+          type: object
+          minProperties: 1
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                required:
+                  - address
+                  - port
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+        deployment:
+          type: object
+          minProperties: 1
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        protocols:
+          type: array
+          items:
+            type: string
+            enum:
+              - TCP
+              - UDP
+        ipBasedAccessControl:
+          type: object
+          minProperties: 1
+          properties:
+            defaultPolicy:
+              type: string
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Sets the policy to apply to all traffic that is not specified by the ipBasedAccessControl rules
+            rules:
+              type: object
+              minProperties: 1
+              properties:
+                ipRanges:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        proxyProtocol:
+          type: string
+          example: DISABLED
+          enum:
+            - ENABLED
+            - DISABLED
+    ManagedConfig:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            type:
+              type: string
+              enum:
+                - managedConfig
+    IncludedManagedConfig:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            type:
+              type: string
+              enum:
+                - managedConfig
+            attributes:
+              type: object
+              properties:
+                waf:
+                  type: object
+                  properties:
+                    coreRuleSet:
+                      type: object
+                      properties:
+                        resolvedId:
+                          type: string
+                          example: crs-v4.22.0
+                        resolvedAt:
+                          type: string
+                          format: date-time
+    HttpProxy:
+      type: object
+      required:
+        - name
+        - version
+        - frontend
+        - backend
+        - protocolSettings
+        - waf
+        - rateLimiting
+        - deployment
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          example: 0.0.1
+        frontend:
+          oneOf:
+            - $ref: '#/components/schemas/FrontendsTlsCase'
+            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+        backend:
+          type: object
+          required:
+            - hosts
+            - deliveryMethod
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+            tlsSettings:
+              type: object
+              properties:
+                clientCertificateId:
+                  type: string
+                  format: uuid
+                verifyCertificate:
+                  oneOf:
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - DISABLED
+                      required:
+                        - mode
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - SYSTEM_TRUSTSTORE
+                      required:
+                        - mode
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - CUSTOM_TRUSTSTORE
+                        caCertificateIds:
+                          type: array
+                          items:
+                            type: string
+                            format: uuid
+                        verifyCrl:
+                          type: boolean
+                      required:
+                        - mode
+                        - caCertificateIds
+                        - verifyCrl
+              required:
+                - verifyCertificate
+        protocolSettings:
+          oneOf:
+            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
+            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+        deployment:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        waf:
+          type: object
+          required:
+            - enforcement
+            - paranoidLevel
+            - sourceExclusions
+            - httpCompliance
+            - pathExclusions
+            - coreRuleSet
+          properties:
+            enforcement:
+              type: string
+              enum:
+                - LOG
+                - BLOCK
+                - DISABLED
+            paranoidLevel:
+              type: number
+              minimum: 1
+              maximum: 4
+              multipleOf: 1
+            sourceExclusions:
+              type: object
+              required:
+                - enabled
+                - sources
+              properties:
+                enabled:
+                  type: boolean
+                sources:
+                  type: array
+                  default: []
+                  description: If `enabled` is set to `true`, the list cannot be empty
+                  items:
+                    type: string
+                    example: 192.168.1.1/32
+            httpCompliance:
+              type: object
+              required:
+                - globalConfig
+              properties:
+                globalConfig:
+                  type: object
+                  required:
+                    - parameterLimit
+                    - allowedHttpMethods
+                    - allowedHttpVersions
+                  properties:
+                    parameterLimit:
+                      type: object
+                      required:
+                        - enabled
+                        - limit
+                      properties:
+                        enabled:
+                          type: boolean
+                        limit:
+                          type: integer
+                    allowedHttpMethods:
+                      type: array
+                      minItems: 2
+                      description: At least `GET` and `POST` have to be included in the list
+                      items:
+                        type: string
+                        enum:
+                          - GET
+                          - POST
+                          - PUT
+                          - PATCH
+                          - DELETE
+                          - HEAD
+                          - CONNECT
+                          - OPTIONS
+                          - TRACE
+                    allowedHttpVersions:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: string
+                        enum:
+                          - HTTP/1.0
+                          - HTTP/1.1
+                          - HTTP/2.0
+                          - HTTP/2
+                resourceConfigs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      matches:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            path:
+                              type: string
+                      config:
+                        type: object
+                        properties:
+                          parseJsonEnabled:
+                            type: boolean
+                          parseXmlEnabled:
+                            type: boolean
+                          parseMultipartRequestEnabled:
+                            type: boolean
+            pathExclusions:
+              type: array
+              default: []
+              items:
+                type: object
+                required:
+                  - match
+                  - disableAll
+                  - rules
+                properties:
+                  match:
+                    type: string
+                  disableAll:
+                    type: boolean
+                  rules:
+                    type: array
+                    default: []
+                    items:
+                      type: object
+                      required:
+                        - type
+                        - id
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            cookieExclusions:
+              type: array
+              default: []
+              items:
+                type: object
+                required:
+                  - cookieName
+                  - excludeAllRules
+                  - excludedRules
+                properties:
+                  cookieName:
+                    type: string
+                  excludeAllRules:
+                    type: boolean
+                  excludedRules:
+                    type: array
+                    default: []
+                    required:
+                      - type
+                      - id
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            matchedDataEnabled:
+              type: boolean
+              example: false
+            coreRuleSet:
+              type: object
+              required:
+                - version
+              properties:
+                version:
+                  type: string
+                  example: 4.*.*
+                  description: |
+                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
+                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+        geoFencing:
+          type: object
+          required:
+            - type
+            - regions
+          properties:
+            type:
+              type: string
+              enum:
+                - BLOCK
+                - ALLOW
+            regions:
+              type: array
+              items:
+                type: string
+        allowedSources:
+          type: object
+          required:
+            - enforcement
+            - sources
+          properties:
+            enforcement:
+              type: string
+              enum:
+                - ENABLED
+                - DISABLED
+            sources:
+              type: array
+              items:
+                type: string
+                example: 192.168.1.1/32
+        ipBasedAccessControl:
+          type: object
+          properties:
+            defaultPolicy:
+              type: string
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Determines whether blocklist or allowlist is used, can also be disabled
+            rules:
+              type: object
+              properties:
+                ipRanges:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        rateLimiting:
+          allOf:
+            - $ref: '#/components/schemas/RateLimit'
+            - type: object
+              properties:
+                exclusions:
+                  type: array
+                  items:
+                    type: string
+                    example: 192.0.0.1/24
+        trafficRules:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - actions
+              - matchingConditions
+            properties:
+              name:
+                type: string
+              matchingConditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - path
+                    - hosts
+                  properties:
+                    paths:
+                      type: array
+                      items:
+                        type: string
+                        example: /path/with/{*}/wildcards
+                    hosts:
+                      oneOf:
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - ALL
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - SELECT
+                            values:
+                              type: array
+                              items:
+                                type: string
+                                example: example.com
+              actions:
+                type: object
+                properties:
+                  setBackends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        address:
+                          type: string
+                          example: www.example.com
+                        port:
+                          type: number
+                          example: 443
+                  setHeaders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                          example: X-Custom
+                        value:
+                          type: string
+                          example: Value
+                  setHostHeader:
+                    type: string
+                    example: www.example.com
+                  setRedirect:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        example: www.test2.se
+                      statusCode:
+                        type: integer
+                        enum:
+                          - 301
+                          - 302
+                      appendOriginalPath:
+                        type: boolean
+                        example: false
+                  setRateLimit:
+                    $ref: '#/components/schemas/RateLimit'
+                  setMaxBodySize:
+                    $ref: '#/components/schemas/MaxBodySize'
+        dataProtection:
+          type: object
+          properties:
+            logRedaction:
+              type: object
+              properties:
+                headers:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: Authorization
+                cookies:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: auth_token
+        customPages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: 3095a52c-b2c5-4682-ae57-c2c09b79df52
+              type:
+                type: string
+                example: WAF
+                enum:
+                  - WAF
+                  - "429"
+                  - "500"
+                  - "502"
+                  - "503"
+                  - "504"
+        multiplexingEnabled:
+          type: object
+          example: true
+    PatchHttpProxy:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          example: 0.1.0
+        frontend:
+          oneOf:
+            - $ref: '#/components/schemas/PatchFrontendsTlsCase'
+            - $ref: '#/components/schemas/PatchFrontendsPlaintextCase'
+        backend:
+          type: object
+          minProperties: 1
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                required:
+                  - address
+                  - port
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+            tlsSettings:
+              type: object
+              minProperties: 1
+              maxProperties: 2
+              properties:
+                clientCertificateId:
+                  type: string
+                  format: uuid
+                verifyCertificate:
+                  oneOf:
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - DISABLED
+                      required:
+                        - mode
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - SYSTEM_TRUSTSTORE
+                      required:
+                        - mode
+                    - type: object
+                      minProperties: 2
+                      maxProperties: 3
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - CUSTOM_TRUSTSTORE
+                        caCertificateIds:
+                          type: array
+                          items:
+                            type: string
+                            format: uuid
+                        verifyCrl:
+                          type: boolean
+                      required:
+                        - mode
+        protocolSettings:
+          oneOf:
+            - $ref: '#/components/schemas/PatchProtocolSettingsHttp1_1'
+            - $ref: '#/components/schemas/PatchProtocolSettingsHttp2_0'
+        deployment:
+          type: object
+          minProperties: 1
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        waf:
+          type: object
+          minProperties: 1
+          properties:
+            enforcement:
+              type: string
+              enum:
+                - LOG
+                - BLOCK
+                - DISABLED
+            paranoidLevel:
+              type: number
+              minimum: 1
+              maximum: 4
+              multipleOf: 1
+            sourceExclusions:
+              type: object
+              minProperties: 1
+              properties:
+                enabled:
+                  type: boolean
+                  example: false
+                sources:
+                  type: array
+                  items:
+                    type: string
+                    example: 192.168.1.1/32
+            httpCompliance:
+              type: object
+              minProperties: 1
+              properties:
+                globalConfig:
+                  type: object
+                  minProperties: 1
+                  properties:
+                    parameterLimit:
+                      type: object
+                      minProperties: 1
+                      properties:
+                        enabled:
+                          type: boolean
+                          example: false
+                        limit:
+                          type: integer
+                          example: 500
+                    allowedHttpMethods:
+                      type: array
+                      example:
+                        - GET
+                        - POST
+                        - DELETE
+                        - PATCH
+                        - PUT
+                      minItems: 2
+                      description: "The array must contain at least two items. \nBoth \"GET\" and \"POST\" must be included if present.\n"
+                      items:
+                        type: string
+                        enum:
+                          - GET
+                          - POST
+                          - PUT
+                          - PATCH
+                          - DELETE
+                          - HEAD
+                          - CONNECT
+                          - OPTIONS
+                          - TRACE
+                    allowedHttpVersions:
+                      type: array
+                      example:
+                        - HTTP/1.0
+                        - HTTP/1.1
+                        - HTTP/2.0
+                        - HTTP/2
+                      minItems: 1
+                      items:
+                        type: string
+                        enum:
+                          - HTTP/1.0
+                          - HTTP/1.1
+                          - HTTP/2.0
+                          - HTTP/2
+                resourceConfigs:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - matches
+                      - config
+                    properties:
+                      matches:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - path
+                          properties:
+                            path:
+                              type: string
+                      config:
+                        type: object
+                        required:
+                          - parseJsonEnabled
+                          - parseXmlEnabled
+                          - parseMultipartRequestEnabled
+                        properties:
+                          parseJsonEnabled:
+                            type: boolean
+                          parseXmlEnabled:
+                            type: boolean
+                          parseMultipartRequestEnabled:
+                            type: boolean
+            pathExclusions:
+              type: array
+              items:
+                type: object
+                required:
+                  - match
+                  - disableAll
+                  - rules
+                properties:
+                  match:
+                    type: string
+                  disableAll:
+                    type: boolean
+                  rules:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - type
+                        - id
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            cookieExclusions:
+              type: array
+              items:
+                type: object
+                required:
+                  - cookieName
+                  - excludeAllRules
+                  - excludeRules
+                properties:
+                  cookieName:
+                    type: string
+                  excludeAllRules:
+                    type: boolean
+                  excludedRules:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - type
+                        - id
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            matchedDataEnabled:
+              type: boolean
+              example: false
+            coreRuleSet:
+              type: object
+              required:
+                - version
+              properties:
+                version:
+                  type: string
+                  example: 4.*.*
+                  description: |
+                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
+                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+        ipBasedAccessControl:
+          type: object
+          minProperties: 1
+          properties:
+            defaultPolicy:
+              type: string
+              example: ALLOW
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Determines whether blocklist or allowlist is used, can also be disabled
+            rules:
+              type: object
+              minProperties: 1
+              properties:
+                ipRanges:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        maxBodySize:
+          $ref: '#/components/schemas/PatchMaxBodySize'
+        rateLimiting:
+          minProperties: 1
+          allOf:
+            - $ref: '#/components/schemas/PatchRateLimit'
+            - type: object
+              properties:
+                exclusions:
+                  type: array
+                  items:
+                    type: string
+                    example: 192.0.0.0/24
+        trafficRules:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - actions
+              - matchingConditions
+            properties:
+              name:
+                type: string
+              matchingConditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - path
+                    - hosts
+                  properties:
+                    paths:
+                      type: array
+                      items:
+                        type: string
+                        example: /path/with/{*}/wildcards
+                    hosts:
+                      oneOf:
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - ALL
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - SELECT
+                            values:
+                              type: array
+                              items:
+                                type: string
+                                example: example.com
+              actions:
+                type: object
+                properties:
+                  setBackends:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - address
+                        - port
+                      properties:
+                        address:
+                          type: string
+                          example: www.example.com
+                        port:
+                          type: number
+                          example: 443
+                  setHeaders:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - value
+                      properties:
+                        key:
+                          type: string
+                          example: X-Custom
+                        value:
+                          type: string
+                          example: Value
+                  setHostHeader:
+                    type: string
+                    example: www.example.com
+                  setRedirect:
+                    type: object
+                    minProperties: 1
+                    properties:
+                      url:
+                        type: string
+                        example: www.test2.se
+                      statusCode:
+                        type: integer
+                        enum:
+                          - 301
+                          - 302
+                      appendOriginalPath:
+                        type: boolean
+                        example: false
+                  setRateLimit:
+                    $ref: '#/components/schemas/PatchRateLimit'
+                  maxBodySize:
+                    $ref: '#/components/schemas/PatchMaxBodySize'
+        dataProtection:
+          type: object
+          minProperties: 1
+          properties:
+            logRedaction:
+              type: object
+              properties:
+                headers:
+                  type: array
+                  items:
+                    type: string
+                    example: Authorization
+                cookies:
+                  type: array
+                  items:
+                    type: string
+                    example: auth_token
+        customPages:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - type
+            properties:
+              id:
+                type: string
+                example: 3095a52c-b2c5-4682-ae57-c2c09b79df52
+              type:
+                type: string
+                example: WAF_BLOCK
+                enum:
+                  - WAF_BLOCK
+                  - 429_RATE_LIMIT_BLOCK
+                  - 500_INTERNAL_ERROR
+                  - 502_NETWORK_ERROR
+                  - 503_UPSTREAM_SERVICE_UNAVAILABLE
+                  - 504_UPSTREAM_TIMEOUT
+        botProtection:
+          type: object
+          minProperties: 1
+          properties:
+            strategy:
+              type: string
+              enum:
+                - ALWAYS_ON
+                - AUTO
+                - DISABLED
+        multiplexingEnabled:
+          type: boolean
+          example: true
+    CreateHttpProxy:
+      type: object
+      required:
+        - name
+        - frontend
+        - backend
+        - protocolSettings
+        - deployment
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        version:
+          type: string
+          default: 0.1.0
+        frontend:
+          oneOf:
+            - $ref: '#/components/schemas/FrontendsTlsCase'
+            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+        backend:
+          type: object
+          required:
+            - hosts
+            - deliveryMethod
+          properties:
+            hosts:
+              type: array
+              items:
+                type: object
+                required:
+                  - address
+                  - port
+                properties:
+                  address:
+                    type: string
+                    example: www.example.com
+                  port:
+                    type: number
+                    example: 80
+                    description: Frontend port
+            deliveryMethod:
+              type: string
+              enum:
+                - ROUND_ROBIN
+                - LEAST_CONNECTIONS
+            serverName:
+              type: string
+              example: www.example.com
+            tlsSettings:
+              type: object
+              properties:
+                clientCertificateId:
+                  type: string
+                  format: uuid
+                verifyCertificate:
+                  oneOf:
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - DISABLED
+                      required:
+                        - mode
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - SYSTEM_TRUSTSTORE
+                      required:
+                        - mode
+                    - type: object
+                      properties:
+                        mode:
+                          type: string
+                          enum:
+                            - CUSTOM_TRUSTSTORE
+                        caCertificateIds:
+                          type: array
+                          items:
+                            type: string
+                            format: uuid
+                        verifyCrl:
+                          type: boolean
+                      required:
+                        - mode
+                        - caCertificateIds
+                        - verifyCrl
+              required:
+                - verifyCertificate
+        protocolSettings:
+          oneOf:
+            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
+            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+        deployment:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+        waf:
+          type: object
+          required:
+            - enforcement
+            - paranoidLevel
+          properties:
+            enforcement:
+              type: string
+              enum:
+                - LOG
+                - BLOCK
+                - DISABLED
+            paranoidLevel:
+              type: number
+              minimum: 1
+              maximum: 4
+              multipleOf: 1
+            sourceExclusions:
+              type: object
+              required:
+                - enabled
+                - sources
+              properties:
+                enabled:
+                  type: boolean
+                  default: false
+                sources:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: 192.168.1.1/32
+            httpCompliance:
+              type: object
+              required:
+                - globalConfig
+                - resourceConfigs
+              properties:
+                globalConfig:
+                  type: object
+                  required:
+                    - parameterLimit
+                    - allowedHttpMethods
+                    - allowedHttpVersions
+                  properties:
+                    parameterLimit:
+                      type: object
+                      required:
+                        - enabled
+                        - limit
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        limit:
+                          type: integer
+                          default: 500
+                    allowedHttpMethods:
+                      type: array
+                      default:
+                        - GET
+                        - POST
+                        - DELETE
+                        - PATCH
+                        - PUT
+                      minItems: 2
+                      description: "The array must contain at least two items. \nBoth \"GET\" and \"POST\" must be included if present.\n"
+                      items:
+                        type: string
+                        enum:
+                          - GET
+                          - POST
+                          - PUT
+                          - PATCH
+                          - DELETE
+                          - HEAD
+                          - CONNECT
+                          - OPTIONS
+                          - TRACE
+                    allowedHttpVersions:
+                      type: array
+                      default:
+                        - HTTP/1.0
+                        - HTTP/1.1
+                        - HTTP/2.0
+                        - HTTP/2
+                      minItems: 1
+                      items:
+                        type: string
+                        enum:
+                          - HTTP/1.0
+                          - HTTP/1.1
+                          - HTTP/2.0
+                          - HTTP/2
+                resourceConfigs:
+                  type: array
+                  default: []
+                  items:
+                    type: object
+                    required:
+                      - matches
+                      - config
+                    properties:
+                      matches:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - path
+                          properties:
+                            path:
+                              type: string
+                      config:
+                        type: object
+                        required:
+                          - parseJsonEnabled
+                          - parseXmlEnabled
+                          - parseMultipartRequestEnabled
+                        properties:
+                          parseJsonEnabled:
+                            type: boolean
+                          parseXmlEnabled:
+                            type: boolean
+                          parseMultipartRequestEnabled:
+                            type: boolean
+            pathExclusions:
+              type: array
+              default: []
+              items:
+                type: object
+                required:
+                  - match
+                  - disableAll
+                  - rules
+                properties:
+                  match:
+                    type: string
+                  disableAll:
+                    type: boolean
+                  rules:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - type
+                        - id
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            cookieExclusions:
+              type: array
+              default: []
+              items:
+                type: object
+                required:
+                  - cookieName
+                  - excludeAllRules
+                  - excludeRules
+                properties:
+                  cookieName:
+                    type: string
+                  excludeAllRules:
+                    type: boolean
+                  excludedRules:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - type
+                        - id
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - rule
+                        id:
+                          type: string
+            matchedDataEnabled:
+              type: boolean
+              default: false
+            coreRuleSet:
+              type: object
+              required:
+                - version
+              properties:
+                version:
+                  type: string
+                  example: 4.*.*
+                  description: |
+                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
+                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+        geoFencing:
+          type: object
+          required:
+            - type
+            - regions
+          properties:
+            type:
+              type: string
+              default: BLOCK
+              enum:
+                - BLOCK
+                - ALLOW
+            regions:
+              type: array
+              default: []
+              items:
+                type: string
+        allowedSources:
+          type: object
+          required:
+            - enforcement
+            - sources
+          properties:
+            enforcement:
+              type: string
+              default: DISABLED
+              enum:
+                - ENABLED
+                - DISABLED
+            sources:
+              type: array
+              default: []
+              items:
+                type: string
+                example: 192.168.1.1/32
+        ipBasedAccessControl:
+          type: object
+          required:
+            - defaultPolicy
+            - rules
+          properties:
+            defaultPolicy:
+              type: string
+              default: ALLOW
+              enum:
+                - ALLOW
+                - BLOCK
+              description: Determines whether blocklist or allowlist is used, can also be disabled
+            rules:
+              type: object
+              required:
+                - ipRanges
+                - geoLocations
+              properties:
+                ipRanges:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/CidrWithNoteRule'
+                ipLists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/IpListRule'
+                geoLocations:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/GeoLocationRule'
+                asns:
+                  type: array
+                  default: []
+                  items:
+                    $ref: '#/components/schemas/AsnRule'
+          description: Configuration for source ip based access control
+        rateLimiting:
+          allOf:
+            - $ref: '#/components/schemas/RateLimit'
+            - type: object
+              properties:
+                exclusions:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: 192.0.0.0/24
+        trafficRules:
+          type: array
+          default: []
+          items:
+            type: object
+            required:
+              - name
+              - actions
+              - matchingConditions
+            properties:
+              name:
+                type: string
+              matchingConditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - path
+                    - hosts
+                  properties:
+                    paths:
+                      type: array
+                      items:
+                        type: string
+                        example: /path/with/{*}/wildcards
+                    hosts:
+                      oneOf:
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - ALL
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - SELECT
+                            values:
+                              type: array
+                              items:
+                                type: string
+                                example: example.com
+              actions:
+                type: object
+                properties:
+                  setBackends:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - address
+                        - port
+                      properties:
+                        address:
+                          type: string
+                          example: www.example.com
+                        port:
+                          type: number
+                          example: 443
+                  setHeaders:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - value
+                      properties:
+                        key:
+                          type: string
+                          example: X-Custom
+                        value:
+                          type: string
+                          example: Value
+                  setHostHeader:
+                    type: string
+                    example: www.example.com
+                  setRedirect:
+                    type: object
+                    required:
+                      - url
+                      - statusCode
+                      - appendOriginalPath
+                    properties:
+                      url:
+                        type: string
+                        example: www.test2.se
+                      statusCode:
+                        type: integer
+                        enum:
+                          - 301
+                          - 302
+                      appendOriginalPath:
+                        type: boolean
+                        example: false
+                  setRateLimit:
+                    $ref: '#/components/schemas/RateLimit'
+                  setMaxBodySize:
+                    $ref: '#/components/schemas/MaxBodySize'
+        dataProtection:
+          type: object
+          properties:
+            logRedaction:
+              type: object
+              properties:
+                headers:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: Authorization
+                cookies:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                    example: auth_token
+        customPages:
+          type: array
+          default: []
+          items:
+            type: object
+            required:
+              - id
+              - type
+            properties:
+              id:
+                type: string
+                example: 3095a52c-b2c5-4682-ae57-c2c09b79df52
+              type:
+                type: string
+                example: WAF_BLOCK
+                enum:
+                  - WAF_BLOCK
+                  - 429_RATE_LIMIT_BLOCK
+                  - 500_INTERNAL_ERROR
+                  - 502_NETWORK_ERROR
+                  - 503_UPSTREAM_SERVICE_UNAVAILABLE
+                  - 504_UPSTREAM_TIMEOUT
+        botProtection:
+          type: object
+          properties:
+            strategy:
+              type: string
+              enum:
+                - ALWAYS_ON
+                - AUTO
+                - DISABLED
+        multiplexingEnabled:
+          type: boolean
+          default: true
+    RateLimit:
+      type: object
+      required:
+        - bySrcIp
+        - bySrcIpAndUrl
+      properties:
+        bySrcIp:
+          type: object
+          required:
+            - enforcement
+            - rate
+            - burst
+          properties:
+            enforcement:
+              type: string
+              default: BLOCK
+              enum:
+                - BLOCK
+                - DISABLED
+            rate:
+              type: object
+              required:
+                - value
+                - unit
+              properties:
+                value:
+                  type: integer
+                  default: 100
+                unit:
+                  type: string
+                  default: r/s
+                  enum:
+                    - r/s
+                    - r/m
+            burst:
+              type: integer
+              default: 10
+        bySrcIpAndUrl:
+          type: object
+          required:
+            - enforcement
+            - rate
+            - burst
+          properties:
+            enforcement:
+              type: string
+              default: BLOCK
+              enum:
+                - BLOCK
+                - DISABLED
+            rate:
+              type: object
+              required:
+                - value
+                - unit
+              properties:
+                value:
+                  type: integer
+                  default: 100
+                unit:
+                  type: string
+                  default: r/s
+                  enum:
+                    - r/s
+                    - r/m
+            burst:
+              type: integer
+              default: 10
+    PatchRateLimit:
+      type: object
+      minProperties: 1
+      properties:
+        bySrcIp:
+          type: object
+          minProperties: 1
+          properties:
+            enforcement:
+              type: string
+              example: BLOCK
+              enum:
+                - BLOCK
+                - DISABLED
+            rate:
+              type: object
+              minProperties: 1
+              properties:
+                value:
+                  type: integer
+                  example: 100
+                unit:
+                  type: string
+                  example: r/s
+                  enum:
+                    - r/s
+                    - r/m
+            burst:
+              type: integer
+              example: 10
+        bySrcIpAndUrl:
+          type: object
+          minProperties: 1
+          properties:
+            enforcement:
+              type: string
+              example: BLOCK
+              enum:
+                - BLOCK
+                - DISABLED
+            rate:
+              type: object
+              minProperties: 1
+              properties:
+                value:
+                  type: integer
+                  example: 100
+                unit:
+                  type: string
+                  example: r/s
+                  enum:
+                    - r/s
+                    - r/m
+            burst:
+              type: integer
+              example: 10
+    ProtocolSettingsHttp1_1:
+      type: object
+      required:
+        - httpVersion
+        - enableWebsockets
+      properties:
+        httpVersion:
+          type: string
+          enum:
+            - HTTP1.1
+        multiplexing:
+          type: boolean
+        enableWebsockets:
+          type: boolean
+    ProtocolSettingsHttp2_0:
+      type: object
+      required:
+        - httpVersion
+      properties:
+        httpVersion:
+          type: string
+          enum:
+            - HTTP2.0
+    PatchProtocolSettingsHttp1_1:
+      type: object
+      minProperties: 1
+      properties:
+        httpVersion:
+          type: string
+          enum:
+            - HTTP1.1
+        multiplexing:
+          type: boolean
+        enableWebsockets:
+          type: boolean
+    PatchProtocolSettingsHttp2_0:
+      type: object
+      required:
+        - httpVersion
+      properties:
+        httpVersion:
+          type: string
+          enum:
+            - HTTP2.0
+    PatchFrontendsTlsCase:
+      type: object
+      description: TLS case. When adding TLS or switching over from HTTP1.1 to HTTP2.0, all fields need to be provided
+      minProperties: 1
+      properties:
+        connectionType:
+          type: string
+          enum:
+            - SECURE
+        ipv4:
+          type: string
+          example: 192.168.1.0
+          description: Frontend IPv4
+        ipv6:
+          type: string
+          example: 2001:db8::8a2e:370:7334
+          description: Frontend IPv6
+        port:
+          type: number
+          example: 80
+          description: Frontend port
+        redirectHttp:
+          type: boolean
+        httpStrictTransportSecurity:
+          type: object
+          minProperties: 1
+          properties:
+            enabled:
+              type: boolean
+              example: true
+            maxAge:
+              type: number
+              example: 1000
+            includeSubdomains:
+              type: boolean
+              example: true
+            preload:
+              type: boolean
+              example: true
+        hosts:
+          type: array
+          items:
+            type: object
+            required:
+              - host
+              - certificateId
+              - tlsConfig
+            properties:
+              host:
+                type: string
+                example: www.example.com
+              certificateId:
+                type: string
+                example: 9eafd907-b85a-4c23-8e24-503758410e24
+              tlsConfig:
+                type: string
+                enum:
+                  - ADVANCED
+                  - INTERMEDIATE
+        clientCertificateVerification:
+          oneOf:
+            - type: object
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - DISABLED
+              required:
+                - mode
+            - type: object
+              minProperties: 2
+              maxProperties: 3
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - VERIFY_AND_REJECT
+                verifyCrl:
+                  type: boolean
+                caCertificateIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - mode
+    PatchFrontendsPlaintextCase:
+      type: object
+      description: Plaintext case. When switching from HTTP2.0 to HTTP1.1, the connection type needs to be provided
+      minProperties: 1
+      properties:
+        connectionType:
+          type: string
+          enum:
+            - PLAINTEXT
+        ipv4:
+          type: string
+          example: 192.168.1.0
+          description: Frontend IPv4
+        ipv6:
+          type: string
+          example: 2001:db8::8a2e:370:7334
+          description: Frontend IPv6
+        port:
+          type: number
+          example: 80
+          description: Frontend port
+        hosts:
+          type: array
+          items:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                type: string
+                example: www.example.com
+    FrontendsTlsCase:
+      type: object
+      description: tls case. At least one of 'ipv4' or 'ipv6' must be provided, or both can be present.
+      required:
+        - connectionType
+        - port
+        - redirectHttp
+        - hosts
+        - httpStrictTransportSecurity
+      properties:
+        connectionType:
+          type: string
+          enum:
+            - SECURE
+        ipv4:
+          type: string
+          example: 192.168.1.0
+          description: Frontend IPv4
+        ipv6:
+          type: string
+          example: 2001:db8::8a2e:370:7334
+          description: Frontend IPv6
+        port:
+          type: number
+          example: 80
+          description: Frontend port
+        redirectHttp:
+          type: boolean
+        httpStrictTransportSecurity:
+          type: object
+          required:
+            - enabled
+            - maxAge
+            - includeSubdomains
+            - preload
+          properties:
+            enabled:
+              type: boolean
+              example: true
+            maxAge:
+              type: number
+              example: 1000
+            includeSubdomains:
+              type: boolean
+              example: true
+            preload:
+              type: boolean
+              example: true
+        hosts:
+          type: array
+          items:
+            type: object
+            required:
+              - host
+              - certificateId
+              - tlsConfig
+            properties:
+              host:
+                type: string
+                example: www.example.com
+              certificateId:
+                type: string
+                example: 9eafd907-b85a-4c23-8e24-503758410e24
+              tlsConfig:
+                type: string
+                enum:
+                  - ADVANCED
+                  - INTERMEDIATE
+        clientCertificateVerification:
+          oneOf:
+            - type: object
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - DISABLED
+              required:
+                - mode
+            - type: object
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - VERIFY_AND_REJECT
+                verifyCrl:
+                  type: boolean
+                caCertificateIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+                - mode
+                - verifyCrl - caCertificateIds
+      minProperties: 6
+      maxProperties: 7
+    FrontendsPlaintextCase:
+      type: object
+      description: plaintext case. At least one of 'ipv4' or 'ipv6' must be provided, or both can be present.
+      required:
+        - connectionType
+        - port
+        - hosts
+      properties:
+        connectionType:
+          type: string
+          enum:
+            - PLAINTEXT
+        ipv4:
+          type: string
+          example: 192.168.1.0
+          description: Frontend IPv4
+        ipv6:
+          type: string
+          example: 2001:db8::8a2e:370:7334
+          description: Frontend IPv6
+        port:
+          type: number
+          example: 80
+          description: Frontend port
+        hosts:
+          type: array
+          items:
+            type: object
+            required:
+              - host
+            properties:
+              host:
+                type: string
+                example: www.example.com
+      minProperties: 4
+      maxProperties: 5
+    RoutedDsr:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        prefix:
+          type: string
+          example: 192.168.1.0/24
+          description: Prefix using cidr notation
+        announced:
+          type: boolean
+          example: false
+          description: Controls if the Routed Dsr is to be announced on Juniper
+        deployment:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+    CreateRoutedDsr:
+      type: object
+      required:
+        - name
+        - prefix
+        - deployment
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        prefix:
+          type: string
+          example: 192.168.1.0/24
+          description: Prefix using cidr notation
+        announced:
+          type: boolean
+          default: false
+          description: Controls if the Routed Dsr is to be announced on Juniper
+        deployment:
+          type: object
+          required:
+            - state
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+    PatchRoutedDsr:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          $ref: '#/components/schemas/TrafficConfigName'
+        prefix:
+          type: string
+          example: 192.168.1.0/24
+          description: Prefix using cidr notation
+        announced:
+          type: boolean
+          example: false
+          description: Controls if the Routed Dsr is to be announced on Juniper
+        deployment:
+          type: object
+          minProperties: 1
+          properties:
+            state:
+              type: string
+              enum:
+                - DEPLOYED
+                - UNDEPLOYED
+    RoutedDsrReferences:
+      type: object
+    HttpProxyReferences:
+      type: object
+      properties:
+        references:
+          type: object
+          properties:
+            nginxConf:
+              type: object
+              properties:
+                ref:
+                  type: string
+                path:
+                  type: string
+                sha512:
+                  type: string
+            optionals:
+              type: array
+              items:
+                type: object
+                properties:
+                  ref:
+                    type: string
+                  path:
+                    type: string
+                  sha512:
+                    type: string
+        waf:
+          type: object
+          properties:
+            references:
+              type: object
+              properties:
+                crsSetup:
+                  type: object
+                  properties:
+                    ref:
+                      type: string
+                    path:
+                      type: string
+                    sha512:
+                      type: string
+                optionals:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ref:
+                        type: string
+                      path:
+                        type: string
+                      sha512:
+                        type: string
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: UNDEPLOY
+        startedAt:
+          type: string
+          example: 2019-12-12T13:21:33
+          format: date-time
+        finished:
+          type: object
+          properties:
+            at:
+              type: string
+              example: 2020-12-11T12:34:11
+              format: date-time
+            status:
+              type: string
+              example: SUCCEEDED/PARTIALY_SUCCEEDED/FAILED
+            errors:
+              type: array
+              items:
+                type: string
+        ref:
+          type: string
+          example: /api/v2/traffic-mgmt/deployments/<id>
+    TrafficConfigId:
+      type: string
+      format: uuid
+    CertificateConfigId:
+      type: string
+      format: uuid
+    TrafficConfigName:
+      type: string
+      example: A sample name
+    MaxBodySize:
+      type: object
+      required:
+        - enforcement
+        - value
+      properties:
+        enforcement:
+          type: string
+          enum:
+            - ENABLED
+            - DISABLED
+        value:
+          type: integer
+          minimum: 1
+          maximum: 1099511627776
+          example: 10000
+    PatchMaxBodySize:
+      type: object
+      minProperties: 1
+      properties:
+        enforcement:
+          type: string
+          enum:
+            - ENABLED
+            - DISABLED
+        value:
+          type: integer
+          example: 10000
+    AccountId:
+      type: string
+      format: uuid
+    ImportedCertificateConfigAttributes:
+      type: object
+      properties:
+        activeCertificate:
+          $ref: '#/components/schemas/Certificate'
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        commonName:
+          type: string
+        subjectAlternativeNames:
+          type: array
+          items:
+            type: string
+    CreateLetsEncryptConfigAttributesResponse:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        fqdn:
+          type: string
+        renewal:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - UNINITIATED
+    LetsEncryptConfigData:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - letsEncrypt
+        id:
+          type: string
+          format: uuid
+        attributes:
+          $ref: '#/components/schemas/CreatedLetsEncryptConfigAttributes'
+        relationships:
+          $ref: '#/components/schemas/CertificateRelationships'
+    ImportedCertificateConfigData:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - importedCertificate
+        id:
+          type: string
+          format: uuid
+        attributes:
+          $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+        relationships:
+          $ref: '#/components/schemas/CertificateRelationships'
+    CertificateRelationships:
+      type: object
+      properties:
+        belongsTo:
+          type: object
+          properties:
+            data:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: account
+                id:
+                  type: string
+                  format: uuid
+        usedBy:
+          type: object
+          properties:
+            links:
+              type: object
+              properties:
+                related:
+                  type: string
+                  example: /api/v2/traffic-mgmt/traffic-configs
+            data:
+              type: array
+              items:
+                type: object
+                example: []
+                properties:
+                  type:
+                    type: string
+                    example: httpProxy
+                  id:
+                    type: string
+                    format: uuid
+    CreatedLetsEncryptConfigAttributes:
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+            - INSTALLED
+            - NOT_INSTALLED
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        fqdn:
+          type: string
+        activeCertificate:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Certificate'
+        renewal:
+          oneOf:
+            - type: object
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - UNINITIATED
+            - type: object
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - SCHEDULED
+                data:
+                  type: object
+                  properties:
+                    createdAt:
+                      type: string
+                      format: date-time
+            - type: object
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - SUCCEEDED
+                data:
+                  type: object
+                  properties:
+                    createdAt:
+                      type: string
+                      format: date-time
+                    finishedAt:
+                      type: string
+                      format: date-time
+            - type: object
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - FAILED
+                data:
+                  type: object
+                  properties:
+                    createdAt:
+                      type: string
+                      format: date-time
+                    finishedAt:
+                      type: string
+                      format: date-time
+                    reason:
+                      type: string
+                      enum:
+                        - DNS_VALIDATION
+                        - NO_PROXY_FOR_IP
+                        - PROXY_CHALLENGE_INSTALLATION_FAILED
+                        - LETS_ENCRYPT_API_ERROR
+                        - RATE_LIMITED
+                        - CHALLENGE_VALIDATION_FAILED
+                        - INTERNAL_ERROR
+    Certificate:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        keyType:
+          type: string
+          enum:
+            - RSA
+            - ECDSA
+        keySize:
+          type: number
+        commonName:
+          type: string
+        subjectAlternativeNames:
+          type: array
+          items:
+            type: string
+        beginsAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        usage:
+          type: array
+          items:
+            type: string
+            enum:
+              - SERVER
+              - CLIENT
+          uniqueItems: true
+          minItems: 1
+    CoreRuleSet:
+      type: object
+      properties:
+        name:
+          type: string
+          example: CRS v4.20.0
+        releaseState:
+          type: string
+          enum:
+            - STAGE
+            - LIVE
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: cd8eb280-ffb0-499d-8b71-ce905f18f5a5
+              name:
+                type: string
+                example: OS File Access Attempt
+              wafRuleId:
+                type: string
+                format: uuid
+                example: 2fdaa312-a303-4e0d-80e7-d6ff345b94f9
+              modSecId:
+                type: string
+                example: "910100"
+              category:
+                type: string
+                example: REQUEST-930-APPLICATION-ATTACK-LFI
+              tags:
+                type: array
+                items:
+                  type: string
+                example:
+                  - application-multi
+                  - attack-generic
+              inspectionTargets:
+                nullable: true
+                type: array
+                items:
+                  type: string
+                example:
+                  - REQUEST_URI
+                  - REQUEST_BODY
+    CidrWithNoteRule:
+      type: object
+      required:
+        - policy
+        - address
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines if ip or cidr should be blocked or allowed
+        address:
+          type: string
+          example: 192.168.1.1/32
+          description: CIDR IP or subnet
+        note:
+          type: string
+          example: Office ip
+          description: Comments about the rule
+    AsnRule:
+      type: object
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines whether traffic from the ASN should be blocked or allowed.
+        asn:
+          type: integer
+          example: 64512
+          description: The Autonomous System Number to which the rule applies.
+        note:
+          type: string
+          example: Temporary block due to excessive requests.
+          description: Comments about this rule.
+    GeoLocationRule:
+      type: object
+      required:
+        - policy
+        - region
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines region should be blocked or allowed
+        region:
+          type: string
+          example: SE
+          description: Country Code
+        note:
+          type: string
+          example: Bad traffic from this country
+          description: Comments about the rule
+    IpListRule:
+      type: object
+      properties:
+        type:
+          enum:
+            - ipList
+        id:
+          format: uuid
+          description: ID of a cidr list to include
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines if items in list should be blocked or allowed
+    CreateCaCertificate:
+      type: object
+      required:
+        - certificates
+      properties:
+        certificates:
+          type: array
+          items:
+            type: object
+            required:
+              - certificate
+            properties:
+              certificate:
+                type: string
+                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+                description: The certificate in PEM format
+              crlUrl:
+                type: string
+                example: http://some.cert.revocation.list.crl
+                description: The url of the certificate revocation list (CRL)
+    CaCertificate:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        certificates:
+          type: array
+          items:
+            type: object
+            properties:
+              beginsAt:
+                type: string
+                format: date-time
+              expiresAt:
+                type: string
+                format: date-time
+              issuerCommonName:
+                type: string
+                example: Certificate Issuer
+              subjectCommonName:
+                type: string
+                example: Example CA
+              subjectAlternativeNames:
+                type: array
+                example: []
+                items:
+                  type: string
+              fingerprint:
+                type: string
+                example: A1:B2:C3:D4:E5:F6:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE
+              crlUrl:
+                type: string
+                nullable: true
+                example: http://some.cert.revocation.list.crl
+              certificate:
+                type: string
+                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+        name:
+          type: string
+          example: some-ca-common-name
+    BadRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        invalidParams:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - reason
+            properties:
+              name:
+                type: string
+              reason:
+                type: string
