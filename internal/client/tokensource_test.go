@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 func newStubOIDC(t *testing.T, callCount *int32) *httptest.Server {
@@ -145,5 +148,108 @@ func TestBuildTokenSource_MissingCreds(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for missing credentials")
+	}
+}
+
+func TestBuildTokenSource_OIDCNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_client"}`))
+	}))
+	defer srv.Close()
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    filepath.Join(t.TempDir(), "cache.json"),
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	_, err = ts.Token()
+	if err == nil {
+		t.Fatal("expected error from non-200 response")
+	}
+	if !strings.Contains(err.Error(), "401") {
+		t.Errorf("expected error to mention status 401, got %v", err)
+	}
+}
+
+func TestBuildTokenSource_MalformedResponseJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("not json {{"))
+	}))
+	defer srv.Close()
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    filepath.Join(t.TempDir(), "cache.json"),
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	if _, err := ts.Token(); err == nil {
+		t.Fatal("expected error from malformed JSON response")
+	}
+}
+
+func TestBuildTokenSource_ResponseMissingAccessToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(oidcResponse{TokenType: "Bearer", ExpiresIn: 3600})
+	}))
+	defer srv.Close()
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    filepath.Join(t.TempDir(), "cache.json"),
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	_, err = ts.Token()
+	if err == nil || !strings.Contains(err.Error(), "missing access_token") {
+		t.Errorf("expected missing access_token error, got %v", err)
+	}
+}
+
+func TestBuildTokenSource_ExpiredCacheTriggersMint(t *testing.T) {
+	var calls int32
+	srv := newStubOIDC(t, &calls)
+	defer srv.Close()
+
+	cachePath := filepath.Join(t.TempDir(), "cache.json")
+	expired := &oauth2.Token{
+		AccessToken: "stale",
+		TokenType:   "Bearer",
+		Expiry:      time.Now().Add(-time.Hour),
+	}
+	if err := saveCache(cachePath, expired); err != nil {
+		t.Fatalf("seed expired cache: %v", err)
+	}
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    cachePath,
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	tok, err := ts.Token()
+	if err != nil {
+		t.Fatalf("Token(): %v", err)
+	}
+	if tok.AccessToken != "minted-token" {
+		t.Errorf("expected fresh mint, got %q", tok.AccessToken)
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("expected 1 mint after expired cache, got %d", got)
 	}
 }
