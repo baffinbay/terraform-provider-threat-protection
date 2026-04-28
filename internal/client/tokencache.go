@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -31,10 +32,14 @@ type cachedToken struct {
 }
 
 // CachePath computes the on-disk cache path for a given OIDC endpoint + client ID.
-// Honors $BAFFINBAY_TOKEN_CACHE when set. Otherwise derives from os.UserConfigDir.
+// Honors $BAFFINBAY_TOKEN_CACHE when set to a non-empty absolute path. Otherwise
+// derives from os.UserConfigDir.
 func CachePath(oidcURL, clientID string) (string, error) {
-	if p := os.Getenv("BAFFINBAY_TOKEN_CACHE"); p != "" {
-		return p, nil
+	if p := strings.TrimSpace(os.Getenv("BAFFINBAY_TOKEN_CACHE")); p != "" {
+		if !filepath.IsAbs(p) {
+			return "", fmt.Errorf("BAFFINBAY_TOKEN_CACHE must be an absolute path, got %q", p)
+		}
+		return filepath.Clean(p), nil
 	}
 	base, err := os.UserConfigDir()
 	if err != nil {

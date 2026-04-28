@@ -131,3 +131,21 @@ func TestCachePath_DefaultUsesUserConfigDir(t *testing.T) {
 		t.Errorf("expected baffinbay dir, got %q", p1)
 	}
 }
+
+func TestCachePath_RejectsRelativeOverride(t *testing.T) {
+	t.Setenv("BAFFINBAY_TOKEN_CACHE", "relative/cache.json")
+	if _, err := CachePath("https://example.com", "client"); err == nil {
+		t.Fatal("expected error for relative override path")
+	}
+}
+
+func TestCachePath_WhitespaceOverrideFallsThrough(t *testing.T) {
+	t.Setenv("BAFFINBAY_TOKEN_CACHE", "   ")
+	got, err := CachePath("https://example.com", "client")
+	if err != nil {
+		t.Fatalf("CachePath: %v", err)
+	}
+	if filepath.Base(filepath.Dir(got)) != "baffinbay" {
+		t.Errorf("expected fallback to default baffinbay dir, got %q", got)
+	}
+}
