@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,8 +63,8 @@ func NewClient(host string) *Client {
 	}
 }
 
-func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, c.HostURL+path, body)
+func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.HostURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +80,9 @@ func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request,
 	return req, nil
 }
 
-func (c *Client) Ping() error {
+func (c *Client) Ping(ctx context.Context) error {
 	// Use TPC IP Sources as a lightweight ping endpoint
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
 	if err != nil {
 		return err
 	}
@@ -115,9 +116,9 @@ type IPSourcesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
+func (c *Client) GetIpSources(ctx context.Context) (*IPSourcesResponse, error) {
 
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
 
 	if err != nil {
 

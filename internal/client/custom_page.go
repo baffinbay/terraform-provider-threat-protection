@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ type CustomPageRequest struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, error) {
+func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*CustomPageResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a custom page")
 	}
@@ -75,7 +76,7 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 		return nil, err
 	}
 
-	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/custom-pages", body)
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/custom-pages", body)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +102,8 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	return &cpResp, nil
 }
 
-func (c *Client) DeleteCustomPage(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/custom-pages/"+id, nil)
+func (c *Client) DeleteCustomPage(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/custom-pages/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -130,12 +131,12 @@ type CustomPagesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCustomPages(tenantID string) (*CustomPagesResponse, error) {
+func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPagesResponse, error) {
 	path := "/api/v2/traffic-mgmt/custom-pages"
 	if tenantID != "" {
 		path += "?filter[tenantId]=" + tenantID
 	}
-	req, err := c.NewRequest("GET", path, nil)
+	req, err := c.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}

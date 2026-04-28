@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,7 +35,7 @@ type CertificateResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
+func (c *Client) CreateCertificate(ctx context.Context, certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a certificate")
 	}
@@ -64,7 +65,7 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 		return nil, err
 	}
 
-	req, err := c.NewRequest("POST", path, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +91,8 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 	return &certResp, nil
 }
 
-func (c *Client) DeleteCertificate(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/certificates/"+id, nil)
+func (c *Client) DeleteCertificate(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/certificates/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ type CaCertificateResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateResponse, error) {
+func (c *Client) CreateCaCertificate(ctx context.Context, name, certificate string) (*CaCertificateResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a CA certificate")
 	}
@@ -150,7 +151,7 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 		return nil, err
 	}
 
-	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +177,8 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 	return &caResp, nil
 }
 
-func (c *Client) DeleteCaCertificate(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
+func (c *Client) DeleteCaCertificate(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -205,8 +206,8 @@ type CertificatesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCertificates() (*CertificatesResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/certificates", nil)
+func (c *Client) GetCertificates(ctx context.Context) (*CertificatesResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/certificates", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +241,8 @@ type CaCertificatesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCaCertificates() (*CaCertificatesResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/ca-certificates", nil)
+func (c *Client) GetCaCertificates(ctx context.Context) (*CaCertificatesResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/ca-certificates", nil)
 	if err != nil {
 		return nil, err
 	}

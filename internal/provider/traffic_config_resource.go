@@ -360,7 +360,7 @@ func (r *TrafficConfigResource) Create(ctx context.Context, req resource.CreateR
 
 	reqData := mapModelToRequest(data)
 
-	tc, err := r.client.CreateTrafficConfig(reqData)
+	tc, err := r.client.CreateTrafficConfig(ctx, reqData)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create traffic config, got error: %s", err))
 		return
@@ -389,7 +389,7 @@ func (r *TrafficConfigResource) Update(ctx context.Context, req resource.UpdateR
 
 	reqData := mapModelToRequest(data)
 
-	_, err := r.client.UpdateTrafficConfig(data.ID.ValueString(), reqData)
+	_, err := r.client.UpdateTrafficConfig(ctx, data.ID.ValueString(), reqData)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update traffic config, got error: %s", err))
 		return
@@ -560,7 +560,7 @@ func (r *TrafficConfigResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	err := r.client.DeleteTrafficConfig(data.ID.ValueString())
+	err := r.client.DeleteTrafficConfig(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete traffic config, got error: %s", err))
 		return

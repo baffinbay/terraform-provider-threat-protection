@@ -92,7 +92,7 @@ func (d *CustomPagesDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	respPages, err := d.client.GetCustomPages(state.TenantID.ValueString())
+	respPages, err := d.client.GetCustomPages(ctx, state.TenantID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read custom pages, got error: %s", err))
 		return

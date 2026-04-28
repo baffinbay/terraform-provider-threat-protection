@@ -106,6 +106,7 @@ func (r *CertificateResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	cert, err := r.client.CreateCertificate(
+		ctx,
 		data.Type.ValueString(),
 		data.Certificate.ValueString(),
 		data.Intermediate.ValueString(),
@@ -141,7 +142,7 @@ func (r *CertificateResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	err := r.client.DeleteCertificate(data.ID.ValueString())
+	err := r.client.DeleteCertificate(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete certificate, got error: %s", err))
 		return

@@ -83,7 +83,7 @@ func (r *CaCertificateResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	caCertificate, err := r.client.CreateCaCertificate(data.Name.ValueString(), data.Certificate.ValueString())
+	caCertificate, err := r.client.CreateCaCertificate(ctx, data.Name.ValueString(), data.Certificate.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create CA certificate, got error: %s", err))
 		return
@@ -113,7 +113,7 @@ func (r *CaCertificateResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	err := r.client.DeleteCaCertificate(data.ID.ValueString())
+	err := r.client.DeleteCaCertificate(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete CA certificate, got error: %s", err))
 		return

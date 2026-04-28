@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -37,7 +38,7 @@ func TestNewRequest_WithTokenSource(t *testing.T) {
 		Expiry:      time.Now().Add(time.Hour),
 	}}
 
-	req, err := c.NewRequest("GET", "/test", nil)
+	req, err := c.NewRequest(context.Background(), "GET", "/test", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestNewRequest_WithTokenSource(t *testing.T) {
 
 func TestNewRequest_NoTokenSource_NoAuthHeader(t *testing.T) {
 	c := NewClient("https://api.baffinbay.com")
-	req, err := c.NewRequest("GET", "/test", nil)
+	req, err := c.NewRequest(context.Background(), "GET", "/test", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

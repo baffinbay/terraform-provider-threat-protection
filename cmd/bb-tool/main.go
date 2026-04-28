@@ -30,10 +30,12 @@ func main() {
 
 	c := initClient()
 
+	ctx := context.Background()
+
 	switch os.Args[1] {
 	case "ping":
 		_ = pingCmd.Parse(os.Args[2:])
-		err := c.Ping()
+		err := c.Ping(ctx)
 		if err != nil {
 			fmt.Printf("Ping failed: %v\n", err)
 			os.Exit(1)
@@ -42,11 +44,11 @@ func main() {
 
 	case "ls":
 		_ = lsCmd.Parse(os.Args[2:])
-		handleLs(c, *lsType)
+		handleLs(ctx, c, *lsType)
 
 	case "rm":
 		_ = rmCmd.Parse(os.Args[2:])
-		handleRm(c, *rmType, *rmID)
+		handleRm(ctx, c, *rmType, *rmID)
 
 	case "spec-check":
 		_ = specCheckCmd.Parse(os.Args[2:])
@@ -92,10 +94,10 @@ func initClient() *client.Client {
 	return c
 }
 
-func handleLs(c *client.Client, resourceType string) {
+func handleLs(ctx context.Context, c *client.Client, resourceType string) {
 	if resourceType == "all" || resourceType == "traffic-config" {
 		fmt.Println("--- Traffic Configurations ---")
-		resp, err := c.GetTrafficConfigs()
+		resp, err := c.GetTrafficConfigs(ctx)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
@@ -107,7 +109,7 @@ func handleLs(c *client.Client, resourceType string) {
 
 	if resourceType == "all" || resourceType == "cert" {
 		fmt.Println("\n--- Certificates ---")
-		resp, err := c.GetCertificates()
+		resp, err := c.GetCertificates(ctx)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
@@ -119,7 +121,7 @@ func handleLs(c *client.Client, resourceType string) {
 
 	if resourceType == "all" || resourceType == "custom-page" {
 		fmt.Println("\n--- Custom Pages ---")
-		resp, err := c.GetCustomPages(c.AccountID)
+		resp, err := c.GetCustomPages(ctx, c.AccountID)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
@@ -131,7 +133,7 @@ func handleLs(c *client.Client, resourceType string) {
 
 	if resourceType == "all" || resourceType == "ca-certificate" {
 		fmt.Println("\n--- CA Certificates ---")
-		resp, err := c.GetCaCertificates()
+		resp, err := c.GetCaCertificates(ctx)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
@@ -143,7 +145,7 @@ func handleLs(c *client.Client, resourceType string) {
 
 	if resourceType == "all" || resourceType == "ip-sources" {
 		fmt.Println("\n--- IP Sources ---")
-		resp, err := c.GetIpSources()
+		resp, err := c.GetIpSources(ctx)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
@@ -154,7 +156,7 @@ func handleLs(c *client.Client, resourceType string) {
 	}
 }
 
-func handleRm(c *client.Client, resourceType, id string) {
+func handleRm(ctx context.Context, c *client.Client, resourceType, id string) {
 	if resourceType == "" || id == "" {
 		fmt.Println("type and id are required for rm")
 		os.Exit(1)
@@ -163,13 +165,13 @@ func handleRm(c *client.Client, resourceType, id string) {
 	var err error
 	switch resourceType {
 	case "traffic-config":
-		err = c.DeleteTrafficConfig(id)
+		err = c.DeleteTrafficConfig(ctx, id)
 	case "cert":
-		err = c.DeleteCertificate(id)
+		err = c.DeleteCertificate(ctx, id)
 	case "custom-page":
-		err = c.DeleteCustomPage(id)
+		err = c.DeleteCustomPage(ctx, id)
 	case "ca-certificate":
-		err = c.DeleteCaCertificate(id)
+		err = c.DeleteCaCertificate(ctx, id)
 	default:
 		fmt.Printf("Invalid resource type: %s\n", resourceType)
 		os.Exit(1)

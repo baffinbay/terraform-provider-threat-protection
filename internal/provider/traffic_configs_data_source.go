@@ -78,7 +78,7 @@ func (d *TrafficConfigsDataSource) Configure(ctx context.Context, req datasource
 func (d *TrafficConfigsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state TrafficConfigsDataSourceModel
 
-	respConfigs, err := d.client.GetTrafficConfigs()
+	respConfigs, err := d.client.GetTrafficConfigs(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read traffic configs, got error: %s", err))
 		return

@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -128,7 +129,7 @@ type TrafficConfigResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
+func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a traffic config")
 	}
@@ -142,7 +143,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 		return nil, err
 	}
 
-	req, err := c.NewRequest("POST", "/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +169,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	return &tcResp, nil
 }
 
-func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
+func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to update a traffic config")
 	}
@@ -182,7 +183,7 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 		return nil, err
 	}
 
-	req, err := c.NewRequest("PATCH", "/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "PATCH", "/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +209,8 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 	return &tcResp, nil
 }
 
-func (c *Client) DeleteTrafficConfig(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/traffic-configs/"+id, nil)
+func (c *Client) DeleteTrafficConfig(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/traffic-configs/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -237,8 +238,8 @@ type TrafficConfigsResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetTrafficConfigs() (*TrafficConfigsResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/traffic-configs", nil)
+func (c *Client) GetTrafficConfigs(ctx context.Context) (*TrafficConfigsResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/traffic-configs", nil)
 	if err != nil {
 		return nil, err
 	}
