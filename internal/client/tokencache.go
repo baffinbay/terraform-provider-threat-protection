@@ -135,7 +135,7 @@ func withLock(ctx context.Context, path string, fn func() error) error {
 		return err
 	}
 	lockPath := path + ".lock"
-	lock := flock.New(lockPath)
+	lock := flock.New(lockPath, flock.SetPermissions(cacheFileMode))
 	locked, err := lock.TryLockContext(ctx, 100*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("acquire token cache lock: %w", err)
@@ -144,6 +144,5 @@ func withLock(ctx context.Context, path string, fn func() error) error {
 		return fmt.Errorf("acquire token cache lock: %w", ctx.Err())
 	}
 	defer func() { _ = lock.Unlock() }()
-	_ = os.Chmod(lockPath, cacheFileMode)
 	return fn()
 }
