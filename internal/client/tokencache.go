@@ -127,16 +127,21 @@ func saveCache(path string, tok *oauth2.Token) error {
 }
 
 // withLock acquires an exclusive flock on a sibling .lock file next to path,
-// invokes fn, and releases. The lock file is created at 0600 in a 0700 dir.
-func withLock(path string, fn func() error) error {
+// invokes fn, and releases. Honors ctx cancellation while waiting. The lock
+// file is created at 0600 in a 0700 dir.
+func withLock(ctx context.Context, path string, fn func() error) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, cacheDirMode); err != nil {
 		return err
 	}
 	lockPath := path + ".lock"
 	lock := flock.New(lockPath)
-	if err := lock.Lock(); err != nil {
+	locked, err := lock.TryLockContext(ctx, 100*time.Millisecond)
+	if err != nil {
 		return fmt.Errorf("acquire token cache lock: %w", err)
+	}
+	if !locked {
+		return fmt.Errorf("acquire token cache lock: %w", ctx.Err())
 	}
 	defer func() { _ = lock.Unlock() }()
 	_ = os.Chmod(lockPath, cacheFileMode)

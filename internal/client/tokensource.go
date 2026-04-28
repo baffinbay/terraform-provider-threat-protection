@@ -78,7 +78,7 @@ func BuildTokenSource(ctx context.Context, cfg TokenSourceConfig) (oauth2.TokenS
 	}
 	inner := &savingTokenSource{
 		ctx:       ctx,
-		mint:      &oidcTokenSource{cfg: cfg},
+		mint:      &oidcTokenSource{ctx: ctx, cfg: cfg},
 		cachePath: cfg.CachePath,
 	}
 	return oauth2.ReuseTokenSource(cached, inner), nil
@@ -87,6 +87,7 @@ func BuildTokenSource(ctx context.Context, cfg TokenSourceConfig) (oauth2.TokenS
 // oidcTokenSource performs the actual OIDC client_credentials exchange.
 // Posts JSON (Baffin Bay's endpoint does not accept form-encoded).
 type oidcTokenSource struct {
+	ctx context.Context
 	cfg TokenSourceConfig
 }
 
@@ -100,7 +101,7 @@ func (s *oidcTokenSource) Token() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(http.MethodPost, s.cfg.OIDCURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(s.ctx, http.MethodPost, s.cfg.OIDCURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ type savingTokenSource struct {
 
 func (s *savingTokenSource) Token() (*oauth2.Token, error) {
 	var tok *oauth2.Token
-	err := withLock(s.cachePath, func() error {
+	err := withLock(s.ctx, s.cachePath, func() error {
 		if t, err := loadCache(s.ctx, s.cachePath); err == nil && t != nil && t.Valid() {
 			tok = t
 			return nil
