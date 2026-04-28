@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -114,8 +113,7 @@ func (s *oidcTokenSource) Token() (*oauth2.Token, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("oidc token request failed (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "oidc token request")
 	}
 
 	var out oidcResponse
