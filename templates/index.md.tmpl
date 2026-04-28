@@ -7,10 +7,19 @@ description: |-
 # Baffin Bay Threat Protection Provider
 
 The Baffin Bay Threat Protection provider is used to interact with the Baffin Bay API.
-It requires an API Key for authentication.
+It authenticates using the OIDC `client_credentials` grant; access tokens are
+cached on disk and refreshed automatically.
 
 ## Example Usage
 
 {{tffile "examples/provider/provider.tf"}}
+
+## Token cache
+
+Minted tokens are persisted to `os.UserConfigDir()/baffinbay/token-cache-<hash>.json`
+(e.g. `$XDG_CONFIG_HOME/baffinbay/...` on Linux). Override the path with the
+`BAFFINBAY_TOKEN_CACHE` environment variable (must be an absolute path). The
+cache file is written at mode `0600`; concurrent invocations coordinate via
+`flock` so matrix CI jobs share a single mint per expiry window.
 
 {{ .SchemaMarkdown | trimspace }}
