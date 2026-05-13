@@ -2,9 +2,9 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 )
@@ -35,7 +35,7 @@ type CustomPageRequest struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, error) {
+func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*CustomPageResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a custom page")
 	}
@@ -75,15 +75,12 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/custom-pages", body)
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/custom-pages", body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -92,8 +89,7 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create custom page (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create custom page")
 	}
 
 	var cpResp CustomPageResponse
@@ -104,8 +100,8 @@ func (c *Client) CreateCustomPage(name, content string) (*CustomPageResponse, er
 	return &cpResp, nil
 }
 
-func (c *Client) DeleteCustomPage(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/custom-pages/"+id, nil)
+func (c *Client) DeleteCustomPage(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/custom-pages/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -117,7 +113,7 @@ func (c *Client) DeleteCustomPage(id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete custom page (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete custom page")
 	}
 
 	return nil
@@ -133,12 +129,12 @@ type CustomPagesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCustomPages(tenantID string) (*CustomPagesResponse, error) {
+func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPagesResponse, error) {
 	path := "/api/v2/traffic-mgmt/custom-pages"
 	if tenantID != "" {
 		path += "?filter[tenantId]=" + tenantID
 	}
-	req, err := c.NewRequest("GET", path, nil)
+	req, err := c.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +146,7 @@ func (c *Client) GetCustomPages(tenantID string) (*CustomPagesResponse, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get custom pages (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get custom pages")
 	}
 
 	var cpResp CustomPagesResponse

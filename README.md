@@ -58,19 +58,33 @@ To test the provider locally without publishing it to the Terraform Registry, yo
 
 ### Environment Management
 
-To avoid committing sensitive information, use a `.env` file for your API credentials.
+Set your OIDC credentials in the environment before running Terraform or `bb-tool`:
 
-1.  Copy the example file:
+1.  Copy the example file and fill it in:
     ```bash
     cp .env.example .env
     ```
-2.  Edit `.env` and set your credentials. You can use either:
-    *   **OIDC (Recommended):** `BAFFINBAY_CLIENT_ID` and `BAFFINBAY_CLIENT_SECRET`
-    *   **API Key (Legacy):** `BAFFINBAY_API_KEY`
-3.  Source the file before running Terraform commands:
+2.  Export the values (or use any dotenv loader of your choice):
     ```bash
-    export $(cat .env | xargs)
+    set -a && source .env && set +a
     ```
+
+Required variables: `BAFFINBAY_CLIENT_ID`, `BAFFINBAY_CLIENT_SECRET`.
+Optional: `BAFFINBAY_ACCOUNT_ID`, `BAFFINBAY_API_URL`, `BAFFINBAY_OIDC_URL`, `BAFFINBAY_TOKEN_CACHE`.
+
+### Token cache
+
+Access tokens are minted via the OIDC `client_credentials` grant and persisted
+to a local cache file so that subsequent invocations (and concurrent jobs in the
+same CI matrix) reuse the same token until it expires.
+
+*   Default path is under `os.UserConfigDir()` — typically
+    `$XDG_CONFIG_HOME/baffinbay/token-cache-<hash>.json` on Linux,
+    `~/Library/Application Support/baffinbay/...` on macOS, and
+    `%AppData%\baffinbay\...` on Windows.
+*   Override with the `BAFFINBAY_TOKEN_CACHE` environment variable.
+*   The cache file is written atomically with mode `0600`; concurrent writers
+    coordinate via `flock` so exactly one token is minted per expiry window.
 
 ### Testing
 

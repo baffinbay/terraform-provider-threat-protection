@@ -83,7 +83,7 @@ func (r *CustomPageResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Call API to create custom page
-	cp, err := r.client.CreateCustomPage(data.Name.ValueString(), data.Content.ValueString())
+	cp, err := r.client.CreateCustomPage(ctx, data.Name.ValueString(), data.Content.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create custom page, got error: %s", err))
 		return
@@ -113,7 +113,7 @@ func (r *CustomPageResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	err := r.client.DeleteCustomPage(data.ID.ValueString())
+	err := r.client.DeleteCustomPage(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete custom page, got error: %s", err))
 		return

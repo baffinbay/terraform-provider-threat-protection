@@ -2,9 +2,9 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -55,7 +55,7 @@ type WAF struct {
 			AllowedHttpVersions []string `json:"allowedHttpVersions"`
 		} `json:"globalConfig"`
 	} `json:"httpCompliance"`
-	PathExclusions []interface{} `json:"pathExclusions"`
+	PathExclusions []any `json:"pathExclusions"`
 }
 
 type RateLimit struct {
@@ -128,7 +128,7 @@ type TrafficConfigResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
+func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a traffic config")
 	}
@@ -142,15 +142,12 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -159,8 +156,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create traffic config (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create traffic config")
 	}
 
 	var tcResp TrafficConfigResponse
@@ -171,7 +167,7 @@ func (c *Client) CreateTrafficConfig(reqData TrafficConfigRequest) (*TrafficConf
 	return &tcResp, nil
 }
 
-func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
+func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to update a traffic config")
 	}
@@ -185,15 +181,12 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 		return nil, err
 	}
 
-	req, err := http.NewRequest("PATCH", c.HostURL+"/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "PATCH", "/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -202,8 +195,7 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to update traffic config (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "update traffic config")
 	}
 
 	var tcResp TrafficConfigResponse
@@ -214,8 +206,8 @@ func (c *Client) UpdateTrafficConfig(id string, reqData TrafficConfigRequest) (*
 	return &tcResp, nil
 }
 
-func (c *Client) DeleteTrafficConfig(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/traffic-configs/"+id, nil)
+func (c *Client) DeleteTrafficConfig(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/traffic-configs/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -227,7 +219,7 @@ func (c *Client) DeleteTrafficConfig(id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete traffic config (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete traffic config")
 	}
 
 	return nil
@@ -243,8 +235,8 @@ type TrafficConfigsResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetTrafficConfigs() (*TrafficConfigsResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/traffic-configs", nil)
+func (c *Client) GetTrafficConfigs(ctx context.Context) (*TrafficConfigsResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/traffic-configs", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +248,7 @@ func (c *Client) GetTrafficConfigs() (*TrafficConfigsResponse, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get traffic configs (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get traffic configs")
 	}
 
 	var tcResp TrafficConfigsResponse

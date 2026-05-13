@@ -1,19 +1,80 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
+const (
+	// httpStatusErrorBodyCap bounds how much response detail we surface in
+	// errors, so a misbehaving server cannot flood Terraform diagnostics or CI
+	// logs.
+	httpStatusErrorBodyCap = 1024
+
+	// httpStatusErrorParseCap bounds how much body data we inspect before
+	// formatting a capped error. It is intentionally larger than the displayed
+	// snippet so structured OAuth errors are parsed before display truncation.
+	httpStatusErrorParseCap = 64 * 1024
+)
+
+// httpStatusError builds a redacted error for a non-OK HTTP response. It
+// prefers the RFC 6749 OAuth error envelope ({"error", "error_description"})
+// when present and otherwise emits a trimmed snippet, capped at
+// httpStatusErrorBodyCap bytes.
+func httpStatusError(resp *http.Response, action string) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, httpStatusErrorParseCap+1))
+	bodyTruncated := len(body) > httpStatusErrorParseCap
+	if bodyTruncated {
+		body = body[:httpStatusErrorParseCap]
+	}
+
+	snippet := oauthErrorSnippet(body)
+	if snippet == "" {
+		snippet = strings.TrimSpace(string(body))
+	}
+	snippet, snippetTruncated := truncateHTTPErrorSnippet(snippet)
+	if snippet == "" {
+		return fmt.Errorf("%s failed (status %d)", action, resp.StatusCode)
+	}
+	if snippetTruncated || bodyTruncated {
+		snippet += "...(truncated)"
+	}
+	return fmt.Errorf("%s failed (status %d): %s", action, resp.StatusCode, snippet)
+}
+
+func oauthErrorSnippet(body []byte) string {
+	var env struct {
+		Err  string `json:"error"`
+		Desc string `json:"error_description"`
+	}
+	if json.Unmarshal(body, &env) == nil && env.Err != "" {
+		if env.Desc != "" {
+			return strings.TrimSpace(env.Err + ": " + env.Desc)
+		}
+		return strings.TrimSpace(env.Err)
+	}
+	return ""
+}
+
+func truncateHTTPErrorSnippet(snippet string) (string, bool) {
+	if len(snippet) <= httpStatusErrorBodyCap {
+		return snippet, false
+	}
+	return snippet[:httpStatusErrorBodyCap], true
+}
+
 type Client struct {
-	HostURL    string
-	HTTPClient *http.Client
-	Token      string
-	AccountID  string
-	BaseDir    string // New: Allows tests to redirect .env and .token_time
+	HostURL     string
+	HTTPClient  *http.Client
+	TokenSource oauth2.TokenSource
+	AccountID   string
 }
 
 func NewClient(host string) *Client {
@@ -25,22 +86,26 @@ func NewClient(host string) *Client {
 	}
 }
 
-func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, c.HostURL+path, body)
+func (c *Client) NewRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.HostURL+path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
+	if c.TokenSource != nil {
+		tok, err := c.TokenSource.Token()
+		if err != nil {
+			return nil, fmt.Errorf("acquire bearer token: %w", err)
+		}
+		req.Header.Set("Authorization", tok.Type()+" "+tok.AccessToken)
 	}
 
 	return req, nil
 }
 
-func (c *Client) Ping() error {
+func (c *Client) Ping(ctx context.Context) error {
 	// Use TPC IP Sources as a lightweight ping endpoint
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
 	if err != nil {
 		return err
 	}
@@ -74,9 +139,9 @@ type IPSourcesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
+func (c *Client) GetIpSources(ctx context.Context) (*IPSourcesResponse, error) {
 
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/tpc-ip-sources", nil)
 
 	if err != nil {
 
@@ -91,11 +156,7 @@ func (c *Client) GetIpSources() (*IPSourcesResponse, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-
-		respBody, _ := io.ReadAll(resp.Body)
-
-		return nil, fmt.Errorf("failed to get IP sources (status %d): %s", resp.StatusCode, string(respBody))
-
+		return nil, httpStatusError(resp, "get IP sources")
 	}
 
 	var ipResp IPSourcesResponse

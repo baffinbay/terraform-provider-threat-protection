@@ -82,7 +82,7 @@ func (d *IpSourcesDataSource) Configure(ctx context.Context, req datasource.Conf
 func (d *IpSourcesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state IpSourcesDataSourceModel
 
-	respIp, err := d.client.GetIpSources()
+	respIp, err := d.client.GetIpSources(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read IP sources, got error: %s", err))
 		return

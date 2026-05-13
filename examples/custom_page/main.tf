@@ -7,9 +7,8 @@ terraform {
 }
 
 provider "baffinbay" {
-  # API Key/Token will be read from BAFFINBAY_API_KEY environment variable
-  # or you can uncomment and set it here:
-  # api_key = "your-bearer-token"
+  # Credentials are read from BAFFINBAY_CLIENT_ID / BAFFINBAY_CLIENT_SECRET
+  # environment variables by default.
 }
 
 resource "baffinbay_custom_page" "example" {

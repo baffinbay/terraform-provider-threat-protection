@@ -78,7 +78,7 @@ func (d *CaCertificatesDataSource) Configure(ctx context.Context, req datasource
 func (d *CaCertificatesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state CaCertificatesDataSourceModel
 
-	respCertificates, err := d.client.GetCaCertificates()
+	respCertificates, err := d.client.GetCaCertificates(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read CA certificates, got error: %s", err))
 		return

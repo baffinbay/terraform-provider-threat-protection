@@ -2,9 +2,9 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -34,7 +34,7 @@ type CertificateResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
+func (c *Client) CreateCertificate(ctx context.Context, certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a certificate")
 	}
@@ -64,15 +64,12 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+path, bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -81,8 +78,7 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create certificate (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create certificate")
 	}
 
 	var certResp CertificateResponse
@@ -93,8 +89,8 @@ func (c *Client) CreateCertificate(certType, cert, intermediate, key, fqdn strin
 	return &certResp, nil
 }
 
-func (c *Client) DeleteCertificate(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/certificates/"+id, nil)
+func (c *Client) DeleteCertificate(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/certificates/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -106,7 +102,7 @@ func (c *Client) DeleteCertificate(id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete certificate (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete certificate")
 	}
 
 	return nil
@@ -136,7 +132,7 @@ type CaCertificateResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateResponse, error) {
+func (c *Client) CreateCaCertificate(ctx context.Context, name, certificate string) (*CaCertificateResponse, error) {
 	if c.AccountID == "" {
 		return nil, fmt.Errorf("account_id is required to create a CA certificate")
 	}
@@ -153,15 +149,12 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.HostURL+"/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
+	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/ca-certificates", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/vnd.api+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -170,8 +163,7 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create CA certificate (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create CA certificate")
 	}
 
 	var caResp CaCertificateResponse
@@ -182,8 +174,8 @@ func (c *Client) CreateCaCertificate(name, certificate string) (*CaCertificateRe
 	return &caResp, nil
 }
 
-func (c *Client) DeleteCaCertificate(id string) error {
-	req, err := c.NewRequest("DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
+func (c *Client) DeleteCaCertificate(ctx context.Context, id string) error {
+	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -195,7 +187,7 @@ func (c *Client) DeleteCaCertificate(id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete CA certificate (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete CA certificate")
 	}
 
 	return nil
@@ -211,8 +203,8 @@ type CertificatesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCertificates() (*CertificatesResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/certificates", nil)
+func (c *Client) GetCertificates(ctx context.Context) (*CertificatesResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/certificates", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -224,8 +216,7 @@ func (c *Client) GetCertificates() (*CertificatesResponse, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get certificates (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get certificates")
 	}
 
 	var certsResp CertificatesResponse
@@ -246,8 +237,8 @@ type CaCertificatesResponse struct {
 	} `json:"data"`
 }
 
-func (c *Client) GetCaCertificates() (*CaCertificatesResponse, error) {
-	req, err := c.NewRequest("GET", "/api/v2/traffic-mgmt/ca-certificates", nil)
+func (c *Client) GetCaCertificates(ctx context.Context) (*CaCertificatesResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/ca-certificates", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +250,7 @@ func (c *Client) GetCaCertificates() (*CaCertificatesResponse, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get CA certificates (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get CA certificates")
 	}
 
 	var caResp CaCertificatesResponse

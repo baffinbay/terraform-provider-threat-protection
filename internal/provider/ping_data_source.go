@@ -65,7 +65,7 @@ func (d *PingDataSource) Configure(ctx context.Context, req datasource.Configure
 func (d *PingDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data PingDataSourceModel
 
-	err := d.client.Ping()
+	err := d.client.Ping(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Ping failed", err.Error())
 		return
