@@ -55,7 +55,7 @@ type WAF struct {
 			AllowedHttpVersions []string `json:"allowedHttpVersions"`
 		} `json:"globalConfig"`
 	} `json:"httpCompliance"`
-	PathExclusions []interface{} `json:"pathExclusions"`
+	PathExclusions []any `json:"pathExclusions"`
 }
 
 type RateLimit struct {
