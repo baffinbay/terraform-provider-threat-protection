@@ -28,9 +28,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := initClient()
-
 	ctx := context.Background()
+	c := initClient(ctx)
 
 	switch os.Args[1] {
 	case "ping":
@@ -60,7 +59,7 @@ func main() {
 	}
 }
 
-func initClient() *client.Client {
+func initClient(ctx context.Context) *client.Client {
 	apiURL := os.Getenv("BAFFINBAY_API_URL")
 	if apiURL == "" {
 		apiURL = "https://portal.baffinbay.com"
@@ -78,7 +77,7 @@ func initClient() *client.Client {
 		os.Exit(1)
 	}
 
-	ts, err := client.BuildTokenSource(context.Background(), client.TokenSourceConfig{
+	ts, err := client.BuildTokenSource(ctx, client.TokenSourceConfig{
 		OIDCURL:      oidcURL,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,

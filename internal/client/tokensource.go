@@ -60,7 +60,7 @@ func BuildTokenSource(ctx context.Context, cfg TokenSourceConfig) (oauth2.TokenS
 		cfg.HTTPClient = &http.Client{Timeout: 10 * time.Second}
 	}
 	if cfg.CachePath == "" {
-		p, err := CachePath(cfg.OIDCURL, cfg.ClientID)
+		p, err := cachePath(cfg.OIDCURL, cfg.ClientID)
 		if err != nil {
 			return nil, err
 		}
@@ -124,12 +124,12 @@ func (s *oidcTokenSource) Token() (*oauth2.Token, error) {
 		return nil, fmt.Errorf("oidc response missing access_token")
 	}
 	if out.TokenType == "" {
-		out.TokenType = "Bearer"
+		return nil, fmt.Errorf("oidc response missing token_type")
 	}
-	var expiry time.Time
-	if out.ExpiresIn > 0 {
-		expiry = time.Now().Add(time.Duration(out.ExpiresIn)*time.Second - skewWindow)
+	if out.ExpiresIn <= 0 {
+		return nil, fmt.Errorf("oidc response missing or invalid expires_in")
 	}
+	expiry := time.Now().Add(time.Duration(out.ExpiresIn)*time.Second - skewWindow)
 	return &oauth2.Token{
 		AccessToken: out.AccessToken,
 		TokenType:   out.TokenType,
@@ -148,11 +148,15 @@ type savingTokenSource struct {
 func (s *savingTokenSource) Token() (*oauth2.Token, error) {
 	var tok *oauth2.Token
 	err := withLock(s.ctx, s.cachePath, func() error {
-		if t, err := loadCache(s.ctx, s.cachePath); err == nil && t != nil && t.Valid() {
+		t, err := loadCache(s.ctx, s.cachePath)
+		if err != nil {
+			return fmt.Errorf("read token cache: %w", err)
+		}
+		if t != nil && t.Valid() {
 			tok = t
 			return nil
 		}
-		t, err := s.mint.Token()
+		t, err = s.mint.Token()
 		if err != nil {
 			return err
 		}

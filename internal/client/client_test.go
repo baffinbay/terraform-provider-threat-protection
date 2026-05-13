@@ -98,6 +98,21 @@ func TestHttpStatusError_TruncatesLargeBody(t *testing.T) {
 	}
 }
 
+func TestHttpStatusError_ParsesOAuthEnvelopeBeforeDisplayTruncate(t *testing.T) {
+	desc := strings.Repeat("x", httpStatusErrorBodyCap*2)
+	body := `{"error":"invalid_client","error_description":"` + desc + `"}`
+	err := httpStatusError(responseWith(401, body), "oidc token request")
+	got := err.Error()
+	for _, want := range []string{"oidc token request", "401", "invalid_client", "(truncated)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected error to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "error_description") {
+		t.Errorf("expected formatted envelope, got raw JSON: %q", got)
+	}
+}
+
 func TestHttpStatusError_EmptyBody(t *testing.T) {
 	err := httpStatusError(responseWith(503, ""), "get IP sources")
 	got := err.Error()

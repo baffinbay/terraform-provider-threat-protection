@@ -101,11 +101,18 @@ func TestLoadCache_PermissiveMode_StillLoads(t *testing.T) {
 	if got == nil || got.AccessToken != "t" {
 		t.Errorf("expected token to still load; got %+v", got)
 	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat cache: %v", err)
+	}
+	if mode := fi.Mode().Perm(); mode != 0o600 {
+		t.Errorf("expected cache file mode repaired to 0600, got %#o", mode)
+	}
 }
 
 func TestCachePath_EnvOverride(t *testing.T) {
 	t.Setenv("BAFFINBAY_TOKEN_CACHE", "/tmp/override.json")
-	got, err := CachePath("https://example.com", "client")
+	got, err := cachePath("https://example.com", "client")
 	if err != nil {
 		t.Fatalf("CachePath: %v", err)
 	}
@@ -116,11 +123,11 @@ func TestCachePath_EnvOverride(t *testing.T) {
 
 func TestCachePath_DefaultUsesUserConfigDir(t *testing.T) {
 	t.Setenv("BAFFINBAY_TOKEN_CACHE", "")
-	p1, err := CachePath("https://example.com/a", "client-a")
+	p1, err := cachePath("https://example.com/a", "client-a")
 	if err != nil {
 		t.Fatalf("CachePath a: %v", err)
 	}
-	p2, err := CachePath("https://example.com/b", "client-a")
+	p2, err := cachePath("https://example.com/b", "client-a")
 	if err != nil {
 		t.Fatalf("CachePath b: %v", err)
 	}
@@ -134,14 +141,14 @@ func TestCachePath_DefaultUsesUserConfigDir(t *testing.T) {
 
 func TestCachePath_RejectsRelativeOverride(t *testing.T) {
 	t.Setenv("BAFFINBAY_TOKEN_CACHE", "relative/cache.json")
-	if _, err := CachePath("https://example.com", "client"); err == nil {
+	if _, err := cachePath("https://example.com", "client"); err == nil {
 		t.Fatal("expected error for relative override path")
 	}
 }
 
 func TestCachePath_WhitespaceOverrideFallsThrough(t *testing.T) {
 	t.Setenv("BAFFINBAY_TOKEN_CACHE", "   ")
-	got, err := CachePath("https://example.com", "client")
+	got, err := cachePath("https://example.com", "client")
 	if err != nil {
 		t.Fatalf("CachePath: %v", err)
 	}

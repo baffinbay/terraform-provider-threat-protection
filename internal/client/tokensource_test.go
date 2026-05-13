@@ -63,7 +63,7 @@ func TestBuildTokenSource_MintsOnce(t *testing.T) {
 		t.Fatalf("BuildTokenSource: %v", err)
 	}
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		tok, err := ts.Token()
 		if err != nil {
 			t.Fatalf("Token(): %v", err)
@@ -215,6 +215,50 @@ func TestBuildTokenSource_ResponseMissingAccessToken(t *testing.T) {
 	_, err = ts.Token()
 	if err == nil || !strings.Contains(err.Error(), "missing access_token") {
 		t.Errorf("expected missing access_token error, got %v", err)
+	}
+}
+
+func TestBuildTokenSource_ResponseMissingTokenType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(oidcResponse{AccessToken: "token", ExpiresIn: 3600})
+	}))
+	defer srv.Close()
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    filepath.Join(t.TempDir(), "cache.json"),
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	_, err = ts.Token()
+	if err == nil || !strings.Contains(err.Error(), "missing token_type") {
+		t.Errorf("expected missing token_type error, got %v", err)
+	}
+}
+
+func TestBuildTokenSource_ResponseMissingExpiresIn(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(oidcResponse{AccessToken: "token", TokenType: "Bearer"})
+	}))
+	defer srv.Close()
+
+	ts, err := BuildTokenSource(context.Background(), TokenSourceConfig{
+		OIDCURL:      srv.URL,
+		ClientID:     "cid",
+		ClientSecret: "csecret",
+		CachePath:    filepath.Join(t.TempDir(), "cache.json"),
+	})
+	if err != nil {
+		t.Fatalf("BuildTokenSource: %v", err)
+	}
+	_, err = ts.Token()
+	if err == nil || !strings.Contains(err.Error(), "invalid expires_in") {
+		t.Errorf("expected invalid expires_in error, got %v", err)
 	}
 }
 

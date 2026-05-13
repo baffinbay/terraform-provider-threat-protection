@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 )
@@ -90,8 +89,7 @@ func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*C
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create custom page (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create custom page")
 	}
 
 	var cpResp CustomPageResponse
@@ -115,7 +113,7 @@ func (c *Client) DeleteCustomPage(ctx context.Context, id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete custom page (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete custom page")
 	}
 
 	return nil
@@ -148,8 +146,7 @@ func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPa
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get custom pages (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get custom pages")
 	}
 
 	var cpResp CustomPagesResponse

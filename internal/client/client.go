@@ -12,39 +12,62 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// httpStatusErrorBodyCap bounds how much of a non-OK response body we
-// surface in errors. Bigger bodies are truncated so a misbehaving server
-// cannot flood Terraform diagnostics or CI logs.
-const httpStatusErrorBodyCap = 1024
+const (
+	// httpStatusErrorBodyCap bounds how much response detail we surface in
+	// errors, so a misbehaving server cannot flood Terraform diagnostics or CI
+	// logs.
+	httpStatusErrorBodyCap = 1024
+
+	// httpStatusErrorParseCap bounds how much body data we inspect before
+	// formatting a capped error. It is intentionally larger than the displayed
+	// snippet so structured OAuth errors are parsed before display truncation.
+	httpStatusErrorParseCap = 64 * 1024
+)
 
 // httpStatusError builds a redacted error for a non-OK HTTP response. It
 // prefers the RFC 6749 OAuth error envelope ({"error", "error_description"})
 // when present and otherwise emits a trimmed snippet, capped at
 // httpStatusErrorBodyCap bytes.
 func httpStatusError(resp *http.Response, action string) error {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, httpStatusErrorBodyCap+1))
-	truncated := len(body) > httpStatusErrorBodyCap
-	if truncated {
-		body = body[:httpStatusErrorBodyCap]
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, httpStatusErrorParseCap+1))
+	bodyTruncated := len(body) > httpStatusErrorParseCap
+	if bodyTruncated {
+		body = body[:httpStatusErrorParseCap]
 	}
+
+	snippet := oauthErrorSnippet(body)
+	if snippet == "" {
+		snippet = strings.TrimSpace(string(body))
+	}
+	snippet, snippetTruncated := truncateHTTPErrorSnippet(snippet)
+	if snippet == "" {
+		return fmt.Errorf("%s failed (status %d)", action, resp.StatusCode)
+	}
+	if snippetTruncated || bodyTruncated {
+		snippet += "...(truncated)"
+	}
+	return fmt.Errorf("%s failed (status %d): %s", action, resp.StatusCode, snippet)
+}
+
+func oauthErrorSnippet(body []byte) string {
 	var env struct {
 		Err  string `json:"error"`
 		Desc string `json:"error_description"`
 	}
 	if json.Unmarshal(body, &env) == nil && env.Err != "" {
 		if env.Desc != "" {
-			return fmt.Errorf("%s failed (status %d): %s: %s", action, resp.StatusCode, env.Err, env.Desc)
+			return strings.TrimSpace(env.Err + ": " + env.Desc)
 		}
-		return fmt.Errorf("%s failed (status %d): %s", action, resp.StatusCode, env.Err)
+		return strings.TrimSpace(env.Err)
 	}
-	snippet := strings.TrimSpace(string(body))
-	if snippet == "" {
-		return fmt.Errorf("%s failed (status %d)", action, resp.StatusCode)
+	return ""
+}
+
+func truncateHTTPErrorSnippet(snippet string) (string, bool) {
+	if len(snippet) <= httpStatusErrorBodyCap {
+		return snippet, false
 	}
-	if truncated {
-		snippet += "…(truncated)"
-	}
-	return fmt.Errorf("%s failed (status %d): %s", action, resp.StatusCode, snippet)
+	return snippet[:httpStatusErrorBodyCap], true
 }
 
 type Client struct {

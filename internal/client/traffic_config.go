@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -157,8 +156,7 @@ func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigR
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create traffic config (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create traffic config")
 	}
 
 	var tcResp TrafficConfigResponse
@@ -197,8 +195,7 @@ func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData Tra
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to update traffic config (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "update traffic config")
 	}
 
 	var tcResp TrafficConfigResponse
@@ -222,7 +219,7 @@ func (c *Client) DeleteTrafficConfig(ctx context.Context, id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete traffic config (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete traffic config")
 	}
 
 	return nil
@@ -251,8 +248,7 @@ func (c *Client) GetTrafficConfigs(ctx context.Context) (*TrafficConfigsResponse
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get traffic configs (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get traffic configs")
 	}
 
 	var tcResp TrafficConfigsResponse

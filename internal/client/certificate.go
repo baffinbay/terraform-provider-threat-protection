@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -79,8 +78,7 @@ func (c *Client) CreateCertificate(ctx context.Context, certType, cert, intermed
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create certificate (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create certificate")
 	}
 
 	var certResp CertificateResponse
@@ -104,7 +102,7 @@ func (c *Client) DeleteCertificate(ctx context.Context, id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete certificate (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete certificate")
 	}
 
 	return nil
@@ -165,8 +163,7 @@ func (c *Client) CreateCaCertificate(ctx context.Context, name, certificate stri
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create CA certificate (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "create CA certificate")
 	}
 
 	var caResp CaCertificateResponse
@@ -190,7 +187,7 @@ func (c *Client) DeleteCaCertificate(ctx context.Context, id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete CA certificate (status %d)", resp.StatusCode)
+		return httpStatusError(resp, "delete CA certificate")
 	}
 
 	return nil
@@ -219,8 +216,7 @@ func (c *Client) GetCertificates(ctx context.Context) (*CertificatesResponse, er
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get certificates (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get certificates")
 	}
 
 	var certsResp CertificatesResponse
@@ -254,8 +250,7 @@ func (c *Client) GetCaCertificates(ctx context.Context) (*CaCertificatesResponse
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get CA certificates (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, httpStatusError(resp, "get CA certificates")
 	}
 
 	var caResp CaCertificatesResponse

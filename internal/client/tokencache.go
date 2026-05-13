@@ -31,10 +31,10 @@ type cachedToken struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
-// CachePath computes the on-disk cache path for a given OIDC endpoint + client ID.
+// cachePath computes the on-disk cache path for a given OIDC endpoint + client ID.
 // Honors $BAFFINBAY_TOKEN_CACHE when set to a non-empty absolute path. Otherwise
 // derives from os.UserConfigDir.
-func CachePath(oidcURL, clientID string) (string, error) {
+func cachePath(oidcURL, clientID string) (string, error) {
 	if p := strings.TrimSpace(os.Getenv("BAFFINBAY_TOKEN_CACHE")); p != "" {
 		if !filepath.IsAbs(p) {
 			return "", fmt.Errorf("BAFFINBAY_TOKEN_CACHE must be an absolute path, got %q", p)
@@ -52,7 +52,7 @@ func CachePath(oidcURL, clientID string) (string, error) {
 
 // loadCache reads the cache file at path. Missing or corrupt files are treated
 // as cache misses (returns nil, nil). A file present with wider-than-0600
-// permissions logs a warning but still loads.
+// permissions is fixed before loading.
 func loadCache(ctx context.Context, path string) (*oauth2.Token, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -62,8 +62,11 @@ func loadCache(ctx context.Context, path string) (*oauth2.Token, error) {
 		return nil, err
 	}
 	if mode := info.Mode().Perm(); mode&0o077 != 0 {
-		tflog.Warn(ctx, "baffinbay token cache has overly permissive mode; will be rewritten at 0600 on next refresh",
-			map[string]interface{}{"path": path, "mode": fmt.Sprintf("%#o", mode)})
+		tflog.Warn(ctx, "baffinbay token cache has overly permissive mode; fixing mode to 0600",
+			map[string]any{"path": path, "mode": fmt.Sprintf("%#o", mode)})
+		if err := os.Chmod(path, cacheFileMode); err != nil {
+			return nil, fmt.Errorf("fix token cache mode: %w", err)
+		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -73,16 +76,12 @@ func loadCache(ctx context.Context, path string) (*oauth2.Token, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, nil
 	}
-	if c.Version != cacheVersion || c.AccessToken == "" {
+	if c.Version != cacheVersion || c.AccessToken == "" || c.TokenType == "" {
 		return nil, nil
-	}
-	tt := c.TokenType
-	if tt == "" {
-		tt = "Bearer"
 	}
 	return &oauth2.Token{
 		AccessToken: c.AccessToken,
-		TokenType:   tt,
+		TokenType:   c.TokenType,
 		Expiry:      c.ExpiresAt,
 	}, nil
 }
@@ -109,26 +108,20 @@ func saveCache(path string, tok *oauth2.Token) error {
 		return err
 	}
 	tmpPath := tmp.Name()
-	cleanup := func() { _ = os.Remove(tmpPath) }
-	if _, err := tmp.Write(data); err != nil {
+	defer func() {
 		_ = tmp.Close()
-		cleanup()
+		_ = os.Remove(tmpPath)
+	}()
+	if _, err := tmp.Write(data); err != nil {
 		return err
 	}
 	if err := tmp.Chmod(cacheFileMode); err != nil {
-		_ = tmp.Close()
-		cleanup()
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		cleanup()
 		return err
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		cleanup()
-		return err
-	}
-	return nil
+	return os.Rename(tmpPath, path)
 }
 
 // withLock acquires an exclusive flock on a sibling .lock file next to path,
