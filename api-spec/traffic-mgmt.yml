@@ -24,16 +24,16 @@ paths:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/Ipv4Source'
-                        - $ref: '#/components/schemas/Ipv6Source'
+                        - $ref: "#/components/schemas/Ipv4Source"
+                        - $ref: "#/components/schemas/Ipv6Source"
   /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}/changelog/{changeId}:
     get:
       tags:
         - Traffic Management
       summary: Get a Change Log entry
       parameters:
-        - $ref: '#/components/parameters/trafficConfigId'
-        - $ref: '#/components/parameters/changeId'
+        - $ref: "#/components/parameters/trafficConfigId"
+        - $ref: "#/components/parameters/changeId"
       responses:
         200:
           description: Traffic Configuration change status.
@@ -42,9 +42,9 @@ paths:
               schema:
                 type: object
                 oneOf:
-                  - $ref: '#/components/schemas/StateChange'
-                  - $ref: '#/components/schemas/StateApplied'
-                  - $ref: '#/components/schemas/StateFailed'
+                  - $ref: "#/components/schemas/StateChange"
+                  - $ref: "#/components/schemas/StateApplied"
+                  - $ref: "#/components/schemas/StateFailed"
   /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}:
     get:
       tags:
@@ -72,9 +72,9 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/RoutedDsr'
-                          - $ref: '#/components/schemas/HttpProxy'
-                          - $ref: '#/components/schemas/L4Proxy'
+                          - $ref: "#/components/schemas/RoutedDsr"
+                          - $ref: "#/components/schemas/HttpProxy"
+                          - $ref: "#/components/schemas/L4Proxy"
                       relationships:
                         type: object
                         properties:
@@ -176,9 +176,9 @@ paths:
                         - httpProxy
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/PatchL4Proxy'
-                        - $ref: '#/components/schemas/PatchRoutedDsr'
-                        - $ref: '#/components/schemas/PatchHttpProxy'
+                        - $ref: "#/components/schemas/PatchL4Proxy"
+                        - $ref: "#/components/schemas/PatchRoutedDsr"
+                        - $ref: "#/components/schemas/PatchHttpProxy"
       responses:
         200:
           description: Response object
@@ -201,9 +201,9 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/PatchL4Proxy'
-                          - $ref: '#/components/schemas/PatchRoutedDsr'
-                          - $ref: '#/components/schemas/PatchHttpProxy'
+                          - $ref: "#/components/schemas/PatchL4Proxy"
+                          - $ref: "#/components/schemas/PatchRoutedDsr"
+                          - $ref: "#/components/schemas/PatchHttpProxy"
                       relationships:
                         type: object
                         properties:
@@ -274,7 +274,7 @@ paths:
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
     put:
       summary: Update a Traffic Configuration
       tags:
@@ -298,9 +298,9 @@ paths:
                         - httpProxy
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/L4Proxy'
-                        - $ref: '#/components/schemas/RoutedDsr'
-                        - $ref: '#/components/schemas/HttpProxy'
+                        - $ref: "#/components/schemas/L4Proxy"
+                        - $ref: "#/components/schemas/RoutedDsr"
+                        - $ref: "#/components/schemas/HttpProxy"
                     relationships:
                       type: object
                       properties:
@@ -338,9 +338,9 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/L4Proxy'
-                          - $ref: '#/components/schemas/RoutedDsr'
-                          - $ref: '#/components/schemas/HttpProxy'
+                          - $ref: "#/components/schemas/L4Proxy"
+                          - $ref: "#/components/schemas/RoutedDsr"
+                          - $ref: "#/components/schemas/HttpProxy"
                       relationships:
                         type: object
                         properties:
@@ -405,13 +405,13 @@ paths:
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
     delete:
       tags:
         - Traffic Management
       summary: Delete a Traffic Configuration
       parameters:
-        - $ref: '#/components/parameters/trafficConfigId'
+        - $ref: "#/components/parameters/trafficConfigId"
       responses:
         200:
           description: Ok
@@ -676,9 +676,9 @@ paths:
                           format: uuid
                         attributes:
                           oneOf:
-                            - $ref: '#/components/schemas/HttpProxy'
-                            - $ref: '#/components/schemas/RoutedDsr'
-                            - $ref: '#/components/schemas/L4Proxy'
+                            - $ref: "#/components/schemas/HttpProxy"
+                            - $ref: "#/components/schemas/RoutedDsr"
+                            - $ref: "#/components/schemas/L4Proxy"
                         relationships:
                           type: object
                           properties:
@@ -781,9 +781,9 @@ paths:
                         - l4Proxy
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/CreateHttpProxy'
-                        - $ref: '#/components/schemas/CreateRoutedDsr'
-                        - $ref: '#/components/schemas/CreateL4Proxy'
+                        - $ref: "#/components/schemas/CreateHttpProxy"
+                        - $ref: "#/components/schemas/CreateRoutedDsr"
+                        - $ref: "#/components/schemas/CreateL4Proxy"
                     relationships:
                       type: object
                       required:
@@ -828,9 +828,9 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/HttpProxy'
-                          - $ref: '#/components/schemas/L4Proxy'
-                          - $ref: '#/components/schemas/RoutedDsr'
+                          - $ref: "#/components/schemas/HttpProxy"
+                          - $ref: "#/components/schemas/L4Proxy"
+                          - $ref: "#/components/schemas/RoutedDsr"
                       relationships:
                         type: object
                         properties:
@@ -902,7 +902,7 @@ paths:
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
   /api/v2/traffic-mgmt/certificates:
     get:
       tags:
@@ -920,8 +920,8 @@ paths:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/ImportedCertificateConfigData'
-                        - $ref: '#/components/schemas/LetsEncryptConfigData'
+                        - $ref: "#/components/schemas/ImportedCertificateConfigData"
+                        - $ref: "#/components/schemas/LetsEncryptConfigData"
   /api/v2/traffic-mgmt/certificates/lets-encrypt:
     post:
       tags:
@@ -997,13 +997,13 @@ paths:
                                 enum:
                                   - UNINITIATED
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
   /api/v2/traffic-mgmt/certificates/pem:
     post:
       tags:
@@ -1067,22 +1067,22 @@ paths:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+                        $ref: "#/components/schemas/ImportedCertificateConfigAttributes"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
   /api/v2/traffic-mgmt/certificates/{certificateConfigId}:
     delete:
       tags:
         - Certificate Management
       summary: Delete a Certificate
       parameters:
-        - $ref: '#/components/parameters/certificateConfigId'
+        - $ref: "#/components/parameters/certificateConfigId"
       responses:
         204:
           description: Ok
@@ -1098,7 +1098,7 @@ paths:
         - Certificate Management
       summary: Trigger manual renewal of Let's Encrypt Certificate
       parameters:
-        - $ref: '#/components/parameters/certificateConfigId'
+        - $ref: "#/components/parameters/certificateConfigId"
       responses:
         200:
           description: Ok
@@ -1110,7 +1110,7 @@ paths:
         - Core Rule Set Management
       summary: Get a Core Rule Set
       parameters:
-        - $ref: '#/components/parameters/coreRuleSetId'
+        - $ref: "#/components/parameters/coreRuleSetId"
       responses:
         200:
           description: Return the core rule set corresponding to the coreRuleSetId parameter.
@@ -1129,7 +1129,7 @@ paths:
                         type: string
                         example: coreRuleSet
                       attributes:
-                        $ref: '#/components/schemas/CoreRuleSet'
+                        $ref: "#/components/schemas/CoreRuleSet"
         403:
           description: Forbidden
         404:
@@ -1172,7 +1172,7 @@ paths:
         404:
           description: NOT FOUND
         409:
-          description: 'CONFLICT: when trying to delete an IP Allocation that is in use by a traffic config'
+          description: "CONFLICT: when trying to delete an IP Allocation that is in use by a traffic config"
         500:
           description: INTERNAL ERROR
   /api/v2/traffic-mgmt/ca-bundles:
@@ -1202,7 +1202,7 @@ paths:
                       enum:
                         - caBundle
                     attributes:
-                      $ref: '#/components/schemas/CreateCaBundle'
+                      $ref: "#/components/schemas/CreateCaBundle"
                     relationships:
                       type: object
                       required:
@@ -1244,15 +1244,15 @@ paths:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/CaBundle'
+                        $ref: "#/components/schemas/CaBundle"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
     get:
       description: Get CA Bundles
       tags:
@@ -1281,9 +1281,9 @@ paths:
                           type: string
                           format: uuid
                         attributes:
-                          $ref: '#/components/schemas/CaBundle'
+                          $ref: "#/components/schemas/CaBundle"
                         relationships:
-                          $ref: '#/components/schemas/CertificateRelationships'
+                          $ref: "#/components/schemas/CertificateRelationships"
         403:
           description: Forbidden
         500:
@@ -1313,9 +1313,9 @@ paths:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/CaBundle'
+                        $ref: "#/components/schemas/CaBundle"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         403:
           description: Forbidden
         404:
@@ -1510,7 +1510,7 @@ components:
         - protocol
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
@@ -1584,19 +1584,19 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
@@ -1612,7 +1612,7 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           default: 0.0.1
@@ -1708,21 +1708,21 @@ components:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
@@ -1735,7 +1735,7 @@ components:
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
@@ -1815,19 +1815,19 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
@@ -1848,14 +1848,14 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/FrontendsTlsCase'
-            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+            - $ref: "#/components/schemas/FrontendsTlsCase"
+            - $ref: "#/components/schemas/FrontendsPlaintextCase"
         backend:
           type: object
           required:
@@ -1927,8 +1927,8 @@ components:
                 - verifyCertificate
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+            - $ref: "#/components/schemas/ProtocolSettingsHttp1_1"
+            - $ref: "#/components/schemas/ProtocolSettingsHttp2_0"
         deployment:
           type: object
           properties:
@@ -2152,23 +2152,23 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: '#/components/schemas/RateLimit'
+            - $ref: "#/components/schemas/RateLimit"
             - type: object
               properties:
                 exclusions:
@@ -2262,9 +2262,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/RateLimit'
+                    $ref: "#/components/schemas/RateLimit"
                   setMaxBodySize:
-                    $ref: '#/components/schemas/MaxBodySize'
+                    $ref: "#/components/schemas/MaxBodySize"
         dataProtection:
           type: object
           properties:
@@ -2309,14 +2309,14 @@ components:
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.1.0
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/PatchFrontendsTlsCase'
-            - $ref: '#/components/schemas/PatchFrontendsPlaintextCase'
+            - $ref: "#/components/schemas/PatchFrontendsTlsCase"
+            - $ref: "#/components/schemas/PatchFrontendsPlaintextCase"
         backend:
           type: object
           minProperties: 1
@@ -2389,8 +2389,8 @@ components:
                         - mode
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/PatchProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/PatchProtocolSettingsHttp2_0'
+            - $ref: "#/components/schemas/PatchProtocolSettingsHttp1_1"
+            - $ref: "#/components/schemas/PatchProtocolSettingsHttp2_0"
         deployment:
           type: object
           minProperties: 1
@@ -2591,26 +2591,26 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         maxBodySize:
-          $ref: '#/components/schemas/PatchMaxBodySize'
+          $ref: "#/components/schemas/PatchMaxBodySize"
         rateLimiting:
           minProperties: 1
           allOf:
-            - $ref: '#/components/schemas/PatchRateLimit'
+            - $ref: "#/components/schemas/PatchRateLimit"
             - type: object
               properties:
                 exclusions:
@@ -2711,9 +2711,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/PatchRateLimit'
+                    $ref: "#/components/schemas/PatchRateLimit"
                   maxBodySize:
-                    $ref: '#/components/schemas/PatchMaxBodySize'
+                    $ref: "#/components/schemas/PatchMaxBodySize"
         dataProtection:
           type: object
           minProperties: 1
@@ -2775,14 +2775,14 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           default: 0.1.0
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/FrontendsTlsCase'
-            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+            - $ref: "#/components/schemas/FrontendsTlsCase"
+            - $ref: "#/components/schemas/FrontendsPlaintextCase"
         backend:
           type: object
           required:
@@ -2857,8 +2857,8 @@ components:
                 - verifyCertificate
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+            - $ref: "#/components/schemas/ProtocolSettingsHttp1_1"
+            - $ref: "#/components/schemas/ProtocolSettingsHttp2_0"
         deployment:
           type: object
           properties:
@@ -3113,25 +3113,25 @@ components:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
                 geoLocations:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: '#/components/schemas/RateLimit'
+            - $ref: "#/components/schemas/RateLimit"
             - type: object
               properties:
                 exclusions:
@@ -3237,9 +3237,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/RateLimit'
+                    $ref: "#/components/schemas/RateLimit"
                   setMaxBodySize:
-                    $ref: '#/components/schemas/MaxBodySize'
+                    $ref: "#/components/schemas/MaxBodySize"
         dataProtection:
           type: object
           properties:
@@ -3747,7 +3747,7 @@ components:
       type: object
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
           example: 192.168.1.0/24
@@ -3772,7 +3772,7 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
           example: 192.168.1.0/24
@@ -3796,7 +3796,7 @@ components:
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
           example: 192.168.1.0/24
@@ -3942,7 +3942,7 @@ components:
       type: object
       properties:
         activeCertificate:
-          $ref: '#/components/schemas/Certificate'
+          $ref: "#/components/schemas/Certificate"
         createdBy:
           type: string
         createdAt:
@@ -3982,9 +3982,9 @@ components:
           type: string
           format: uuid
         attributes:
-          $ref: '#/components/schemas/CreatedLetsEncryptConfigAttributes'
+          $ref: "#/components/schemas/CreatedLetsEncryptConfigAttributes"
         relationships:
-          $ref: '#/components/schemas/CertificateRelationships'
+          $ref: "#/components/schemas/CertificateRelationships"
     ImportedCertificateConfigData:
       type: object
       properties:
@@ -3996,9 +3996,9 @@ components:
           type: string
           format: uuid
         attributes:
-          $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+          $ref: "#/components/schemas/ImportedCertificateConfigAttributes"
         relationships:
-          $ref: '#/components/schemas/CertificateRelationships'
+          $ref: "#/components/schemas/CertificateRelationships"
     CertificateRelationships:
       type: object
       properties:
@@ -4053,7 +4053,7 @@ components:
         activeCertificate:
           nullable: true
           allOf:
-            - $ref: '#/components/schemas/Certificate'
+            - $ref: "#/components/schemas/Certificate"
         renewal:
           oneOf:
             - type: object
@@ -4272,7 +4272,7 @@ components:
             properties:
               certificate:
                 type: string
-                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+                example: "-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----"
                 description: The certificate in PEM format
               crlUrl:
                 type: string
@@ -4318,7 +4318,7 @@ components:
                 example: http://some.cert.revocation.list.crl
               certificate:
                 type: string
-                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+                example: "-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----"
         name:
           type: string
           example: some-ca-common-name
@@ -4341,4 +4341,3 @@ components:
                 type: string
               reason:
                 type: string
-string
