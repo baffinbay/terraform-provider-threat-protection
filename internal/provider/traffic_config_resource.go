@@ -156,6 +156,7 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"deployment_state": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
 				MarkdownDescription: "The deployment state (DEPLOYED, UNDEPLOYED).",
 				Default:             stringdefault.StaticString("UNDEPLOYED"),
 				Validators: []validator.String{

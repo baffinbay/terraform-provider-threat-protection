@@ -75,9 +75,13 @@ func BuildTokenSource(ctx context.Context, cfg TokenSourceConfig) (oauth2.TokenS
 	if cached != nil && !cached.Valid() {
 		cached = nil
 	}
+	// TokenSource has no per-call context parameter and outlives provider
+	// Configure, so do not retain the short-lived Configure context for future
+	// token mint/cache operations.
+	runtimeCtx := context.Background()
 	inner := &savingTokenSource{
-		ctx:       ctx,
-		mint:      &oidcTokenSource{ctx: ctx, cfg: cfg},
+		ctx:       runtimeCtx,
+		mint:      &oidcTokenSource{ctx: runtimeCtx, cfg: cfg},
 		cachePath: cfg.CachePath,
 	}
 	return oauth2.ReuseTokenSource(cached, inner), nil

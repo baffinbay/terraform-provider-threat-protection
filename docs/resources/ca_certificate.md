@@ -18,8 +18,8 @@ Manages a Baffin Bay CA Certificate.
 ### Required
 
 - `certificate` (String, Sensitive) The PEM encoded CA certificate(s).
-- `name` (String) The name of the CA certificate.
 
 ### Read-Only
 
 - `id` (String) The ID of the CA certificate.
+- `name` (String) The API-derived name of the CA certificate.
