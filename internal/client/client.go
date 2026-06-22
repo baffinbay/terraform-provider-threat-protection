@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,33 @@ const (
 	httpStatusErrorParseCap = 64 * 1024
 )
 
+// HTTPStatusError is returned when the API responds with a non-success status.
+// It preserves the status code so resource lifecycle code can handle expected
+// statuses such as 404 Not Found without parsing error strings.
+type HTTPStatusError struct {
+	Action     string
+	StatusCode int
+	Snippet    string
+}
+
+func (e *HTTPStatusError) Error() string {
+	if e.Snippet == "" {
+		return fmt.Sprintf("%s failed (status %d)", e.Action, e.StatusCode)
+	}
+	return fmt.Sprintf("%s failed (status %d): %s", e.Action, e.StatusCode, e.Snippet)
+}
+
+// IsHTTPStatus reports whether err is an HTTPStatusError with the given status.
+func IsHTTPStatus(err error, statusCode int) bool {
+	var statusErr *HTTPStatusError
+	return errors.As(err, &statusErr) && statusErr.StatusCode == statusCode
+}
+
+// IsNotFound reports whether err is an HTTP 404 response error.
+func IsNotFound(err error) bool {
+	return IsHTTPStatus(err, http.StatusNotFound)
+}
+
 // httpStatusError builds a redacted error for a non-OK HTTP response. It
 // prefers the RFC 6749 OAuth error envelope ({"error", "error_description"})
 // when present and otherwise emits a trimmed snippet, capped at
@@ -40,13 +68,15 @@ func httpStatusError(resp *http.Response, action string) error {
 		snippet = strings.TrimSpace(string(body))
 	}
 	snippet, snippetTruncated := truncateHTTPErrorSnippet(snippet)
-	if snippet == "" {
-		return fmt.Errorf("%s failed (status %d)", action, resp.StatusCode)
-	}
 	if snippetTruncated || bodyTruncated {
 		snippet += "...(truncated)"
 	}
-	return fmt.Errorf("%s failed (status %d): %s", action, resp.StatusCode, snippet)
+
+	return &HTTPStatusError{
+		Action:     action,
+		StatusCode: resp.StatusCode,
+		Snippet:    snippet,
+	}
 }
 
 func oauthErrorSnippet(body []byte) string {
