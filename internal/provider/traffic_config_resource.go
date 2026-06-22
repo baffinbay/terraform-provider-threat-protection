@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -142,6 +143,12 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 			"type": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "The type of traffic configuration (l4Proxy, routedDsr, httpProxy).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("l4Proxy", "routedDsr", "httpProxy"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:            true,
@@ -150,6 +157,10 @@ func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaR
 			"deployment_state": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "The deployment state (DEPLOYED, UNDEPLOYED).",
+				Default:             stringdefault.StaticString("UNDEPLOYED"),
+				Validators: []validator.String{
+					stringvalidator.OneOf("DEPLOYED", "UNDEPLOYED"),
+				},
 			},
 			"frontend": schema.SingleNestedAttribute{
 				Optional: true,
@@ -368,6 +379,17 @@ func (r *TrafficConfigResource) Create(ctx context.Context, req resource.CreateR
 
 	data.ID = types.StringValue(tc.Data.ID)
 
+	if err := r.client.WaitForTrafficConfigChange(ctx, tc.Data.ID, tc.Data.ActiveChangeID()); err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for traffic config create, got error: %s", err))
+		return
+	}
+
+	data, err = r.readTrafficConfig(ctx, data)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read traffic config after create, got error: %s", err))
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -377,6 +399,19 @@ func (r *TrafficConfigResource) Read(ctx context.Context, req resource.ReadReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	data, err := r.readTrafficConfig(ctx, data)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read traffic config, got error: %s", err))
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *TrafficConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -389,9 +424,20 @@ func (r *TrafficConfigResource) Update(ctx context.Context, req resource.UpdateR
 
 	reqData := mapModelToRequest(data)
 
-	_, err := r.client.UpdateTrafficConfig(ctx, data.ID.ValueString(), reqData)
+	tc, err := r.client.UpdateTrafficConfig(ctx, data.ID.ValueString(), reqData)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update traffic config, got error: %s", err))
+		return
+	}
+
+	if err := r.client.WaitForTrafficConfigChange(ctx, data.ID.ValueString(), tc.Data.ActiveChangeID()); err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for traffic config update, got error: %s", err))
+		return
+	}
+
+	data, err = r.readTrafficConfig(ctx, data)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read traffic config after update, got error: %s", err))
 		return
 	}
 
@@ -550,6 +596,250 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	}
 
 	return reqData
+}
+
+func (r *TrafficConfigResource) readTrafficConfig(ctx context.Context, prior TrafficConfigResourceModel) (TrafficConfigResourceModel, error) {
+	tc, err := r.client.GetTrafficConfig(ctx, prior.ID.ValueString())
+	if err != nil {
+		return prior, err
+	}
+
+	return mapTrafficConfigResponseToModel(tc, prior), nil
+}
+
+func mapTrafficConfigResponseToModel(tc *client.TrafficConfigResponse, prior TrafficConfigResourceModel) TrafficConfigResourceModel {
+	data := prior
+	data.ID = types.StringValue(tc.Data.ID)
+
+	if tc.Data.Type != "" {
+		data.Type = types.StringValue(tc.Data.Type)
+	}
+	if tc.Data.Attributes.Name != "" {
+		data.Name = types.StringValue(tc.Data.Attributes.Name)
+	}
+	if tc.Data.Attributes.Deployment.State != "" {
+		data.DeploymentState = types.StringValue(tc.Data.Attributes.Deployment.State)
+	}
+
+	data.Frontend = mapFrontendResponseToModel(tc.Data.Attributes.Frontend, prior.Frontend)
+	data.Backend = mapBackendResponseToModel(tc.Data.Attributes.Backend, prior.Backend)
+	data.ProtocolSettings = mapProtocolSettingsResponseToModel(tc.Data.Attributes.ProtocolSettings, prior.ProtocolSettings)
+	data.WAF = mapWafResponseToModel(tc.Data.Attributes.WAF, prior.WAF)
+	data.RateLimiting = mapRateLimitingResponseToModel(tc.Data.Attributes.RateLimiting, prior.RateLimiting)
+
+	if tc.Data.Attributes.Prefix != "" {
+		data.Prefix = types.StringValue(tc.Data.Attributes.Prefix)
+	}
+	if tc.Data.Attributes.Announced || !prior.Announced.IsNull() {
+		data.Announced = types.BoolValue(tc.Data.Attributes.Announced)
+	}
+
+	return data
+}
+
+func mapFrontendResponseToModel(frontend *client.Frontend, prior *FrontendModel) *FrontendModel {
+	if frontend == nil {
+		return prior
+	}
+
+	data := &FrontendModel{}
+	if prior != nil {
+		priorCopy := *prior
+		data = &priorCopy
+	}
+
+	if frontend.ConnectionType != "" {
+		data.ConnectionType = types.StringValue(frontend.ConnectionType)
+	}
+	if frontend.Port != 0 {
+		data.Port = types.Int64Value(frontend.Port)
+	}
+	if frontend.IPv4 != "" {
+		data.IPv4 = types.StringValue(frontend.IPv4)
+	} else if frontend.IP != "" && data.IPv4.IsNull() {
+		data.IPv4 = types.StringValue(frontend.IP)
+	}
+	if frontend.IPv6 != "" {
+		data.IPv6 = types.StringValue(frontend.IPv6)
+	}
+	if frontend.RedirectHttp || (prior != nil && !prior.RedirectHttp.IsNull()) {
+		data.RedirectHttp = types.BoolValue(frontend.RedirectHttp)
+	}
+
+	if len(frontend.Hosts) > 0 {
+		data.Hosts = make([]FrontendHostModel, 0, len(frontend.Hosts))
+		for _, host := range frontend.Hosts {
+			data.Hosts = append(data.Hosts, FrontendHostModel{
+				Host:          types.StringValue(host.Host),
+				CertificateID: optionalStringValue(host.CertificateID),
+				TLSConfig:     optionalStringValue(host.TLSConfig),
+			})
+		}
+	}
+
+	if frontend.HTTPStrictTransportSecurity != nil {
+		data.HSTS = &HstsModel{
+			Enabled:           types.BoolValue(frontend.HTTPStrictTransportSecurity.Enabled),
+			MaxAge:            types.Int64Value(frontend.HTTPStrictTransportSecurity.MaxAge),
+			IncludeSubdomains: types.BoolValue(frontend.HTTPStrictTransportSecurity.IncludeSubdomains),
+			Preload:           types.BoolValue(frontend.HTTPStrictTransportSecurity.Preload),
+		}
+	}
+
+	if frontend.ClientCertificateVerification != nil {
+		data.ClientCertificateVerification = &ClientCertificateVerification{
+			Mode:             types.StringValue(frontend.ClientCertificateVerification.Mode),
+			VerifyCrl:        types.BoolValue(frontend.ClientCertificateVerification.VerifyCrl),
+			CaCertificateIds: stringSliceToTypeValues(frontend.ClientCertificateVerification.CaCertificateIds),
+		}
+	}
+
+	return data
+}
+
+func mapBackendResponseToModel(backend *client.Backend, prior *BackendModel) *BackendModel {
+	if backend == nil {
+		return prior
+	}
+
+	data := &BackendModel{}
+	if prior != nil {
+		priorCopy := *prior
+		data = &priorCopy
+	}
+
+	if len(backend.Hosts) > 0 {
+		data.Hosts = make([]BackendHostModel, 0, len(backend.Hosts))
+		for _, host := range backend.Hosts {
+			data.Hosts = append(data.Hosts, BackendHostModel{
+				Address: types.StringValue(host.Address),
+				Port:    types.Int64Value(host.Port),
+			})
+		}
+	}
+	if backend.DeliveryMethod != "" {
+		data.DeliveryMethod = types.StringValue(backend.DeliveryMethod)
+	}
+	if backend.ServerName != "" {
+		data.ServerName = types.StringValue(backend.ServerName)
+	}
+
+	if backend.TLSSettings != nil {
+		data.TLSSettings = &TlsSettingsModel{
+			ClientCertificateID: optionalStringValue(backend.TLSSettings.ClientCertificateID),
+		}
+		if backend.TLSSettings.VerifyCertificate != nil {
+			data.TLSSettings.VerifyCertificate = &VerifyCertificateSettings{
+				Mode:             types.StringValue(backend.TLSSettings.VerifyCertificate.Mode),
+				CaCertificateIds: stringSliceToTypeValues(backend.TLSSettings.VerifyCertificate.CaCertificateIds),
+				VerifyCrl:        types.BoolValue(backend.TLSSettings.VerifyCertificate.VerifyCrl),
+			}
+		}
+	}
+
+	return data
+}
+
+func mapProtocolSettingsResponseToModel(settings *client.ProtocolSettings, prior *ProtocolSettingsModel) *ProtocolSettingsModel {
+	if settings == nil {
+		return prior
+	}
+
+	data := &ProtocolSettingsModel{}
+	if prior != nil {
+		priorCopy := *prior
+		data = &priorCopy
+	}
+
+	if settings.Version != "" {
+		data.Version = types.StringValue(settings.Version)
+	}
+	if settings.EnableWebsockets || (prior != nil && !prior.EnableWebsockets.IsNull()) {
+		data.EnableWebsockets = types.BoolValue(settings.EnableWebsockets)
+	}
+	if settings.Multiplexing || (prior != nil && !prior.Multiplexing.IsNull()) {
+		data.Multiplexing = types.BoolValue(settings.Multiplexing)
+	}
+
+	return data
+}
+
+func mapWafResponseToModel(waf *client.WAF, prior *WafModel) *WafModel {
+	if waf == nil {
+		return prior
+	}
+
+	data := &WafModel{}
+	if prior != nil {
+		priorCopy := *prior
+		data = &priorCopy
+	}
+
+	if waf.Enforcement != "" {
+		data.Enforcement = types.StringValue(waf.Enforcement)
+	}
+	if waf.ParanoidLevel != 0 {
+		data.ParanoidLevel = types.Int64Value(waf.ParanoidLevel)
+	}
+	if waf.CoreRuleSetID != "" {
+		data.CoreRuleSetID = types.StringValue(waf.CoreRuleSetID)
+	}
+	if len(waf.SourceExclusions.Sources) > 0 {
+		data.SourceExclusions = stringSliceToTypeValues(waf.SourceExclusions.Sources)
+	}
+
+	allowedMethods := waf.HTTPCompliance.GlobalConfig.AllowedHttpMethods
+	allowedVersions := waf.HTTPCompliance.GlobalConfig.AllowedHttpVersions
+	parameterLimit := waf.HTTPCompliance.GlobalConfig.ParameterLimit
+	if len(allowedMethods) > 0 || len(allowedVersions) > 0 || parameterLimit.Enabled {
+		data.HttpCompliance = &HttpComplianceModel{
+			AllowedMethods:  stringSliceToTypeValues(allowedMethods),
+			AllowedVersions: stringSliceToTypeValues(allowedVersions),
+		}
+		if parameterLimit.Enabled {
+			data.HttpCompliance.ParameterLimit = types.Int64Value(int64(parameterLimit.Limit))
+		}
+	}
+
+	return data
+}
+
+func mapRateLimitingResponseToModel(rateLimiting *client.RateLimit, prior *RateLimitingModel) *RateLimitingModel {
+	if rateLimiting == nil {
+		return prior
+	}
+
+	data := &RateLimitingModel{}
+	if prior != nil {
+		priorCopy := *prior
+		data = &priorCopy
+	}
+	if rateLimiting.Enforcement != "" {
+		data.Enforcement = types.StringValue(rateLimiting.Enforcement)
+	}
+
+	return data
+}
+
+func optionalStringValue(value string) types.String {
+	if value == "" {
+		return types.StringNull()
+	}
+
+	return types.StringValue(value)
+}
+
+func stringSliceToTypeValues(values []string) []types.String {
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]types.String, 0, len(values))
+	for _, value := range values {
+		result = append(result, types.StringValue(value))
+	}
+
+	return result
 }
 
 func (r *TrafficConfigResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

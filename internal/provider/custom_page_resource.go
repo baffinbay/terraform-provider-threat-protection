@@ -48,10 +48,16 @@ func (r *CustomPageResource) Schema(ctx context.Context, req resource.SchemaRequ
 			"name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "The name of the custom page file.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"content": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "The HTML content of the custom page.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -91,6 +97,12 @@ func (r *CustomPageResource) Create(ctx context.Context, req resource.CreateRequ
 
 	data.ID = types.StringValue(cp.Data.ID)
 
+	data, err = r.readCustomPage(ctx, data)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read custom page after create, got error: %s", err))
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -100,9 +112,47 @@ func (r *CustomPageResource) Read(ctx context.Context, req resource.ReadRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	data, err := r.readCustomPage(ctx, data)
+	if err != nil {
+		if client.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read custom page, got error: %s", err))
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *CustomPageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.AddError(
+		"Unsupported Custom Page Update",
+		"The Baffin Bay custom page API does not support in-place custom page updates. Configurable custom page fields are marked RequiresReplace; reaching Update indicates an unexpected planning path.",
+	)
+}
+
+func (r *CustomPageResource) readCustomPage(ctx context.Context, prior CustomPageResourceModel) (CustomPageResourceModel, error) {
+	customPage, err := r.client.FindCustomPageByID(ctx, prior.ID.ValueString())
+	if err != nil {
+		return prior, err
+	}
+
+	content, err := r.client.DownloadCustomPage(ctx, prior.ID.ValueString())
+	if err != nil {
+		return prior, err
+	}
+
+	data := prior
+	data.ID = types.StringValue(customPage.ID)
+	if customPage.Attributes.Name != "" {
+		data.Name = types.StringValue(customPage.Attributes.Name)
+	}
+	data.Content = types.StringValue(content)
+
+	return data, nil
 }
 
 func (r *CustomPageResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
