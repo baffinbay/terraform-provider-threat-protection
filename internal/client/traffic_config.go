@@ -10,9 +10,18 @@ import (
 )
 
 const (
-	trafficConfigChangePollInterval = 2 * time.Second
-	trafficConfigChangePollTimeout  = 2 * time.Minute
+	trafficConfigChangePollTimeout = 2 * time.Minute
 )
+
+var trafficConfigChangePollInterval = 2 * time.Second
+
+func SetTrafficConfigChangePollIntervalForTesting(interval time.Duration) func() {
+	previous := trafficConfigChangePollInterval
+	trafficConfigChangePollInterval = interval
+	return func() {
+		trafficConfigChangePollInterval = previous
+	}
+}
 
 type TrafficConfigRequest struct {
 	Data struct {
@@ -133,9 +142,9 @@ type ProtocolSettings struct {
 }
 
 type TrafficConfigData struct {
-	ID            string                  `json:"id"`
-	Type          string                  `json:"type"`
-	Attributes    TrafficConfigAttributes `json:"attributes"`
+	ID            string                          `json:"id"`
+	Type          string                          `json:"type"`
+	Attributes    TrafficConfigResponseAttributes `json:"attributes"`
 	Relationships struct {
 		ActiveChange struct {
 			Data struct {
@@ -144,6 +153,142 @@ type TrafficConfigData struct {
 			} `json:"data"`
 		} `json:"activeChange"`
 	} `json:"relationships"`
+}
+
+type TrafficConfigResponseAttributes struct {
+	Name             *string                                `json:"name,omitempty"`
+	Version          *string                                `json:"version,omitempty"`
+	Frontend         *TrafficConfigResponseFrontend         `json:"frontend,omitempty"`
+	Backend          *TrafficConfigResponseBackend          `json:"backend,omitempty"`
+	Deployment       *TrafficConfigResponseDeployment       `json:"deployment,omitempty"`
+	Protocols        []string                               `json:"protocols,omitempty"`
+	Prefix           *string                                `json:"prefix,omitempty"`
+	Announced        *bool                                  `json:"announced,omitempty"`
+	WAF              *TrafficConfigResponseWAF              `json:"waf,omitempty"`
+	RateLimiting     *TrafficConfigResponseRateLimit        `json:"rateLimiting,omitempty"`
+	ProtocolSettings *TrafficConfigResponseProtocolSettings `json:"protocolSettings,omitempty"`
+}
+
+type TrafficConfigResponseDeployment struct {
+	State *string `json:"state,omitempty"`
+}
+
+type TrafficConfigResponseFrontend struct {
+	IPv4                          *string                                             `json:"ipv4,omitempty"`
+	IPv6                          *string                                             `json:"ipv6,omitempty"`
+	IP                            *string                                             `json:"ip,omitempty"`
+	Port                          *int64                                              `json:"port,omitempty"`
+	ConnectionType                *string                                             `json:"connectionType,omitempty"`
+	RedirectHttp                  *bool                                               `json:"redirectHttp,omitempty"`
+	Hosts                         []TrafficConfigResponseFrontendHost                 `json:"hosts,omitempty"`
+	HTTPStrictTransportSecurity   *TrafficConfigResponseHSTS                          `json:"httpStrictTransportSecurity,omitempty"`
+	ClientCertificateVerification *TrafficConfigResponseClientCertificateVerification `json:"clientCertificateVerification,omitempty"`
+}
+
+type TrafficConfigResponseFrontendHost struct {
+	Host          *string `json:"host,omitempty"`
+	CertificateID *string `json:"certificateId,omitempty"`
+	TLSConfig     *string `json:"tlsConfig,omitempty"`
+}
+
+type TrafficConfigResponseHSTS struct {
+	Enabled           *bool  `json:"enabled,omitempty"`
+	MaxAge            *int64 `json:"maxAge,omitempty"`
+	IncludeSubdomains *bool  `json:"includeSubdomains,omitempty"`
+	Preload           *bool  `json:"preload,omitempty"`
+}
+
+type TrafficConfigResponseClientCertificateVerification struct {
+	Mode             *string  `json:"mode,omitempty"`
+	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
+	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
+}
+
+type TrafficConfigResponseBackend struct {
+	Hosts          []TrafficConfigResponseHost       `json:"hosts,omitempty"`
+	DeliveryMethod *string                           `json:"deliveryMethod,omitempty"`
+	ServerName     *string                           `json:"serverName,omitempty"`
+	TLSSettings    *TrafficConfigResponseTLSSettings `json:"tlsSettings,omitempty"`
+}
+
+type TrafficConfigResponseTLSSettings struct {
+	ClientCertificateID *string                                 `json:"clientCertificateId,omitempty"`
+	VerifyCertificate   *TrafficConfigResponseVerifyCertificate `json:"verifyCertificate,omitempty"`
+}
+
+type TrafficConfigResponseVerifyCertificate struct {
+	Mode             *string  `json:"mode,omitempty"`
+	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
+	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
+}
+
+type TrafficConfigResponseHost struct {
+	Address *string `json:"address,omitempty"`
+	Port    *int64  `json:"port,omitempty"`
+}
+
+type TrafficConfigResponseProtocolSettings struct {
+	Version          *string `json:"httpVersion,omitempty"`
+	EnableWebsockets *bool   `json:"enableWebsockets,omitempty"`
+	Multiplexing     *bool   `json:"multiplexing,omitempty"`
+}
+
+type TrafficConfigResponseWAF struct {
+	Enforcement      *string                                 `json:"enforcement,omitempty"`
+	ParanoidLevel    *int64                                  `json:"paranoidLevel,omitempty"`
+	CoreRuleSetID    *string                                 `json:"coreRuleSetId,omitempty"`
+	CoreRuleSet      *TrafficConfigResponseCoreRuleSet       `json:"coreRuleSet,omitempty"`
+	SourceExclusions *TrafficConfigResponseSourceExclusions  `json:"sourceExclusions,omitempty"`
+	HTTPCompliance   *TrafficConfigResponseHTTPCompliance    `json:"httpCompliance,omitempty"`
+	PathExclusions   []TrafficConfigResponseWAFPathExclusion `json:"pathExclusions,omitempty"`
+}
+
+type TrafficConfigResponseCoreRuleSet struct {
+	Version *string `json:"version,omitempty"`
+}
+
+type TrafficConfigResponseSourceExclusions struct {
+	Enabled *bool    `json:"enabled,omitempty"`
+	Sources []string `json:"sources,omitempty"`
+}
+
+type TrafficConfigResponseHTTPCompliance struct {
+	GlobalConfig *TrafficConfigResponseHTTPComplianceGlobalConfig `json:"globalConfig,omitempty"`
+}
+
+type TrafficConfigResponseHTTPComplianceGlobalConfig struct {
+	ParameterLimit      *TrafficConfigResponseParameterLimit `json:"parameterLimit,omitempty"`
+	AllowedHTTPMethods  []string                             `json:"allowedHttpMethods,omitempty"`
+	AllowedHTTPVersions []string                             `json:"allowedHttpVersions,omitempty"`
+}
+
+type TrafficConfigResponseParameterLimit struct {
+	Enabled *bool `json:"enabled,omitempty"`
+	Limit   *int  `json:"limit,omitempty"`
+}
+
+type TrafficConfigResponseWAFPathExclusion struct {
+	Type        *string                                 `json:"type,omitempty"`
+	Value       *string                                 `json:"value,omitempty"`
+	Description *string                                 `json:"description,omitempty"`
+	Match       *string                                 `json:"match,omitempty"`
+	DisableAll  *bool                                   `json:"disableAll,omitempty"`
+	Rules       []TrafficConfigResponseWAFExclusionRule `json:"rules,omitempty"`
+}
+
+type TrafficConfigResponseWAFExclusionRule struct {
+	Type *string `json:"type,omitempty"`
+	ID   *string `json:"id,omitempty"`
+}
+
+type TrafficConfigResponseRateLimit struct {
+	Enforcement   *string                             `json:"enforcement,omitempty"`
+	BySrcIP       *TrafficConfigResponseRateLimitRule `json:"bySrcIp,omitempty"`
+	BySrcIPAndURL *TrafficConfigResponseRateLimitRule `json:"bySrcIpAndUrl,omitempty"`
+}
+
+type TrafficConfigResponseRateLimitRule struct {
+	Enforcement *string `json:"enforcement,omitempty"`
 }
 
 func (d TrafficConfigData) ActiveChangeID() string {

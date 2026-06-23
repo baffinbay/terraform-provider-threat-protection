@@ -85,10 +85,15 @@ func (d *TrafficConfigsDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	for _, config := range respConfigs.Data {
+		name := types.StringNull()
+		if config.Attributes.Name != nil {
+			name = types.StringValue(*config.Attributes.Name)
+		}
+
 		state.Configs = append(state.Configs, TrafficConfigModel{
 			ID:   types.StringValue(config.ID),
 			Type: types.StringValue(config.Type),
-			Name: types.StringValue(config.Attributes.Name),
+			Name: name,
 		})
 	}
 

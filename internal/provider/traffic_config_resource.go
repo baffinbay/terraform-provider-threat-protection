@@ -610,35 +610,39 @@ func (r *TrafficConfigResource) readTrafficConfig(ctx context.Context, prior Tra
 
 func mapTrafficConfigResponseToModel(tc *client.TrafficConfigResponse, prior TrafficConfigResourceModel) TrafficConfigResourceModel {
 	data := prior
-	data.ID = types.StringValue(tc.Data.ID)
 
+	if tc.Data.ID != "" {
+		data.ID = types.StringValue(tc.Data.ID)
+	}
 	if tc.Data.Type != "" {
 		data.Type = types.StringValue(tc.Data.Type)
 	}
-	if tc.Data.Attributes.Name != "" {
-		data.Name = types.StringValue(tc.Data.Attributes.Name)
+
+	attrs := tc.Data.Attributes
+	if attrs.Name != nil {
+		data.Name = types.StringValue(*attrs.Name)
 	}
-	if tc.Data.Attributes.Deployment.State != "" {
-		data.DeploymentState = types.StringValue(tc.Data.Attributes.Deployment.State)
+	if attrs.Deployment != nil && attrs.Deployment.State != nil {
+		data.DeploymentState = types.StringValue(*attrs.Deployment.State)
 	}
 
-	data.Frontend = mapFrontendResponseToModel(tc.Data.Attributes.Frontend, prior.Frontend)
-	data.Backend = mapBackendResponseToModel(tc.Data.Attributes.Backend, prior.Backend)
-	data.ProtocolSettings = mapProtocolSettingsResponseToModel(tc.Data.Attributes.ProtocolSettings, prior.ProtocolSettings)
-	data.WAF = mapWafResponseToModel(tc.Data.Attributes.WAF, prior.WAF)
-	data.RateLimiting = mapRateLimitingResponseToModel(tc.Data.Attributes.RateLimiting, prior.RateLimiting)
+	data.Frontend = mapFrontendResponseToModel(attrs.Frontend, prior.Frontend)
+	data.Backend = mapBackendResponseToModel(attrs.Backend, prior.Backend)
+	data.ProtocolSettings = mapProtocolSettingsResponseToModel(attrs.ProtocolSettings, prior.ProtocolSettings)
+	data.WAF = mapWafResponseToModel(attrs.WAF, prior.WAF)
+	data.RateLimiting = mapRateLimitingResponseToModel(attrs.RateLimiting, prior.RateLimiting)
 
-	if tc.Data.Attributes.Prefix != "" {
-		data.Prefix = types.StringValue(tc.Data.Attributes.Prefix)
+	if attrs.Prefix != nil {
+		data.Prefix = types.StringValue(*attrs.Prefix)
 	}
-	if tc.Data.Attributes.Announced || !prior.Announced.IsNull() {
-		data.Announced = types.BoolValue(tc.Data.Attributes.Announced)
+	if attrs.Announced != nil {
+		data.Announced = types.BoolValue(*attrs.Announced)
 	}
 
 	return data
 }
 
-func mapFrontendResponseToModel(frontend *client.Frontend, prior *FrontendModel) *FrontendModel {
+func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, prior *FrontendModel) *FrontendModel {
 	if frontend == nil {
 		return prior
 	}
@@ -649,56 +653,78 @@ func mapFrontendResponseToModel(frontend *client.Frontend, prior *FrontendModel)
 		data = &priorCopy
 	}
 
-	if frontend.ConnectionType != "" {
-		data.ConnectionType = types.StringValue(frontend.ConnectionType)
+	if frontend.ConnectionType != nil {
+		data.ConnectionType = types.StringValue(*frontend.ConnectionType)
 	}
-	if frontend.Port != 0 {
-		data.Port = types.Int64Value(frontend.Port)
+	if frontend.Port != nil {
+		data.Port = types.Int64Value(*frontend.Port)
 	}
-	if frontend.IPv4 != "" {
-		data.IPv4 = types.StringValue(frontend.IPv4)
-	} else if frontend.IP != "" && data.IPv4.IsNull() {
-		data.IPv4 = types.StringValue(frontend.IP)
+	if frontend.IPv4 != nil {
+		data.IPv4 = types.StringValue(*frontend.IPv4)
+	} else if frontend.IP != nil {
+		data.IPv4 = types.StringValue(*frontend.IP)
 	}
-	if frontend.IPv6 != "" {
-		data.IPv6 = types.StringValue(frontend.IPv6)
+	if frontend.IPv6 != nil {
+		data.IPv6 = types.StringValue(*frontend.IPv6)
 	}
-	if frontend.RedirectHttp || (prior != nil && !prior.RedirectHttp.IsNull()) {
-		data.RedirectHttp = types.BoolValue(frontend.RedirectHttp)
+	if frontend.RedirectHttp != nil {
+		data.RedirectHttp = types.BoolValue(*frontend.RedirectHttp)
 	}
 
-	if len(frontend.Hosts) > 0 {
+	if frontend.Hosts != nil {
 		data.Hosts = make([]FrontendHostModel, 0, len(frontend.Hosts))
 		for _, host := range frontend.Hosts {
 			data.Hosts = append(data.Hosts, FrontendHostModel{
-				Host:          types.StringValue(host.Host),
-				CertificateID: optionalStringValue(host.CertificateID),
-				TLSConfig:     optionalStringValue(host.TLSConfig),
+				Host:          optionalStringPtrValue(host.Host),
+				CertificateID: optionalStringPtrValue(host.CertificateID),
+				TLSConfig:     optionalStringPtrValue(host.TLSConfig),
 			})
 		}
 	}
 
 	if frontend.HTTPStrictTransportSecurity != nil {
-		data.HSTS = &HstsModel{
-			Enabled:           types.BoolValue(frontend.HTTPStrictTransportSecurity.Enabled),
-			MaxAge:            types.Int64Value(frontend.HTTPStrictTransportSecurity.MaxAge),
-			IncludeSubdomains: types.BoolValue(frontend.HTTPStrictTransportSecurity.IncludeSubdomains),
-			Preload:           types.BoolValue(frontend.HTTPStrictTransportSecurity.Preload),
+		hsts := &HstsModel{}
+		if prior != nil && prior.HSTS != nil {
+			priorHSTS := *prior.HSTS
+			hsts = &priorHSTS
 		}
+		if frontend.HTTPStrictTransportSecurity.Enabled != nil {
+			hsts.Enabled = types.BoolValue(*frontend.HTTPStrictTransportSecurity.Enabled)
+		}
+		if frontend.HTTPStrictTransportSecurity.MaxAge != nil {
+			hsts.MaxAge = types.Int64Value(*frontend.HTTPStrictTransportSecurity.MaxAge)
+		}
+		if frontend.HTTPStrictTransportSecurity.IncludeSubdomains != nil {
+			hsts.IncludeSubdomains = types.BoolValue(*frontend.HTTPStrictTransportSecurity.IncludeSubdomains)
+		}
+		if frontend.HTTPStrictTransportSecurity.Preload != nil {
+			hsts.Preload = types.BoolValue(*frontend.HTTPStrictTransportSecurity.Preload)
+		}
+		data.HSTS = hsts
 	}
 
 	if frontend.ClientCertificateVerification != nil {
-		data.ClientCertificateVerification = &ClientCertificateVerification{
-			Mode:             types.StringValue(frontend.ClientCertificateVerification.Mode),
-			VerifyCrl:        types.BoolValue(frontend.ClientCertificateVerification.VerifyCrl),
-			CaCertificateIds: stringSliceToTypeValues(frontend.ClientCertificateVerification.CaCertificateIds),
+		clientCertificateVerification := &ClientCertificateVerification{}
+		if prior != nil && prior.ClientCertificateVerification != nil {
+			priorClientCertificateVerification := *prior.ClientCertificateVerification
+			clientCertificateVerification = &priorClientCertificateVerification
 		}
+		if frontend.ClientCertificateVerification.Mode != nil {
+			clientCertificateVerification.Mode = types.StringValue(*frontend.ClientCertificateVerification.Mode)
+		}
+		if frontend.ClientCertificateVerification.VerifyCrl != nil {
+			clientCertificateVerification.VerifyCrl = types.BoolValue(*frontend.ClientCertificateVerification.VerifyCrl)
+		}
+		if frontend.ClientCertificateVerification.CaCertificateIds != nil {
+			clientCertificateVerification.CaCertificateIds = stringSliceToTypeValues(frontend.ClientCertificateVerification.CaCertificateIds)
+		}
+		data.ClientCertificateVerification = clientCertificateVerification
 	}
 
 	return data
 }
 
-func mapBackendResponseToModel(backend *client.Backend, prior *BackendModel) *BackendModel {
+func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, prior *BackendModel) *BackendModel {
 	if backend == nil {
 		return prior
 	}
@@ -709,39 +735,55 @@ func mapBackendResponseToModel(backend *client.Backend, prior *BackendModel) *Ba
 		data = &priorCopy
 	}
 
-	if len(backend.Hosts) > 0 {
+	if backend.Hosts != nil {
 		data.Hosts = make([]BackendHostModel, 0, len(backend.Hosts))
 		for _, host := range backend.Hosts {
 			data.Hosts = append(data.Hosts, BackendHostModel{
-				Address: types.StringValue(host.Address),
-				Port:    types.Int64Value(host.Port),
+				Address: optionalStringPtrValue(host.Address),
+				Port:    optionalInt64PtrValue(host.Port),
 			})
 		}
 	}
-	if backend.DeliveryMethod != "" {
-		data.DeliveryMethod = types.StringValue(backend.DeliveryMethod)
+	if backend.DeliveryMethod != nil {
+		data.DeliveryMethod = types.StringValue(*backend.DeliveryMethod)
 	}
-	if backend.ServerName != "" {
-		data.ServerName = types.StringValue(backend.ServerName)
+	if backend.ServerName != nil {
+		data.ServerName = types.StringValue(*backend.ServerName)
 	}
 
 	if backend.TLSSettings != nil {
-		data.TLSSettings = &TlsSettingsModel{
-			ClientCertificateID: optionalStringValue(backend.TLSSettings.ClientCertificateID),
+		tlsSettings := &TlsSettingsModel{}
+		if prior != nil && prior.TLSSettings != nil {
+			priorTLSSettings := *prior.TLSSettings
+			tlsSettings = &priorTLSSettings
+		}
+		if backend.TLSSettings.ClientCertificateID != nil {
+			tlsSettings.ClientCertificateID = optionalStringPtrValue(backend.TLSSettings.ClientCertificateID)
 		}
 		if backend.TLSSettings.VerifyCertificate != nil {
-			data.TLSSettings.VerifyCertificate = &VerifyCertificateSettings{
-				Mode:             types.StringValue(backend.TLSSettings.VerifyCertificate.Mode),
-				CaCertificateIds: stringSliceToTypeValues(backend.TLSSettings.VerifyCertificate.CaCertificateIds),
-				VerifyCrl:        types.BoolValue(backend.TLSSettings.VerifyCertificate.VerifyCrl),
+			verifyCertificate := &VerifyCertificateSettings{}
+			if prior != nil && prior.TLSSettings != nil && prior.TLSSettings.VerifyCertificate != nil {
+				priorVerifyCertificate := *prior.TLSSettings.VerifyCertificate
+				verifyCertificate = &priorVerifyCertificate
 			}
+			if backend.TLSSettings.VerifyCertificate.Mode != nil {
+				verifyCertificate.Mode = types.StringValue(*backend.TLSSettings.VerifyCertificate.Mode)
+			}
+			if backend.TLSSettings.VerifyCertificate.CaCertificateIds != nil {
+				verifyCertificate.CaCertificateIds = stringSliceToTypeValues(backend.TLSSettings.VerifyCertificate.CaCertificateIds)
+			}
+			if backend.TLSSettings.VerifyCertificate.VerifyCrl != nil {
+				verifyCertificate.VerifyCrl = types.BoolValue(*backend.TLSSettings.VerifyCertificate.VerifyCrl)
+			}
+			tlsSettings.VerifyCertificate = verifyCertificate
 		}
+		data.TLSSettings = tlsSettings
 	}
 
 	return data
 }
 
-func mapProtocolSettingsResponseToModel(settings *client.ProtocolSettings, prior *ProtocolSettingsModel) *ProtocolSettingsModel {
+func mapProtocolSettingsResponseToModel(settings *client.TrafficConfigResponseProtocolSettings, prior *ProtocolSettingsModel) *ProtocolSettingsModel {
 	if settings == nil {
 		return prior
 	}
@@ -752,20 +794,20 @@ func mapProtocolSettingsResponseToModel(settings *client.ProtocolSettings, prior
 		data = &priorCopy
 	}
 
-	if settings.Version != "" {
-		data.Version = types.StringValue(settings.Version)
+	if settings.Version != nil {
+		data.Version = types.StringValue(*settings.Version)
 	}
-	if settings.EnableWebsockets || (prior != nil && !prior.EnableWebsockets.IsNull()) {
-		data.EnableWebsockets = types.BoolValue(settings.EnableWebsockets)
+	if settings.EnableWebsockets != nil {
+		data.EnableWebsockets = types.BoolValue(*settings.EnableWebsockets)
 	}
-	if settings.Multiplexing || (prior != nil && !prior.Multiplexing.IsNull()) {
-		data.Multiplexing = types.BoolValue(settings.Multiplexing)
+	if settings.Multiplexing != nil {
+		data.Multiplexing = types.BoolValue(*settings.Multiplexing)
 	}
 
 	return data
 }
 
-func mapWafResponseToModel(waf *client.WAF, prior *WafModel) *WafModel {
+func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel) *WafModel {
 	if waf == nil {
 		return prior
 	}
@@ -776,36 +818,71 @@ func mapWafResponseToModel(waf *client.WAF, prior *WafModel) *WafModel {
 		data = &priorCopy
 	}
 
-	if waf.Enforcement != "" {
-		data.Enforcement = types.StringValue(waf.Enforcement)
+	if waf.Enforcement != nil {
+		data.Enforcement = types.StringValue(*waf.Enforcement)
 	}
-	if waf.ParanoidLevel != 0 {
-		data.ParanoidLevel = types.Int64Value(waf.ParanoidLevel)
+	if waf.ParanoidLevel != nil {
+		data.ParanoidLevel = types.Int64Value(*waf.ParanoidLevel)
 	}
-	if waf.CoreRuleSetID != "" {
-		data.CoreRuleSetID = types.StringValue(waf.CoreRuleSetID)
+	if waf.CoreRuleSetID != nil {
+		data.CoreRuleSetID = types.StringValue(*waf.CoreRuleSetID)
+	} else if waf.CoreRuleSet != nil && waf.CoreRuleSet.Version != nil {
+		data.CoreRuleSetID = types.StringValue(*waf.CoreRuleSet.Version)
 	}
-	if len(waf.SourceExclusions.Sources) > 0 {
+	if waf.SourceExclusions != nil && waf.SourceExclusions.Sources != nil {
 		data.SourceExclusions = stringSliceToTypeValues(waf.SourceExclusions.Sources)
 	}
 
-	allowedMethods := waf.HTTPCompliance.GlobalConfig.AllowedHttpMethods
-	allowedVersions := waf.HTTPCompliance.GlobalConfig.AllowedHttpVersions
-	parameterLimit := waf.HTTPCompliance.GlobalConfig.ParameterLimit
-	if len(allowedMethods) > 0 || len(allowedVersions) > 0 || parameterLimit.Enabled {
-		data.HttpCompliance = &HttpComplianceModel{
-			AllowedMethods:  stringSliceToTypeValues(allowedMethods),
-			AllowedVersions: stringSliceToTypeValues(allowedVersions),
+	if waf.HTTPCompliance != nil {
+		httpCompliance := &HttpComplianceModel{}
+		if prior != nil && prior.HttpCompliance != nil {
+			priorHTTPCompliance := *prior.HttpCompliance
+			httpCompliance = &priorHTTPCompliance
 		}
-		if parameterLimit.Enabled {
-			data.HttpCompliance.ParameterLimit = types.Int64Value(int64(parameterLimit.Limit))
+		if waf.HTTPCompliance.GlobalConfig != nil {
+			globalConfig := waf.HTTPCompliance.GlobalConfig
+			if globalConfig.AllowedHTTPMethods != nil {
+				httpCompliance.AllowedMethods = stringSliceToTypeValues(globalConfig.AllowedHTTPMethods)
+			}
+			if globalConfig.AllowedHTTPVersions != nil {
+				httpCompliance.AllowedVersions = stringSliceToTypeValues(globalConfig.AllowedHTTPVersions)
+			}
+			if globalConfig.ParameterLimit != nil {
+				httpCompliance.ParameterLimit = types.Int64Null()
+				if globalConfig.ParameterLimit.Enabled != nil && *globalConfig.ParameterLimit.Enabled {
+					if globalConfig.ParameterLimit.Limit != nil {
+						httpCompliance.ParameterLimit = types.Int64Value(int64(*globalConfig.ParameterLimit.Limit))
+					} else {
+						httpCompliance.ParameterLimit = types.Int64Value(0)
+					}
+				}
+			}
+		}
+		data.HttpCompliance = httpCompliance
+	}
+
+	if waf.PathExclusions != nil {
+		data.Exclusions = make([]WafExclusionModel, 0, len(waf.PathExclusions))
+		for _, exclusion := range waf.PathExclusions {
+			mapped := WafExclusionModel{
+				Type:        optionalStringPtrValue(exclusion.Type),
+				Value:       optionalStringPtrValue(exclusion.Value),
+				Description: optionalStringPtrValue(exclusion.Description),
+			}
+			if mapped.Type.IsNull() && exclusion.Match != nil {
+				mapped.Type = types.StringValue("path")
+			}
+			if mapped.Value.IsNull() && exclusion.Match != nil {
+				mapped.Value = types.StringValue(*exclusion.Match)
+			}
+			data.Exclusions = append(data.Exclusions, mapped)
 		}
 	}
 
 	return data
 }
 
-func mapRateLimitingResponseToModel(rateLimiting *client.RateLimit, prior *RateLimitingModel) *RateLimitingModel {
+func mapRateLimitingResponseToModel(rateLimiting *client.TrafficConfigResponseRateLimit, prior *RateLimitingModel) *RateLimitingModel {
 	if rateLimiting == nil {
 		return prior
 	}
@@ -815,26 +892,34 @@ func mapRateLimitingResponseToModel(rateLimiting *client.RateLimit, prior *RateL
 		priorCopy := *prior
 		data = &priorCopy
 	}
-	if rateLimiting.Enforcement != "" {
-		data.Enforcement = types.StringValue(rateLimiting.Enforcement)
+	if rateLimiting.Enforcement != nil {
+		data.Enforcement = types.StringValue(*rateLimiting.Enforcement)
+	} else if rateLimiting.BySrcIP != nil && rateLimiting.BySrcIP.Enforcement != nil {
+		data.Enforcement = types.StringValue(*rateLimiting.BySrcIP.Enforcement)
+	} else if rateLimiting.BySrcIPAndURL != nil && rateLimiting.BySrcIPAndURL.Enforcement != nil {
+		data.Enforcement = types.StringValue(*rateLimiting.BySrcIPAndURL.Enforcement)
 	}
 
 	return data
 }
 
-func optionalStringValue(value string) types.String {
-	if value == "" {
+func optionalStringPtrValue(value *string) types.String {
+	if value == nil {
 		return types.StringNull()
 	}
 
-	return types.StringValue(value)
+	return types.StringValue(*value)
+}
+
+func optionalInt64PtrValue(value *int64) types.Int64 {
+	if value == nil {
+		return types.Int64Null()
+	}
+
+	return types.Int64Value(*value)
 }
 
 func stringSliceToTypeValues(values []string) []types.String {
-	if len(values) == 0 {
-		return nil
-	}
-
 	result := make([]types.String, 0, len(values))
 	for _, value := range values {
 		result = append(result, types.StringValue(value))

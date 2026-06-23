@@ -101,7 +101,11 @@ func handleLs(ctx context.Context, c *client.Client, resourceType string) {
 			fmt.Printf("Error: %v\n", err)
 		} else {
 			for _, tc := range resp.Data {
-				fmt.Printf("ID: %s, Name: %s\n", tc.ID, tc.Attributes.Name)
+				name := ""
+				if tc.Attributes.Name != nil {
+					name = *tc.Attributes.Name
+				}
+				fmt.Printf("ID: %s, Name: %s\n", tc.ID, name)
 			}
 		}
 	}
