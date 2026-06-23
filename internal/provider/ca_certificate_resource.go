@@ -149,8 +149,10 @@ func mapCaCertificateDataToModel(caCertificate client.CaCertificateData, prior C
 		data.Name = types.StringValue(caCertificate.Attributes.Name)
 	}
 
-	if certificate := caCertificatePEM(caCertificate.Attributes.Certificates); certificate != "" {
-		data.Certificate = types.StringValue(certificate)
+	if data.Certificate.IsNull() || data.Certificate.IsUnknown() {
+		if certificate := caCertificatePEM(caCertificate.Attributes.Certificates); certificate != "" {
+			data.Certificate = types.StringValue(certificate)
+		}
 	}
 
 	return data
@@ -160,7 +162,7 @@ func caCertificatePEM(certificates []client.CaCertificateDataCertificate) string
 	parts := make([]string, 0, len(certificates))
 	for _, certificate := range certificates {
 		if certificate.Certificate != "" {
-			parts = append(parts, strings.TrimSpace(certificate.Certificate))
+			parts = append(parts, certificate.Certificate)
 		}
 	}
 

@@ -191,11 +191,10 @@ func TestCertificateResource_ImportSensitiveAndReplacement(t *testing.T) {
 	})
 }
 
-func TestCaCertificateResource_ReadImportReplacementAndPayload(t *testing.T) {
+func TestCaCertificateResource_PreservesConfiguredCertificateWhitespace(t *testing.T) {
 	setTestTokenCache(t)
 
-	var currentCertificate atomic.Value
-	currentCertificate.Store("ca-content")
+	const configuredCertificate = "ca-content\n\n"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {
@@ -205,11 +204,13 @@ func TestCaCertificateResource_ReadImportReplacementAndPayload(t *testing.T) {
 
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates":
-			currentCertificate.Store(readCaCertificateCreatePayload(t, r))
-			writeJSONAPI(w, caCertificateResponse(currentCertificate.Load().(string)))
+			if got := readCaCertificateCreatePayload(t, r); got != configuredCertificate && got != "ca-content-updated" {
+				t.Errorf("unexpected CA certificate create payload %q", got)
+			}
+			writeJSONAPI(w, caCertificateResponse("ca-content"))
 			return
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates/ca-cert-id":
-			writeJSONAPI(w, caCertificateResponse(currentCertificate.Load().(string)))
+			writeJSONAPI(w, caCertificateResponse("ca-content"))
 			return
 		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates/ca-cert-id":
 			w.WriteHeader(http.StatusNotFound)
@@ -224,16 +225,16 @@ func TestCaCertificateResource_ReadImportReplacementAndPayload(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: caCertificateConfig(server.URL, "ca-content"),
+				Config: caCertificateConfig(server.URL, configuredCertificate),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("baffinbay_ca_certificate.test", "id", "ca-cert-id"),
 					resource.TestCheckResourceAttr("baffinbay_ca_certificate.test", "name", "Example CA"),
+					resource.TestCheckResourceAttr("baffinbay_ca_certificate.test", "certificate", configuredCertificate),
 				),
 			},
 			{
-				ResourceName:      "baffinbay_ca_certificate.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+				Config:   caCertificateConfig(server.URL, configuredCertificate),
+				PlanOnly: true,
 			},
 			{
 				Config: caCertificateConfig(server.URL, "ca-content-updated"),
@@ -242,6 +243,46 @@ func TestCaCertificateResource_ReadImportReplacementAndPayload(t *testing.T) {
 						plancheck.ExpectResourceAction("baffinbay_ca_certificate.test", plancheck.ResourceActionReplace),
 					},
 				},
+			},
+		},
+	})
+}
+
+func TestCaCertificateResource_ImportHydratesCertificate(t *testing.T) {
+	setTestTokenCache(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			writeTokenResponse(w)
+			return
+		}
+
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates":
+			writeJSONAPI(w, caCertificateResponse("imported-ca-content"))
+			return
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates/ca-cert-id":
+			writeJSONAPI(w, caCertificateResponse("imported-ca-content"))
+			return
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/ca-certificates/ca-cert-id":
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: caCertificateConfig(server.URL, "imported-ca-content"),
+			},
+			{
+				ResourceName:      "baffinbay_ca_certificate.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
