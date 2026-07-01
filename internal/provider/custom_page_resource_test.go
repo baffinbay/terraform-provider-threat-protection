@@ -49,7 +49,7 @@ func TestAccCustomPageResource(t *testing.T) {
 					client_secret = "test-secret"
 					api_url       = "` + server.URL + `"
 					oidc_url      = "` + server.URL + `/oauth/token"
-					account_id    = "test-account-id"
+					tenant_id    = "test-tenant-id"
 				}
 
 				resource "baffinbay_custom_page" "test" {

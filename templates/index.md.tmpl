@@ -9,6 +9,8 @@ description: |-
 The Baffin Bay Threat Protection provider is used to interact with the Baffin Bay API.
 It authenticates using the OIDC `client_credentials` grant; access tokens are
 cached on disk and refreshed automatically.
+A tenant ID is required for provider configuration and may be supplied with the
+`tenant_id` argument or the `BAFFINBAY_TENANT_ID` environment variable.
 
 ## Example Usage
 

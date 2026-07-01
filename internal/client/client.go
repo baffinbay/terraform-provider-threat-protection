@@ -104,7 +104,7 @@ type Client struct {
 	HostURL     string
 	HTTPClient  *http.Client
 	TokenSource oauth2.TokenSource
-	AccountID   string
+	TenantID    string
 }
 
 func NewClient(host string) *Client {

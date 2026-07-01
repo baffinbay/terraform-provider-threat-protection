@@ -70,10 +70,14 @@ func initClient(ctx context.Context) *client.Client {
 	}
 	clientID := os.Getenv("BAFFINBAY_CLIENT_ID")
 	clientSecret := os.Getenv("BAFFINBAY_CLIENT_SECRET")
-	accountID := os.Getenv("BAFFINBAY_ACCOUNT_ID")
+	tenantID := os.Getenv("BAFFINBAY_TENANT_ID")
 
 	if clientID == "" || clientSecret == "" {
 		fmt.Println("BAFFINBAY_CLIENT_ID and BAFFINBAY_CLIENT_SECRET must be set")
+		os.Exit(1)
+	}
+	if tenantID == "" {
+		fmt.Println("BAFFINBAY_TENANT_ID must be set")
 		os.Exit(1)
 	}
 
@@ -88,7 +92,7 @@ func initClient(ctx context.Context) *client.Client {
 	}
 
 	c := client.NewClient(apiURL)
-	c.AccountID = accountID
+	c.TenantID = tenantID
 	c.TokenSource = ts
 	return c
 }
@@ -124,7 +128,7 @@ func handleLs(ctx context.Context, c *client.Client, resourceType string) {
 
 	if resourceType == "all" || resourceType == "custom-page" {
 		fmt.Println("\n--- Custom Pages ---")
-		resp, err := c.GetCustomPages(ctx, c.AccountID)
+		resp, err := c.GetCustomPages(ctx, c.TenantID)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {

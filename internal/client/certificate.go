@@ -48,13 +48,13 @@ type CertificatesResponse struct {
 }
 
 func (c *Client) CreateCertificate(ctx context.Context, certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a certificate")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a certificate")
 	}
 
 	reqData := CertificateRequest{}
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	var path string
 	switch certType {
@@ -172,15 +172,15 @@ type CaCertificatesResponse struct {
 }
 
 func (c *Client) CreateCaCertificate(ctx context.Context, _ string, certificate string) (*CaCertificateResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a CA certificate")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a CA certificate")
 	}
 
 	reqData := CaCertificateRequest{}
 	reqData.Data.Type = "caCertificate"
 	reqData.Data.Attributes.Certificates = []CaCertificateRequestCertificate{{Certificate: certificate}}
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {

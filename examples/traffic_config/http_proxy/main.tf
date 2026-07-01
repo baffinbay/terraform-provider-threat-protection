@@ -6,7 +6,10 @@ terraform {
   }
 }
 
-provider "baffinbay" {}
+provider "baffinbay" {
+  # Configuration is read from BAFFINBAY_CLIENT_ID, BAFFINBAY_CLIENT_SECRET,
+  # and BAFFINBAY_TENANT_ID environment variables by default.
+}
 
 resource "baffinbay_certificate" "http_cert" {
   type        = "pem"
@@ -17,7 +20,7 @@ resource "baffinbay_certificate" "http_cert" {
 resource "baffinbay_traffic_config" "http_example" {
   type = "httpProxy"
   name = "terraform-http-example"
-  
+
   frontend = {
     connection_type = "PLAINTEXT"
     port            = 80
@@ -29,7 +32,7 @@ resource "baffinbay_traffic_config" "http_example" {
       }
     ]
   }
-  
+
   backend = {
     hosts = [
       {

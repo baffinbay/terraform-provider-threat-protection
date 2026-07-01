@@ -40,8 +40,8 @@ type CustomPageRequest struct {
 }
 
 func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*CustomPageResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a custom page")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a custom page")
 	}
 
 	body := &bytes.Buffer{}
@@ -66,7 +66,7 @@ func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*C
 	reqData := CustomPageRequest{}
 	reqData.Data.Type = "custom-page"
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -160,11 +160,11 @@ func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPa
 }
 
 func (c *Client) FindCustomPageByID(ctx context.Context, id string) (*CustomPageData, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to read a custom page")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to read a custom page")
 	}
 
-	cpResp, err := c.GetCustomPages(ctx, c.AccountID)
+	cpResp, err := c.GetCustomPages(ctx, c.TenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -545,6 +545,19 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	}
 
 	if data.Type.ValueString() == "httpProxy" {
+		trafficRules := []any{}
+		customPages := []any{}
+		connectionReuseEnabled := true
+		reqData.Data.Attributes.TrafficRules = &trafficRules
+		reqData.Data.Attributes.CustomPages = &customPages
+		reqData.Data.Attributes.ConnectionReuse = &connectionReuseEnabled
+		reqData.Data.Attributes.GeoFencing = defaultHTTPProxyGeoFencingRequest()
+		reqData.Data.Attributes.AllowedSources = defaultHTTPProxyAllowedSourcesRequest()
+		reqData.Data.Attributes.IPBasedAccess = defaultHTTPProxyIPBasedAccessRequest()
+		reqData.Data.Attributes.BotProtection = defaultHTTPProxyBotProtectionRequest()
+		reqData.Data.Attributes.DataProtection = defaultHTTPProxyDataProtectionRequest()
+		reqData.Data.Attributes.GatewayPath = "EXTERNAL"
+
 		if data.ProtocolSettings != nil {
 			reqData.Data.Attributes.ProtocolSettings = &client.ProtocolSettings{
 				Version:          data.ProtocolSettings.Version.ValueString(),
@@ -554,49 +567,141 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 		}
 
 		if data.WAF != nil {
-			reqData.Data.Attributes.WAF = &client.WAF{
-				Enforcement:   data.WAF.Enforcement.ValueString(),
-				ParanoidLevel: data.WAF.ParanoidLevel.ValueInt64(),
-				CoreRuleSetID: data.WAF.CoreRuleSetID.ValueString(),
-			}
-
-			if len(data.WAF.SourceExclusions) > 0 {
-				reqData.Data.Attributes.WAF.SourceExclusions.Enabled = true
-				for _, src := range data.WAF.SourceExclusions {
-					reqData.Data.Attributes.WAF.SourceExclusions.Sources = append(reqData.Data.Attributes.WAF.SourceExclusions.Sources, src.ValueString())
-				}
-			}
-
-			if data.WAF.HttpCompliance != nil {
-				for _, m := range data.WAF.HttpCompliance.AllowedMethods {
-					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods = append(reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods, m.ValueString())
-				}
-				for _, v := range data.WAF.HttpCompliance.AllowedVersions {
-					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions = append(reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions, v.ValueString())
-				}
-				if !data.WAF.HttpCompliance.ParameterLimit.IsNull() {
-					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled = true
-					reqData.Data.Attributes.WAF.HTTPCompliance.GlobalConfig.ParameterLimit.Limit = int(data.WAF.HttpCompliance.ParameterLimit.ValueInt64())
-				}
-			}
-
-			for _, excl := range data.WAF.Exclusions {
-				reqData.Data.Attributes.WAF.PathExclusions = append(reqData.Data.Attributes.WAF.PathExclusions, map[string]interface{}{
-					"type":        excl.Type.ValueString(),
-					"value":       excl.Value.ValueString(),
-					"description": excl.Description.ValueString(),
-				})
-			}
+			reqData.Data.Attributes.WAF = mapWafModelToRequest(data.WAF)
+		} else {
+			reqData.Data.Attributes.WAF = defaultHTTPProxyWAFRequest()
 		}
 
 		if data.RateLimiting != nil {
-			reqData.Data.Attributes.RateLimiting = &client.RateLimit{
-				Enforcement: data.RateLimiting.Enforcement.ValueString(),
-			}
+			reqData.Data.Attributes.RateLimiting = rateLimitRequest(data.RateLimiting.Enforcement.ValueString())
+		} else {
+			reqData.Data.Attributes.RateLimiting = defaultHTTPProxyRateLimitRequest()
 		}
 	}
 
 	return reqData
+}
+
+func mapWafModelToRequest(waf *WafModel) *client.WAF {
+	reqWAF := &client.WAF{
+		Enforcement:   waf.Enforcement.ValueString(),
+		ParanoidLevel: waf.ParanoidLevel.ValueInt64(),
+		CoreRuleSetID: waf.CoreRuleSetID.ValueString(),
+	}
+	reqWAF.SourceExclusions.Sources = []string{}
+	reqWAF.HTTPCompliance.ResourceConfigs = []any{}
+	reqWAF.PathExclusions = []any{}
+
+	if len(waf.SourceExclusions) > 0 {
+		reqWAF.SourceExclusions.Enabled = true
+		for _, src := range waf.SourceExclusions {
+			reqWAF.SourceExclusions.Sources = append(reqWAF.SourceExclusions.Sources, src.ValueString())
+		}
+	}
+
+	if waf.HttpCompliance != nil {
+		for _, m := range waf.HttpCompliance.AllowedMethods {
+			reqWAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods = append(reqWAF.HTTPCompliance.GlobalConfig.AllowedHttpMethods, m.ValueString())
+		}
+		for _, v := range waf.HttpCompliance.AllowedVersions {
+			reqWAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions = append(reqWAF.HTTPCompliance.GlobalConfig.AllowedHttpVersions, v.ValueString())
+		}
+		if !waf.HttpCompliance.ParameterLimit.IsNull() {
+			reqWAF.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled = true
+			reqWAF.HTTPCompliance.GlobalConfig.ParameterLimit.Limit = int(waf.HttpCompliance.ParameterLimit.ValueInt64())
+		}
+	}
+
+	for _, excl := range waf.Exclusions {
+		reqWAF.PathExclusions = append(reqWAF.PathExclusions, map[string]interface{}{
+			"type":        excl.Type.ValueString(),
+			"value":       excl.Value.ValueString(),
+			"description": excl.Description.ValueString(),
+		})
+	}
+
+	return reqWAF
+}
+
+func defaultHTTPProxyWAFRequest() *client.WAF {
+	waf := &client.WAF{
+		Enforcement:    "DISABLED",
+		ParanoidLevel:  1,
+		CoreRuleSetID:  "4.27.0",
+		PathExclusions: []any{},
+	}
+	waf.SourceExclusions.Sources = []string{}
+	waf.HTTPCompliance.GlobalConfig.ParameterLimit.Limit = 500
+	waf.HTTPCompliance.GlobalConfig.AllowedHttpMethods = []string{"GET", "POST", "DELETE", "PATCH", "PUT"}
+	waf.HTTPCompliance.GlobalConfig.AllowedHttpVersions = []string{"HTTP/1.0", "HTTP/1.1", "HTTP/2.0", "HTTP/2"}
+	waf.HTTPCompliance.ResourceConfigs = []any{}
+
+	return waf
+}
+
+func defaultHTTPProxyRateLimitRequest() *client.RateLimit {
+	return rateLimitRequest("BLOCK")
+}
+
+func defaultHTTPProxyGeoFencingRequest() *client.GeoFencing {
+	return &client.GeoFencing{
+		Type:    "BLOCK",
+		Regions: []string{},
+	}
+}
+
+func defaultHTTPProxyAllowedSourcesRequest() *client.AllowedSources {
+	return &client.AllowedSources{
+		Enforcement: "DISABLED",
+		Sources:     []string{},
+	}
+}
+
+func defaultHTTPProxyIPBasedAccessRequest() *client.IPBasedAccess {
+	return &client.IPBasedAccess{
+		DefaultPolicy: "ALLOW",
+		Rules: client.IPBasedAccessRules{
+			IPRanges:      []any{},
+			KnownServices: []any{},
+			IPLists:       []any{},
+			GeoLocations:  []any{},
+			ASNs:          []any{},
+		},
+	}
+}
+
+func defaultHTTPProxyBotProtectionRequest() *client.BotProtection {
+	return &client.BotProtection{
+		Strategy:      "AUTO",
+		ChallengeType: "HTTP",
+	}
+}
+
+func defaultHTTPProxyDataProtectionRequest() *client.DataProtection {
+	return &client.DataProtection{
+		LogRedaction: client.LogRedaction{
+			Headers: []string{},
+			Cookies: []string{},
+		},
+	}
+}
+
+func rateLimitRequest(enforcement string) *client.RateLimit {
+	return &client.RateLimit{
+		BySrcIP:       rateLimitRuleRequest(enforcement),
+		BySrcIPAndURL: rateLimitRuleRequest(enforcement),
+	}
+}
+
+func rateLimitRuleRequest(enforcement string) client.RateLimitRule {
+	return client.RateLimitRule{
+		Enforcement: enforcement,
+		Rate: client.RateLimitRate{
+			Value: 100,
+			Unit:  "r/s",
+		},
+		Burst: 10,
+	}
 }
 
 func (r *TrafficConfigResource) readTrafficConfig(ctx context.Context, prior TrafficConfigResourceModel) (TrafficConfigResourceModel, error) {
@@ -610,6 +715,7 @@ func (r *TrafficConfigResource) readTrafficConfig(ctx context.Context, prior Tra
 
 func mapTrafficConfigResponseToModel(tc *client.TrafficConfigResponse, prior TrafficConfigResourceModel) TrafficConfigResourceModel {
 	data := prior
+	hydrateUnconfigured := prior.Type.IsNull() || prior.Type.IsUnknown()
 
 	if tc.Data.ID != "" {
 		data.ID = types.StringValue(tc.Data.ID)
@@ -626,11 +732,11 @@ func mapTrafficConfigResponseToModel(tc *client.TrafficConfigResponse, prior Tra
 		data.DeploymentState = types.StringValue(*attrs.Deployment.State)
 	}
 
-	data.Frontend = mapFrontendResponseToModel(attrs.Frontend, prior.Frontend)
-	data.Backend = mapBackendResponseToModel(attrs.Backend, prior.Backend)
-	data.ProtocolSettings = mapProtocolSettingsResponseToModel(attrs.ProtocolSettings, prior.ProtocolSettings)
-	data.WAF = mapWafResponseToModel(attrs.WAF, prior.WAF)
-	data.RateLimiting = mapRateLimitingResponseToModel(attrs.RateLimiting, prior.RateLimiting)
+	data.Frontend = mapFrontendResponseToModel(attrs.Frontend, prior.Frontend, hydrateUnconfigured)
+	data.Backend = mapBackendResponseToModel(attrs.Backend, prior.Backend, hydrateUnconfigured)
+	data.ProtocolSettings = mapProtocolSettingsResponseToModel(attrs.ProtocolSettings, prior.ProtocolSettings, hydrateUnconfigured)
+	data.WAF = mapWafResponseToModel(attrs.WAF, prior.WAF, hydrateUnconfigured)
+	data.RateLimiting = mapRateLimitingResponseToModel(attrs.RateLimiting, prior.RateLimiting, hydrateUnconfigured)
 
 	if attrs.Prefix != nil {
 		data.Prefix = types.StringValue(*attrs.Prefix)
@@ -642,9 +748,12 @@ func mapTrafficConfigResponseToModel(tc *client.TrafficConfigResponse, prior Tra
 	return data
 }
 
-func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, prior *FrontendModel) *FrontendModel {
+func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, prior *FrontendModel, hydrateUnconfigured bool) *FrontendModel {
 	if frontend == nil {
 		return prior
+	}
+	if prior == nil && !hydrateUnconfigured {
+		return nil
 	}
 
 	data := &FrontendModel{}
@@ -659,19 +768,19 @@ func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, 
 	if frontend.Port != nil {
 		data.Port = types.Int64Value(*frontend.Port)
 	}
-	if frontend.IPv4 != nil {
+	if frontend.IPv4 != nil && shouldSetString(priorString(prior, func(p *FrontendModel) types.String { return p.IPv4 }), hydrateUnconfigured) {
 		data.IPv4 = types.StringValue(*frontend.IPv4)
-	} else if frontend.IP != nil {
+	} else if frontend.IP != nil && shouldSetString(priorString(prior, func(p *FrontendModel) types.String { return p.IPv4 }), hydrateUnconfigured) {
 		data.IPv4 = types.StringValue(*frontend.IP)
 	}
-	if frontend.IPv6 != nil {
+	if frontend.IPv6 != nil && shouldSetString(priorString(prior, func(p *FrontendModel) types.String { return p.IPv6 }), hydrateUnconfigured) {
 		data.IPv6 = types.StringValue(*frontend.IPv6)
 	}
-	if frontend.RedirectHttp != nil {
+	if frontend.RedirectHttp != nil && shouldSetBool(priorBool(prior, func(p *FrontendModel) types.Bool { return p.RedirectHttp }), hydrateUnconfigured) {
 		data.RedirectHttp = types.BoolValue(*frontend.RedirectHttp)
 	}
 
-	if frontend.Hosts != nil {
+	if frontend.Hosts != nil && (hydrateUnconfigured || prior != nil && prior.Hosts != nil) {
 		data.Hosts = make([]FrontendHostModel, 0, len(frontend.Hosts))
 		for _, host := range frontend.Hosts {
 			data.Hosts = append(data.Hosts, FrontendHostModel{
@@ -682,28 +791,28 @@ func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, 
 		}
 	}
 
-	if frontend.HTTPStrictTransportSecurity != nil {
+	if frontend.HTTPStrictTransportSecurity != nil && (hydrateUnconfigured || prior != nil && prior.HSTS != nil) {
 		hsts := &HstsModel{}
 		if prior != nil && prior.HSTS != nil {
 			priorHSTS := *prior.HSTS
 			hsts = &priorHSTS
 		}
-		if frontend.HTTPStrictTransportSecurity.Enabled != nil {
+		if frontend.HTTPStrictTransportSecurity.Enabled != nil && shouldSetBool(priorBool(hsts, func(p *HstsModel) types.Bool { return p.Enabled }), hydrateUnconfigured) {
 			hsts.Enabled = types.BoolValue(*frontend.HTTPStrictTransportSecurity.Enabled)
 		}
-		if frontend.HTTPStrictTransportSecurity.MaxAge != nil {
+		if frontend.HTTPStrictTransportSecurity.MaxAge != nil && shouldSetInt64(priorInt64(hsts, func(p *HstsModel) types.Int64 { return p.MaxAge }), hydrateUnconfigured) {
 			hsts.MaxAge = types.Int64Value(*frontend.HTTPStrictTransportSecurity.MaxAge)
 		}
-		if frontend.HTTPStrictTransportSecurity.IncludeSubdomains != nil {
+		if frontend.HTTPStrictTransportSecurity.IncludeSubdomains != nil && shouldSetBool(priorBool(hsts, func(p *HstsModel) types.Bool { return p.IncludeSubdomains }), hydrateUnconfigured) {
 			hsts.IncludeSubdomains = types.BoolValue(*frontend.HTTPStrictTransportSecurity.IncludeSubdomains)
 		}
-		if frontend.HTTPStrictTransportSecurity.Preload != nil {
+		if frontend.HTTPStrictTransportSecurity.Preload != nil && shouldSetBool(priorBool(hsts, func(p *HstsModel) types.Bool { return p.Preload }), hydrateUnconfigured) {
 			hsts.Preload = types.BoolValue(*frontend.HTTPStrictTransportSecurity.Preload)
 		}
 		data.HSTS = hsts
 	}
 
-	if frontend.ClientCertificateVerification != nil {
+	if frontend.ClientCertificateVerification != nil && (hydrateUnconfigured || prior != nil && prior.ClientCertificateVerification != nil) {
 		clientCertificateVerification := &ClientCertificateVerification{}
 		if prior != nil && prior.ClientCertificateVerification != nil {
 			priorClientCertificateVerification := *prior.ClientCertificateVerification
@@ -712,10 +821,12 @@ func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, 
 		if frontend.ClientCertificateVerification.Mode != nil {
 			clientCertificateVerification.Mode = types.StringValue(*frontend.ClientCertificateVerification.Mode)
 		}
-		if frontend.ClientCertificateVerification.VerifyCrl != nil {
+		if frontend.ClientCertificateVerification.VerifyCrl != nil && shouldSetBool(priorBool(clientCertificateVerification, func(p *ClientCertificateVerification) types.Bool {
+			return p.VerifyCrl
+		}), hydrateUnconfigured) {
 			clientCertificateVerification.VerifyCrl = types.BoolValue(*frontend.ClientCertificateVerification.VerifyCrl)
 		}
-		if frontend.ClientCertificateVerification.CaCertificateIds != nil {
+		if frontend.ClientCertificateVerification.CaCertificateIds != nil && (hydrateUnconfigured || clientCertificateVerification.CaCertificateIds != nil) {
 			clientCertificateVerification.CaCertificateIds = stringSliceToTypeValues(frontend.ClientCertificateVerification.CaCertificateIds)
 		}
 		data.ClientCertificateVerification = clientCertificateVerification
@@ -724,9 +835,12 @@ func mapFrontendResponseToModel(frontend *client.TrafficConfigResponseFrontend, 
 	return data
 }
 
-func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, prior *BackendModel) *BackendModel {
+func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, prior *BackendModel, hydrateUnconfigured bool) *BackendModel {
 	if backend == nil {
 		return prior
+	}
+	if prior == nil && !hydrateUnconfigured {
+		return nil
 	}
 
 	data := &BackendModel{}
@@ -751,16 +865,18 @@ func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, pri
 		data.ServerName = types.StringValue(*backend.ServerName)
 	}
 
-	if backend.TLSSettings != nil {
+	if backend.TLSSettings != nil && (hydrateUnconfigured || prior != nil && prior.TLSSettings != nil) {
 		tlsSettings := &TlsSettingsModel{}
 		if prior != nil && prior.TLSSettings != nil {
 			priorTLSSettings := *prior.TLSSettings
 			tlsSettings = &priorTLSSettings
 		}
-		if backend.TLSSettings.ClientCertificateID != nil {
+		if backend.TLSSettings.ClientCertificateID != nil && shouldSetString(priorString(tlsSettings, func(p *TlsSettingsModel) types.String {
+			return p.ClientCertificateID
+		}), hydrateUnconfigured) {
 			tlsSettings.ClientCertificateID = optionalStringPtrValue(backend.TLSSettings.ClientCertificateID)
 		}
-		if backend.TLSSettings.VerifyCertificate != nil {
+		if backend.TLSSettings.VerifyCertificate != nil && (hydrateUnconfigured || prior != nil && prior.TLSSettings != nil && prior.TLSSettings.VerifyCertificate != nil) {
 			verifyCertificate := &VerifyCertificateSettings{}
 			if prior != nil && prior.TLSSettings != nil && prior.TLSSettings.VerifyCertificate != nil {
 				priorVerifyCertificate := *prior.TLSSettings.VerifyCertificate
@@ -769,10 +885,12 @@ func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, pri
 			if backend.TLSSettings.VerifyCertificate.Mode != nil {
 				verifyCertificate.Mode = types.StringValue(*backend.TLSSettings.VerifyCertificate.Mode)
 			}
-			if backend.TLSSettings.VerifyCertificate.CaCertificateIds != nil {
+			if backend.TLSSettings.VerifyCertificate.CaCertificateIds != nil && (hydrateUnconfigured || verifyCertificate.CaCertificateIds != nil) {
 				verifyCertificate.CaCertificateIds = stringSliceToTypeValues(backend.TLSSettings.VerifyCertificate.CaCertificateIds)
 			}
-			if backend.TLSSettings.VerifyCertificate.VerifyCrl != nil {
+			if backend.TLSSettings.VerifyCertificate.VerifyCrl != nil && shouldSetBool(priorBool(verifyCertificate, func(p *VerifyCertificateSettings) types.Bool {
+				return p.VerifyCrl
+			}), hydrateUnconfigured) {
 				verifyCertificate.VerifyCrl = types.BoolValue(*backend.TLSSettings.VerifyCertificate.VerifyCrl)
 			}
 			tlsSettings.VerifyCertificate = verifyCertificate
@@ -783,9 +901,12 @@ func mapBackendResponseToModel(backend *client.TrafficConfigResponseBackend, pri
 	return data
 }
 
-func mapProtocolSettingsResponseToModel(settings *client.TrafficConfigResponseProtocolSettings, prior *ProtocolSettingsModel) *ProtocolSettingsModel {
+func mapProtocolSettingsResponseToModel(settings *client.TrafficConfigResponseProtocolSettings, prior *ProtocolSettingsModel, hydrateUnconfigured bool) *ProtocolSettingsModel {
 	if settings == nil {
 		return prior
+	}
+	if prior == nil && !hydrateUnconfigured {
+		return nil
 	}
 
 	data := &ProtocolSettingsModel{}
@@ -797,19 +918,26 @@ func mapProtocolSettingsResponseToModel(settings *client.TrafficConfigResponsePr
 	if settings.Version != nil {
 		data.Version = types.StringValue(*settings.Version)
 	}
-	if settings.EnableWebsockets != nil {
+	if settings.EnableWebsockets != nil && shouldSetBool(priorBool(prior, func(p *ProtocolSettingsModel) types.Bool {
+		return p.EnableWebsockets
+	}), hydrateUnconfigured) {
 		data.EnableWebsockets = types.BoolValue(*settings.EnableWebsockets)
 	}
-	if settings.Multiplexing != nil {
+	if settings.Multiplexing != nil && shouldSetBool(priorBool(prior, func(p *ProtocolSettingsModel) types.Bool {
+		return p.Multiplexing
+	}), hydrateUnconfigured) {
 		data.Multiplexing = types.BoolValue(*settings.Multiplexing)
 	}
 
 	return data
 }
 
-func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel) *WafModel {
+func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel, hydrateUnconfigured bool) *WafModel {
 	if waf == nil {
 		return prior
+	}
+	if prior == nil && !hydrateUnconfigured {
+		return nil
 	}
 
 	data := &WafModel{}
@@ -829,11 +957,11 @@ func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel
 	} else if waf.CoreRuleSet != nil && waf.CoreRuleSet.Version != nil {
 		data.CoreRuleSetID = types.StringValue(*waf.CoreRuleSet.Version)
 	}
-	if waf.SourceExclusions != nil && waf.SourceExclusions.Sources != nil {
+	if waf.SourceExclusions != nil && waf.SourceExclusions.Sources != nil && (hydrateUnconfigured || prior != nil && prior.SourceExclusions != nil) {
 		data.SourceExclusions = stringSliceToTypeValues(waf.SourceExclusions.Sources)
 	}
 
-	if waf.HTTPCompliance != nil {
+	if waf.HTTPCompliance != nil && (hydrateUnconfigured || prior != nil && prior.HttpCompliance != nil) {
 		httpCompliance := &HttpComplianceModel{}
 		if prior != nil && prior.HttpCompliance != nil {
 			priorHTTPCompliance := *prior.HttpCompliance
@@ -841,13 +969,13 @@ func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel
 		}
 		if waf.HTTPCompliance.GlobalConfig != nil {
 			globalConfig := waf.HTTPCompliance.GlobalConfig
-			if globalConfig.AllowedHTTPMethods != nil {
+			if globalConfig.AllowedHTTPMethods != nil && (hydrateUnconfigured || httpCompliance.AllowedMethods != nil) {
 				httpCompliance.AllowedMethods = stringSliceToTypeValues(globalConfig.AllowedHTTPMethods)
 			}
-			if globalConfig.AllowedHTTPVersions != nil {
+			if globalConfig.AllowedHTTPVersions != nil && (hydrateUnconfigured || httpCompliance.AllowedVersions != nil) {
 				httpCompliance.AllowedVersions = stringSliceToTypeValues(globalConfig.AllowedHTTPVersions)
 			}
-			if globalConfig.ParameterLimit != nil {
+			if globalConfig.ParameterLimit != nil && shouldSetInt64(httpCompliance.ParameterLimit, hydrateUnconfigured) {
 				httpCompliance.ParameterLimit = types.Int64Null()
 				if globalConfig.ParameterLimit.Enabled != nil && *globalConfig.ParameterLimit.Enabled {
 					if globalConfig.ParameterLimit.Limit != nil {
@@ -861,7 +989,7 @@ func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel
 		data.HttpCompliance = httpCompliance
 	}
 
-	if waf.PathExclusions != nil {
+	if waf.PathExclusions != nil && (hydrateUnconfigured || prior != nil && prior.Exclusions != nil) {
 		data.Exclusions = make([]WafExclusionModel, 0, len(waf.PathExclusions))
 		for _, exclusion := range waf.PathExclusions {
 			mapped := WafExclusionModel{
@@ -882,9 +1010,12 @@ func mapWafResponseToModel(waf *client.TrafficConfigResponseWAF, prior *WafModel
 	return data
 }
 
-func mapRateLimitingResponseToModel(rateLimiting *client.TrafficConfigResponseRateLimit, prior *RateLimitingModel) *RateLimitingModel {
+func mapRateLimitingResponseToModel(rateLimiting *client.TrafficConfigResponseRateLimit, prior *RateLimitingModel, hydrateUnconfigured bool) *RateLimitingModel {
 	if rateLimiting == nil {
 		return prior
+	}
+	if prior == nil && !hydrateUnconfigured {
+		return nil
 	}
 
 	data := &RateLimitingModel{}
@@ -901,6 +1032,42 @@ func mapRateLimitingResponseToModel(rateLimiting *client.TrafficConfigResponseRa
 	}
 
 	return data
+}
+
+func priorString[T any](prior *T, get func(*T) types.String) types.String {
+	if prior == nil {
+		return types.StringNull()
+	}
+
+	return get(prior)
+}
+
+func priorBool[T any](prior *T, get func(*T) types.Bool) types.Bool {
+	if prior == nil {
+		return types.BoolNull()
+	}
+
+	return get(prior)
+}
+
+func priorInt64[T any](prior *T, get func(*T) types.Int64) types.Int64 {
+	if prior == nil {
+		return types.Int64Null()
+	}
+
+	return get(prior)
+}
+
+func shouldSetString(value types.String, hydrateUnconfigured bool) bool {
+	return hydrateUnconfigured || (!value.IsNull() && !value.IsUnknown())
+}
+
+func shouldSetBool(value types.Bool, hydrateUnconfigured bool) bool {
+	return hydrateUnconfigured || (!value.IsNull() && !value.IsUnknown())
+}
+
+func shouldSetInt64(value types.Int64, hydrateUnconfigured bool) bool {
+	return hydrateUnconfigured || (!value.IsNull() && !value.IsUnknown())
 }
 
 func optionalStringPtrValue(value *string) types.String {

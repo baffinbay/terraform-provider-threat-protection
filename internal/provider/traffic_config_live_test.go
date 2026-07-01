@@ -13,7 +13,7 @@ func TestAccTrafficConfig_Live(t *testing.T) {
 		t.Skip("Skipping live test. Set RUN_LIVE_TESTS=1 to run.")
 	}
 
-	_ = os.Getenv("BAFFINBAY_ACCOUNT_ID")
+	_ = os.Getenv("BAFFINBAY_TENANT_ID")
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,

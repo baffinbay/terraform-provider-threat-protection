@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-const testAccountID = "test-account-id"
+const testTenantID = "test-tenant-id"
 
 func testProviderConfig(serverURL string) string {
 	return fmt.Sprintf(`provider "baffinbay" {
@@ -25,9 +25,9 @@ func testProviderConfig(serverURL string) string {
   client_secret = "test-secret"
   api_url       = %[1]q
   oidc_url      = "%[1]s/oauth/token"
-  account_id    = %[2]q
+  tenant_id    = %[2]q
 }
-`, serverURL, testAccountID)
+`, serverURL, testTenantID)
 }
 
 func setTestTokenCache(t *testing.T) {
@@ -237,6 +237,78 @@ func TestTrafficConfigResource_ImportHydratesHTTPProxy(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestTrafficConfigResource_HTTPProxyIgnoresUnconfiguredAPIDefaults(t *testing.T) {
+	setTestTokenCache(t)
+
+	var currentName atomic.Value
+	currentName.Store("test-http")
+	var putCount atomic.Int64
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			writeTokenResponse(w)
+			return
+		}
+
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs":
+			writeJSONAPI(w, trafficConfigHTTPProxyDefaultedResponse(currentName.Load().(string)))
+			return
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			writeJSONAPI(w, trafficConfigHTTPProxyDefaultedResponse(currentName.Load().(string)))
+			return
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			putCount.Add(1)
+			trafficConfigName := readHTTPProxyRequestNameAndAssertDefaults(t, r)
+			currentName.Store(trafficConfigName)
+			w.WriteHeader(http.StatusAccepted)
+			writeJSONAPI(w, trafficConfigHTTPProxyDefaultedResponse(trafficConfigName))
+			return
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: trafficConfigHTTPProxyMinimalConfig(server.URL, "test-http"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("baffinbay_traffic_config.test", "id", "traffic-config-id"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "protocol_settings.enable_websockets"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "protocol_settings.multiplexing"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "waf.enforcement"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "rate_limiting.enforcement"),
+				),
+			},
+			{
+				Config: trafficConfigHTTPProxyMinimalConfig(server.URL, "test-http-updated"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("baffinbay_traffic_config.test", plancheck.ResourceActionUpdate),
+					},
+				},
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("baffinbay_traffic_config.test", "name", "test-http-updated"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "protocol_settings.enable_websockets"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "protocol_settings.multiplexing"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "waf.enforcement"),
+					resource.TestCheckNoResourceAttr("baffinbay_traffic_config.test", "rate_limiting.enforcement"),
+				),
+			},
+		},
+	})
+
+	if putCount.Load() == 0 {
+		t.Fatalf("expected minimal HTTP proxy update to call PUT")
+	}
 }
 
 func TestTrafficConfigResource_ActiveChangePollingCreateUpdateApplied(t *testing.T) {
@@ -519,8 +591,8 @@ func TestCustomPageResource_ReadImportReplacementAndDelete404(t *testing.T) {
 			writeJSONAPI(w, `{"data":{"id":"custom-page-id","type":"custom-page","attributes":{"name":"test-page.html"}}}`)
 			return
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/custom-pages":
-			if got := r.URL.Query().Get("filter[tenantId]"); got != testAccountID {
-				t.Errorf("expected custom page tenant filter %q, got %q", testAccountID, got)
+			if got := r.URL.Query().Get("filter[tenantId]"); got != testTenantID {
+				t.Errorf("expected custom page tenant filter %q, got %q", testTenantID, got)
 			}
 			writeJSONAPI(w, `{"data":[{"id":"custom-page-id","type":"custom-page","attributes":{"name":"test-page.html"}}]}`)
 			return
@@ -642,6 +714,301 @@ func readTrafficConfigTypeAndNameFromRequest(t *testing.T, r *http.Request) (str
 	return req.Data.Type, req.Data.Attributes.Name
 }
 
+func readHTTPProxyRequestNameAndAssertDefaults(t *testing.T, r *http.Request) string {
+	t.Helper()
+
+	var req struct {
+		Data struct {
+			Attributes struct {
+				Name string `json:"name"`
+				WAF  *struct {
+					Enforcement      string `json:"enforcement"`
+					ParanoidLevel    int64  `json:"paranoidLevel"`
+					CoreRuleSetID    string `json:"coreRuleSetId"`
+					SourceExclusions struct {
+						Enabled bool     `json:"enabled"`
+						Sources []string `json:"sources"`
+					} `json:"sourceExclusions"`
+					HTTPCompliance struct {
+						GlobalConfig struct {
+							AllowedHTTPMethods  []string `json:"allowedHttpMethods"`
+							AllowedHTTPVersions []string `json:"allowedHttpVersions"`
+							ParameterLimit      struct {
+								Enabled bool `json:"enabled"`
+								Limit   int  `json:"limit"`
+							} `json:"parameterLimit"`
+						} `json:"globalConfig"`
+						ResourceConfigs []any `json:"resourceConfigs"`
+					} `json:"httpCompliance"`
+					PathExclusions []any `json:"pathExclusions"`
+				} `json:"waf"`
+				RateLimiting *struct {
+					BySrcIP       *testRateLimitRule `json:"bySrcIp"`
+					BySrcIPAndURL *testRateLimitRule `json:"bySrcIpAndUrl"`
+				} `json:"rateLimiting"`
+				TrafficRules    *[]any              `json:"trafficRules"`
+				GeoFencing      *testGeoFencing     `json:"geoFencing"`
+				AllowedSources  *testAllowedSources `json:"allowedSources"`
+				IPBasedAccess   *testIPBasedAccess  `json:"ipBasedAccessControl"`
+				ConnectionReuse *bool               `json:"connectionReuseEnabled"`
+				BotProtection   *testBotProtection  `json:"botProtection"`
+				CustomPages     *[]any              `json:"customPages"`
+				DataProtection  *testDataProtection `json:"dataProtection"`
+				GatewayPath     string              `json:"gatewayPath"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		t.Errorf("failed to decode traffic config request: %v", err)
+		return ""
+	}
+
+	waf := req.Data.Attributes.WAF
+	if waf == nil {
+		t.Errorf("expected default WAF payload for minimal HTTP proxy update")
+	} else {
+		if waf.Enforcement != "DISABLED" {
+			t.Errorf("expected default WAF enforcement DISABLED, got %q", waf.Enforcement)
+		}
+		if waf.ParanoidLevel != 1 {
+			t.Errorf("expected default WAF paranoid level 1, got %d", waf.ParanoidLevel)
+		}
+		if waf.CoreRuleSetID != "4.27.0" {
+			t.Errorf("expected default WAF core rule set 4.27.0, got %q", waf.CoreRuleSetID)
+		}
+		if waf.SourceExclusions.Enabled {
+			t.Errorf("expected default WAF source exclusions to be disabled")
+		}
+		assertStringSliceEqual(t, "default WAF allowed HTTP methods", waf.HTTPCompliance.GlobalConfig.AllowedHTTPMethods, []string{"GET", "POST", "DELETE", "PATCH", "PUT"})
+		assertStringSliceEqual(t, "default WAF allowed HTTP versions", waf.HTTPCompliance.GlobalConfig.AllowedHTTPVersions, []string{"HTTP/1.0", "HTTP/1.1", "HTTP/2.0", "HTTP/2"})
+		if waf.HTTPCompliance.GlobalConfig.ParameterLimit.Enabled {
+			t.Errorf("expected default WAF parameter limit to be disabled")
+		}
+		if waf.HTTPCompliance.GlobalConfig.ParameterLimit.Limit != 500 {
+			t.Errorf("expected default WAF parameter limit 500, got %d", waf.HTTPCompliance.GlobalConfig.ParameterLimit.Limit)
+		}
+		if len(waf.HTTPCompliance.ResourceConfigs) != 0 {
+			t.Errorf("expected no default WAF resource configs, got %d", len(waf.HTTPCompliance.ResourceConfigs))
+		}
+		if len(waf.PathExclusions) != 0 {
+			t.Errorf("expected no default WAF path exclusions, got %d", len(waf.PathExclusions))
+		}
+	}
+
+	rateLimiting := req.Data.Attributes.RateLimiting
+	if rateLimiting == nil {
+		t.Errorf("expected default rate limiting payload for minimal HTTP proxy update")
+	} else {
+		assertRateLimitRule(t, "bySrcIp", rateLimiting.BySrcIP)
+		assertRateLimitRule(t, "bySrcIpAndUrl", rateLimiting.BySrcIPAndURL)
+	}
+	if req.Data.Attributes.TrafficRules == nil {
+		t.Errorf("expected default empty trafficRules payload for minimal HTTP proxy update")
+	} else if len(*req.Data.Attributes.TrafficRules) != 0 {
+		t.Errorf("expected empty trafficRules payload, got %d rules", len(*req.Data.Attributes.TrafficRules))
+	}
+	assertDefaultGeoFencing(t, req.Data.Attributes.GeoFencing)
+	assertDefaultAllowedSources(t, req.Data.Attributes.AllowedSources)
+	assertDefaultIPBasedAccess(t, req.Data.Attributes.IPBasedAccess)
+	assertDefaultConnectionReuse(t, req.Data.Attributes.ConnectionReuse)
+	assertDefaultBotProtection(t, req.Data.Attributes.BotProtection)
+	assertEmptyAnySlicePointer(t, "customPages", req.Data.Attributes.CustomPages)
+	assertDefaultDataProtection(t, req.Data.Attributes.DataProtection)
+	if req.Data.Attributes.GatewayPath != "EXTERNAL" {
+		t.Errorf("expected default gatewayPath EXTERNAL, got %q", req.Data.Attributes.GatewayPath)
+	}
+
+	return req.Data.Attributes.Name
+}
+
+type testRateLimitRule struct {
+	Enforcement string `json:"enforcement"`
+	Rate        struct {
+		Value int    `json:"value"`
+		Unit  string `json:"unit"`
+	} `json:"rate"`
+	Burst int `json:"burst"`
+}
+
+type testGeoFencing struct {
+	Type    string   `json:"type"`
+	Regions []string `json:"regions"`
+}
+
+type testAllowedSources struct {
+	Enforcement string   `json:"enforcement"`
+	Sources     []string `json:"sources"`
+}
+
+type testIPBasedAccess struct {
+	DefaultPolicy string `json:"defaultPolicy"`
+	Rules         struct {
+		IPRanges      []any `json:"ipRanges"`
+		KnownServices []any `json:"knownServices"`
+		IPLists       []any `json:"ipLists"`
+		GeoLocations  []any `json:"geoLocations"`
+		ASNs          []any `json:"asns"`
+	} `json:"rules"`
+}
+
+type testBotProtection struct {
+	Strategy      string `json:"strategy"`
+	ChallengeType string `json:"challengeType"`
+}
+
+type testDataProtection struct {
+	LogRedaction struct {
+		Headers []string `json:"headers"`
+		Cookies []string `json:"cookies"`
+	} `json:"logRedaction"`
+}
+
+func assertRateLimitRule(t *testing.T, label string, rule *testRateLimitRule) {
+	t.Helper()
+
+	if rule == nil {
+		t.Errorf("expected default rate limiting %s payload", label)
+		return
+	}
+	if rule.Enforcement != "BLOCK" {
+		t.Errorf("expected default rate limiting %s enforcement BLOCK, got %q", label, rule.Enforcement)
+	}
+	if rule.Rate.Value != 100 {
+		t.Errorf("expected default rate limiting %s rate value 100, got %d", label, rule.Rate.Value)
+	}
+	if rule.Rate.Unit != "r/s" {
+		t.Errorf("expected default rate limiting %s rate unit r/s, got %q", label, rule.Rate.Unit)
+	}
+	if rule.Burst != 10 {
+		t.Errorf("expected default rate limiting %s burst 10, got %d", label, rule.Burst)
+	}
+}
+
+func assertDefaultGeoFencing(t *testing.T, geoFencing *testGeoFencing) {
+	t.Helper()
+
+	if geoFencing == nil {
+		t.Errorf("expected default geoFencing payload")
+		return
+	}
+	if geoFencing.Type != "BLOCK" {
+		t.Errorf("expected default geoFencing type BLOCK, got %q", geoFencing.Type)
+	}
+	if len(geoFencing.Regions) != 0 {
+		t.Errorf("expected empty geoFencing regions, got %d", len(geoFencing.Regions))
+	}
+}
+
+func assertDefaultAllowedSources(t *testing.T, allowedSources *testAllowedSources) {
+	t.Helper()
+
+	if allowedSources == nil {
+		t.Errorf("expected default allowedSources payload")
+		return
+	}
+	if allowedSources.Enforcement != "DISABLED" {
+		t.Errorf("expected default allowedSources enforcement DISABLED, got %q", allowedSources.Enforcement)
+	}
+	if len(allowedSources.Sources) != 0 {
+		t.Errorf("expected empty allowedSources sources, got %d", len(allowedSources.Sources))
+	}
+}
+
+func assertDefaultIPBasedAccess(t *testing.T, ipBasedAccess *testIPBasedAccess) {
+	t.Helper()
+
+	if ipBasedAccess == nil {
+		t.Errorf("expected default ipBasedAccessControl payload")
+		return
+	}
+	if ipBasedAccess.DefaultPolicy != "ALLOW" {
+		t.Errorf("expected default ipBasedAccessControl policy ALLOW, got %q", ipBasedAccess.DefaultPolicy)
+	}
+	if len(ipBasedAccess.Rules.IPRanges) != 0 {
+		t.Errorf("expected empty ipBasedAccessControl ipRanges, got %d", len(ipBasedAccess.Rules.IPRanges))
+	}
+	if len(ipBasedAccess.Rules.KnownServices) != 0 {
+		t.Errorf("expected empty ipBasedAccessControl knownServices, got %d", len(ipBasedAccess.Rules.KnownServices))
+	}
+	if len(ipBasedAccess.Rules.IPLists) != 0 {
+		t.Errorf("expected empty ipBasedAccessControl ipLists, got %d", len(ipBasedAccess.Rules.IPLists))
+	}
+	if len(ipBasedAccess.Rules.GeoLocations) != 0 {
+		t.Errorf("expected empty ipBasedAccessControl geoLocations, got %d", len(ipBasedAccess.Rules.GeoLocations))
+	}
+	if len(ipBasedAccess.Rules.ASNs) != 0 {
+		t.Errorf("expected empty ipBasedAccessControl asns, got %d", len(ipBasedAccess.Rules.ASNs))
+	}
+}
+
+func assertDefaultConnectionReuse(t *testing.T, connectionReuse *bool) {
+	t.Helper()
+
+	if connectionReuse == nil {
+		t.Errorf("expected default connectionReuseEnabled payload")
+		return
+	}
+	if !*connectionReuse {
+		t.Errorf("expected default connectionReuseEnabled true")
+	}
+}
+
+func assertDefaultBotProtection(t *testing.T, botProtection *testBotProtection) {
+	t.Helper()
+
+	if botProtection == nil {
+		t.Errorf("expected default botProtection payload")
+		return
+	}
+	if botProtection.Strategy != "AUTO" {
+		t.Errorf("expected default botProtection strategy AUTO, got %q", botProtection.Strategy)
+	}
+	if botProtection.ChallengeType != "HTTP" {
+		t.Errorf("expected default botProtection challenge type HTTP, got %q", botProtection.ChallengeType)
+	}
+}
+
+func assertEmptyAnySlicePointer(t *testing.T, label string, values *[]any) {
+	t.Helper()
+
+	if values == nil {
+		t.Errorf("expected default %s payload", label)
+		return
+	}
+	if len(*values) != 0 {
+		t.Errorf("expected empty %s, got %d items", label, len(*values))
+	}
+}
+
+func assertDefaultDataProtection(t *testing.T, dataProtection *testDataProtection) {
+	t.Helper()
+
+	if dataProtection == nil {
+		t.Errorf("expected default dataProtection payload")
+		return
+	}
+	if len(dataProtection.LogRedaction.Headers) != 0 {
+		t.Errorf("expected empty dataProtection logRedaction headers, got %d", len(dataProtection.LogRedaction.Headers))
+	}
+	if len(dataProtection.LogRedaction.Cookies) != 0 {
+		t.Errorf("expected empty dataProtection logRedaction cookies, got %d", len(dataProtection.LogRedaction.Cookies))
+	}
+}
+
+func assertStringSliceEqual(t *testing.T, label string, got, want []string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Errorf("%s length: got %d, want %d", label, len(got), len(want))
+		return
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("%s[%d]: got %q, want %q", label, i, got[i], want[i])
+		}
+	}
+}
+
 func trafficConfigResponse(trafficConfigType, name string) string {
 	switch trafficConfigType {
 	case "routedDsr":
@@ -667,6 +1034,10 @@ func trafficConfigRoutedDsrResponse(name string) string {
 
 func trafficConfigHTTPProxyResponse(name string) string {
 	return trafficConfigJSON("httpProxy", fmt.Sprintf(`"name":%q,"version":"0.1.0","frontend":{"connectionType":"SECURE","ipv4":"192.168.1.1","port":443,"redirectHttp":false,"hosts":[{"host":"example.com","certificateId":"cert-id","tlsConfig":"ADVANCED"}],"httpStrictTransportSecurity":{"enabled":false,"maxAge":0,"includeSubdomains":false,"preload":false},"clientCertificateVerification":{"mode":"VERIFY_AND_REJECT","verifyCrl":false,"caCertificateIds":["ca-cert-id"]}},"backend":{"hosts":[{"address":"origin.example.com","port":8443}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com","tlsSettings":{"clientCertificateId":"client-cert-id","verifyCertificate":{"mode":"CUSTOM_TRUSTSTORE","caCertificateIds":["ca-cert-id"],"verifyCrl":false}}},"protocolSettings":{"httpVersion":"HTTP1.1","enableWebsockets":false,"multiplexing":false},"deployment":{"state":"UNDEPLOYED"},"waf":{"enforcement":"LOG","paranoidLevel":1,"coreRuleSetId":"crs-v4.22.0","sourceExclusions":{"enabled":true,"sources":["192.0.2.1/32"]},"httpCompliance":{"globalConfig":{"parameterLimit":{"enabled":true,"limit":0},"allowedHttpMethods":["GET","POST"],"allowedHttpVersions":["HTTP/1.1"]}},"pathExclusions":[{"type":"path","value":"/health","description":"Health check"}]},"rateLimiting":{"enforcement":"BLOCK"}`, name), "")
+}
+
+func trafficConfigHTTPProxyDefaultedResponse(name string) string {
+	return trafficConfigJSON("httpProxy", fmt.Sprintf(`"name":%q,"version":"0.1.0","frontend":{"connectionType":"PLAINTEXT","ipv4":"203.0.113.3","port":80,"hosts":[{"host":"terraform-test.example.com"}]},"backend":{"hosts":[{"address":"origin.example.com","port":80}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com"},"protocolSettings":{"httpVersion":"HTTP1.1","enableWebsockets":false,"multiplexing":false},"deployment":{"state":"UNDEPLOYED"},"waf":{"enforcement":"DISABLED","paranoidLevel":1,"coreRuleSetId":"4.27.0","sourceExclusions":{"enabled":false,"sources":[]},"httpCompliance":{"globalConfig":{"parameterLimit":{"enabled":false},"allowedHttpMethods":["GET","POST","DELETE","PATCH","PUT"],"allowedHttpVersions":["HTTP/1.0","HTTP/1.1","HTTP/2.0","HTTP/2"]}},"pathExclusions":[]},"rateLimiting":{"enforcement":"BLOCK"}`, name), "")
 }
 
 func trafficConfigJSON(trafficConfigType, attributes, activeChangeID string) string {
@@ -811,6 +1182,42 @@ resource "baffinbay_traffic_config" "test" {
         verify_crl         = false
       }
     }
+  }
+	}
+	`, name)
+}
+
+func trafficConfigHTTPProxyMinimalConfig(serverURL, name string) string {
+	return testProviderConfig(serverURL) + fmt.Sprintf(`
+resource "baffinbay_traffic_config" "test" {
+  type             = "httpProxy"
+  name             = %q
+  deployment_state = "UNDEPLOYED"
+
+  frontend = {
+    connection_type = "PLAINTEXT"
+    port            = 80
+    ipv4            = "203.0.113.3"
+    hosts = [
+      {
+        host = "terraform-test.example.com"
+      }
+    ]
+  }
+
+  backend = {
+    hosts = [
+      {
+        address = "origin.example.com"
+        port    = 80
+      }
+    ]
+    delivery_method = "ROUND_ROBIN"
+    server_name     = "origin.example.com"
+  }
+
+  protocol_settings = {
+    version = "HTTP1.1"
   }
 }
 `, name)

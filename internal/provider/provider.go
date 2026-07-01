@@ -21,7 +21,7 @@ type BaffinBayProviderModel struct {
 	ClientID     types.String `tfsdk:"client_id"`
 	ClientSecret types.String `tfsdk:"client_secret"`
 	OIDCURL      types.String `tfsdk:"oidc_url"`
-	AccountID    types.String `tfsdk:"account_id"`
+	TenantID     types.String `tfsdk:"tenant_id"`
 }
 
 func New() provider.Provider {
@@ -52,8 +52,8 @@ func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaReque
 				MarkdownDescription: "The OIDC token endpoint URL. Defaults to production URL.",
 				Optional:            true,
 			},
-			"account_id": schema.StringAttribute{
-				MarkdownDescription: "The Account ID for Baffin Bay Threat Protection. Required for some resources.",
+			"tenant_id": schema.StringAttribute{
+				MarkdownDescription: "The tenant ID for Baffin Bay Threat Protection. May also be set via the `BAFFINBAY_TENANT_ID` environment variable.",
 				Optional:            true,
 			},
 		},
@@ -89,15 +89,23 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		oidcURL = data.OIDCURL.ValueString()
 	}
 
-	accountID := data.AccountID.ValueString()
-	if data.AccountID.IsNull() {
-		accountID = os.Getenv("BAFFINBAY_ACCOUNT_ID")
+	tenantID := data.TenantID.ValueString()
+	if data.TenantID.IsNull() {
+		tenantID = os.Getenv("BAFFINBAY_TENANT_ID")
 	}
 
 	if clientID == "" || clientSecret == "" {
 		resp.Diagnostics.AddError(
 			"Missing OIDC Credentials",
 			"Both client_id and client_secret must be set (via provider config or BAFFINBAY_CLIENT_ID / BAFFINBAY_CLIENT_SECRET environment variables).",
+		)
+		return
+	}
+
+	if tenantID == "" {
+		resp.Diagnostics.AddError(
+			"Missing Tenant ID",
+			"tenant_id must be set via provider config or the BAFFINBAY_TENANT_ID environment variable.",
 		)
 		return
 	}
@@ -113,7 +121,7 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 	}
 
 	c := client.NewClient(apiURL)
-	c.AccountID = accountID
+	c.TenantID = tenantID
 	c.TokenSource = ts
 
 	resp.DataSourceData = c

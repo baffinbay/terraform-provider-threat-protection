@@ -12,6 +12,9 @@ func TestAccProvider_LivePing(t *testing.T) {
 	if os.Getenv("BAFFINBAY_LIVE_TEST") == "" {
 		t.Skip("Skipping live API ping test. Set BAFFINBAY_LIVE_TEST=1 to run.")
 	}
+	if os.Getenv("BAFFINBAY_TENANT_ID") == "" {
+		t.Skip("Skipping live API ping test. Set BAFFINBAY_TENANT_ID to run.")
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,

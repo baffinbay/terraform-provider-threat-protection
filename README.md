@@ -69,8 +69,8 @@ Set your OIDC credentials in the environment before running Terraform or `bb-too
     set -a && source .env && set +a
     ```
 
-Required variables: `BAFFINBAY_CLIENT_ID`, `BAFFINBAY_CLIENT_SECRET`.
-Optional: `BAFFINBAY_ACCOUNT_ID`, `BAFFINBAY_API_URL`, `BAFFINBAY_OIDC_URL`, `BAFFINBAY_TOKEN_CACHE`.
+Required variables: `BAFFINBAY_CLIENT_ID`, `BAFFINBAY_CLIENT_SECRET`, `BAFFINBAY_TENANT_ID`.
+Optional: `BAFFINBAY_API_URL`, `BAFFINBAY_OIDC_URL`, `BAFFINBAY_TOKEN_CACHE`.
 
 ### Token cache
 

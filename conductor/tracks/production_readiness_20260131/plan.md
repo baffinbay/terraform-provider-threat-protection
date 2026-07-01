@@ -9,7 +9,7 @@
 
 ## Phase 2: Resource & Data Source Audit
 - [x] Task: Test Suite Stabilization
-    - [x] Sub-task: Fix `account_id` requirement in all existing acceptance tests.
+    - [x] Sub-task: Fix `tenant_id` requirement in all existing acceptance tests.
     - [x] Sub-task: Align `Certificate` resource test paths with actual API.
 - [x] Task: Schema & Spec Alignment
     - [x] Sub-task: Compare `internal/provider` schemas with `api-spec/traffic-mgmt.yml`.

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 const (
@@ -48,7 +50,16 @@ type TrafficConfigAttributes struct {
 	Prefix           string            `json:"prefix,omitempty"`
 	Announced        bool              `json:"announced,omitempty"`
 	WAF              *WAF              `json:"waf,omitempty"`
+	GeoFencing       *GeoFencing       `json:"geoFencing,omitempty"`
+	AllowedSources   *AllowedSources   `json:"allowedSources,omitempty"`
+	IPBasedAccess    *IPBasedAccess    `json:"ipBasedAccessControl,omitempty"`
+	ConnectionReuse  *bool             `json:"connectionReuseEnabled,omitempty"`
+	BotProtection    *BotProtection    `json:"botProtection,omitempty"`
+	CustomPages      *[]any            `json:"customPages,omitempty"`
+	DataProtection   *DataProtection   `json:"dataProtection,omitempty"`
+	GatewayPath      string            `json:"gatewayPath,omitempty"`
 	RateLimiting     *RateLimit        `json:"rateLimiting,omitempty"`
+	TrafficRules     *[]any            `json:"trafficRules,omitempty"`
 	ProtocolSettings *ProtocolSettings `json:"protocolSettings,omitempty"`
 }
 
@@ -73,12 +84,62 @@ type WAF struct {
 			AllowedHttpMethods  []string `json:"allowedHttpMethods"`
 			AllowedHttpVersions []string `json:"allowedHttpVersions"`
 		} `json:"globalConfig"`
+		ResourceConfigs []any `json:"resourceConfigs"`
 	} `json:"httpCompliance"`
 	PathExclusions []any `json:"pathExclusions"`
 }
 
 type RateLimit struct {
-	Enforcement string `json:"enforcement"`
+	BySrcIP       RateLimitRule `json:"bySrcIp"`
+	BySrcIPAndURL RateLimitRule `json:"bySrcIpAndUrl"`
+}
+
+type RateLimitRule struct {
+	Enforcement string        `json:"enforcement"`
+	Rate        RateLimitRate `json:"rate"`
+	Burst       int           `json:"burst"`
+}
+
+type RateLimitRate struct {
+	Value int    `json:"value"`
+	Unit  string `json:"unit"`
+}
+
+type GeoFencing struct {
+	Type    string   `json:"type"`
+	Regions []string `json:"regions"`
+}
+
+type AllowedSources struct {
+	Enforcement string   `json:"enforcement"`
+	Sources     []string `json:"sources"`
+}
+
+type IPBasedAccess struct {
+	DefaultPolicy string             `json:"defaultPolicy"`
+	Rules         IPBasedAccessRules `json:"rules"`
+}
+
+type IPBasedAccessRules struct {
+	IPRanges      []any `json:"ipRanges"`
+	KnownServices []any `json:"knownServices"`
+	IPLists       []any `json:"ipLists"`
+	GeoLocations  []any `json:"geoLocations"`
+	ASNs          []any `json:"asns"`
+}
+
+type BotProtection struct {
+	Strategy      string `json:"strategy"`
+	ChallengeType string `json:"challengeType"`
+}
+
+type DataProtection struct {
+	LogRedaction LogRedaction `json:"logRedaction"`
+}
+
+type LogRedaction struct {
+	Headers []string `json:"headers"`
+	Cookies []string `json:"cookies"`
 }
 
 type Frontend struct {
@@ -309,12 +370,12 @@ type TrafficConfigChange struct {
 }
 
 func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a traffic config")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a traffic config")
 	}
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 	reqData.Data.Attributes.Version = "0.1.0" // Default version
 
 	jsonData, err := json.Marshal(reqData)
@@ -322,7 +383,10 @@ func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigR
 		return nil, err
 	}
 
-	req, err := c.NewRequest(ctx, "POST", "/api/v2/traffic-mgmt/traffic-configs", bytes.NewBuffer(jsonData))
+	path := "/api/v2/traffic-mgmt/traffic-configs"
+	logTrafficConfigRequest(ctx, "POST", path, jsonData)
+
+	req, err := c.NewRequest(ctx, "POST", path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -372,12 +436,12 @@ func (c *Client) GetTrafficConfig(ctx context.Context, id string) (*TrafficConfi
 }
 
 func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to update a traffic config")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to update a traffic config")
 	}
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 	reqData.Data.Attributes.Version = "0.1.0"
 
 	jsonData, err := json.Marshal(reqData)
@@ -385,7 +449,10 @@ func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData Tra
 		return nil, err
 	}
 
-	req, err := c.NewRequest(ctx, "PUT", "/api/v2/traffic-mgmt/traffic-configs/"+id, bytes.NewBuffer(jsonData))
+	path := "/api/v2/traffic-mgmt/traffic-configs/" + id
+	logTrafficConfigRequest(ctx, "PUT", path, jsonData)
+
+	req, err := c.NewRequest(ctx, "PUT", path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -408,6 +475,16 @@ func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData Tra
 	}
 
 	return &tcResp, nil
+}
+
+func logTrafficConfigRequest(ctx context.Context, method, path string, payload []byte) {
+	tflog.Debug(ctx, "baffinbay traffic config request payload",
+		map[string]interface{}{
+			"method":  method,
+			"path":    path,
+			"payload": string(payload),
+		},
+	)
 }
 
 func (c *Client) DeleteTrafficConfig(ctx context.Context, id string) error {
