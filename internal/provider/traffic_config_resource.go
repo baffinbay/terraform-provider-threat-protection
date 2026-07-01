@@ -537,7 +537,8 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 		reqData.Data.Attributes.Prefix = data.Prefix.ValueString()
 	}
 	if !data.Announced.IsNull() {
-		reqData.Data.Attributes.Announced = data.Announced.ValueBool()
+		announced := data.Announced.ValueBool()
+		reqData.Data.Attributes.Announced = &announced
 	}
 
 	if data.Type.ValueString() == "l4Proxy" {

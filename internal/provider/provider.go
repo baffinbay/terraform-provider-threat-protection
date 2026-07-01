@@ -145,5 +145,6 @@ func (p *BaffinBayProvider) Resources(ctx context.Context) []func() resource.Res
 		NewCaCertificateResource,
 		NewCustomPageResource,
 		NewTrafficConfigResource,
+		NewRoutedDsrResource,
 	}
 }

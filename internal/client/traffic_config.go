@@ -48,7 +48,7 @@ type TrafficConfigAttributes struct {
 	Deployment       Deployment        `json:"deployment"`
 	Protocols        []string          `json:"protocols,omitempty"`
 	Prefix           string            `json:"prefix,omitempty"`
-	Announced        bool              `json:"announced,omitempty"`
+	Announced        *bool             `json:"announced,omitempty"`
 	WAF              *WAF              `json:"waf,omitempty"`
 	GeoFencing       *GeoFencing       `json:"geoFencing,omitempty"`
 	AllowedSources   *AllowedSources   `json:"allowedSources,omitempty"`
