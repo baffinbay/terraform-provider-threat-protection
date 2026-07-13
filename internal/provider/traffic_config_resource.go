@@ -131,7 +131,8 @@ func (r *TrafficConfigResource) Metadata(ctx context.Context, req resource.Metad
 
 func (r *TrafficConfigResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Baffin Bay Traffic Configuration.",
+		MarkdownDescription: "Manages a Baffin Bay Traffic Configuration. New configurations should use the type-specific `baffinbay_http_proxy`, `baffinbay_l4_proxy`, or `baffinbay_routed_dsr` resource. This compatibility resource remains available for existing state.",
+		DeprecationMessage:  "Use baffinbay_http_proxy, baffinbay_l4_proxy, or baffinbay_routed_dsr for new configurations. baffinbay_traffic_config remains supported for existing state.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -461,7 +462,10 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 		reqData.Data.Attributes.Frontend = &client.Frontend{
 			Port:           data.Frontend.Port.ValueInt64(),
 			ConnectionType: data.Frontend.ConnectionType.ValueString(),
-			RedirectHttp:   data.Frontend.RedirectHttp.ValueBool(),
+		}
+		if !data.Frontend.RedirectHttp.IsNull() && !data.Frontend.RedirectHttp.IsUnknown() {
+			redirectHTTP := data.Frontend.RedirectHttp.ValueBool()
+			reqData.Data.Attributes.Frontend.RedirectHttp = &redirectHTTP
 		}
 		if !data.Frontend.IPv4.IsNull() {
 			reqData.Data.Attributes.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
@@ -497,8 +501,11 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 
 		if data.Frontend.ClientCertificateVerification != nil {
 			reqData.Data.Attributes.Frontend.ClientCertificateVerification = &client.ClientCertificateVerification{
-				Mode:      data.Frontend.ClientCertificateVerification.Mode.ValueString(),
-				VerifyCrl: data.Frontend.ClientCertificateVerification.VerifyCrl.ValueBool(),
+				Mode: data.Frontend.ClientCertificateVerification.Mode.ValueString(),
+			}
+			if !data.Frontend.ClientCertificateVerification.VerifyCrl.IsNull() && !data.Frontend.ClientCertificateVerification.VerifyCrl.IsUnknown() {
+				verifyCRL := data.Frontend.ClientCertificateVerification.VerifyCrl.ValueBool()
+				reqData.Data.Attributes.Frontend.ClientCertificateVerification.VerifyCrl = &verifyCRL
 			}
 			for _, id := range data.Frontend.ClientCertificateVerification.CaCertificateIds {
 				reqData.Data.Attributes.Frontend.ClientCertificateVerification.CaCertificateIds = append(reqData.Data.Attributes.Frontend.ClientCertificateVerification.CaCertificateIds, id.ValueString())
@@ -523,8 +530,11 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 			}
 			if data.Backend.TLSSettings.VerifyCertificate != nil {
 				reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate = &client.VerifyCertificate{
-					Mode:      data.Backend.TLSSettings.VerifyCertificate.Mode.ValueString(),
-					VerifyCrl: data.Backend.TLSSettings.VerifyCertificate.VerifyCrl.ValueBool(),
+					Mode: data.Backend.TLSSettings.VerifyCertificate.Mode.ValueString(),
+				}
+				if !data.Backend.TLSSettings.VerifyCertificate.VerifyCrl.IsNull() && !data.Backend.TLSSettings.VerifyCertificate.VerifyCrl.IsUnknown() {
+					verifyCRL := data.Backend.TLSSettings.VerifyCertificate.VerifyCrl.ValueBool()
+					reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate.VerifyCrl = &verifyCRL
 				}
 				for _, id := range data.Backend.TLSSettings.VerifyCertificate.CaCertificateIds {
 					reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate.CaCertificateIds = append(reqData.Data.Attributes.Backend.TLSSettings.VerifyCertificate.CaCertificateIds, id.ValueString())
@@ -562,11 +572,16 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 		reqData.Data.Attributes.GatewayPath = "EXTERNAL"
 
 		if data.ProtocolSettings != nil {
-			reqData.Data.Attributes.ProtocolSettings = &client.ProtocolSettings{
-				Version:          data.ProtocolSettings.Version.ValueString(),
-				EnableWebsockets: data.ProtocolSettings.EnableWebsockets.ValueBool(),
-				Multiplexing:     data.ProtocolSettings.Multiplexing.ValueBool(),
+			protocolSettings := &client.ProtocolSettings{
+				Version: data.ProtocolSettings.Version.ValueString(),
 			}
+			if protocolSettings.Version == "HTTP1.1" {
+				enableWebsockets := data.ProtocolSettings.EnableWebsockets.ValueBool()
+				multiplexing := data.ProtocolSettings.Multiplexing.ValueBool()
+				protocolSettings.EnableWebsockets = &enableWebsockets
+				protocolSettings.Multiplexing = &multiplexing
+			}
+			reqData.Data.Attributes.ProtocolSettings = protocolSettings
 		}
 
 		if data.WAF != nil {

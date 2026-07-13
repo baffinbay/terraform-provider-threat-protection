@@ -173,7 +173,7 @@ type Frontend struct {
 	IP                            string                         `json:"ip,omitempty"`
 	Port                          int64                          `json:"port,omitempty"`
 	ConnectionType                string                         `json:"connectionType,omitempty"`
-	RedirectHttp                  bool                           `json:"redirectHttp,omitempty"`
+	RedirectHttp                  *bool                          `json:"redirectHttp,omitempty"`
 	Hosts                         []FrontendHost                 `json:"hosts,omitempty"`
 	HTTPStrictTransportSecurity   *HSTS                          `json:"httpStrictTransportSecurity,omitempty"`
 	ClientCertificateVerification *ClientCertificateVerification `json:"clientCertificateVerification,omitempty"`
@@ -194,7 +194,7 @@ type HSTS struct {
 
 type ClientCertificateVerification struct {
 	Mode             string   `json:"mode"`
-	VerifyCrl        bool     `json:"verifyCrl,omitempty"`
+	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
 	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
 }
 
@@ -213,7 +213,7 @@ type TLSSettings struct {
 type VerifyCertificate struct {
 	Mode             string   `json:"mode"`
 	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
-	VerifyCrl        bool     `json:"verifyCrl,omitempty"`
+	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
 }
 
 type Host struct {
@@ -223,8 +223,8 @@ type Host struct {
 
 type ProtocolSettings struct {
 	Version          string `json:"httpVersion"`
-	EnableWebsockets bool   `json:"enableWebsockets"`
-	Multiplexing     bool   `json:"multiplexing"`
+	EnableWebsockets *bool  `json:"enableWebsockets,omitempty"`
+	Multiplexing     *bool  `json:"multiplexing,omitempty"`
 }
 
 type TrafficConfigData struct {
