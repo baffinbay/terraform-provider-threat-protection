@@ -57,7 +57,6 @@ func TestProviderIncludesSingularDataSources(t *testing.T) {
 func TestSingularDataSourceSchemasRequireOnlyID(t *testing.T) {
 	for name, factory := range map[string]func() datasource.DataSource{
 		"ip_list":        NewIPListDataSource,
-		"certificate":    NewCertificateDataSource,
 		"ca_certificate": NewCACertificateDataSource,
 		"custom_page":    NewCustomPageDataSource,
 		"ip_source":      NewIPSourceDataSource,
