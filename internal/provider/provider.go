@@ -131,11 +131,20 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewPingDataSource,
+		NewTrafficConfigDataSource,
 		NewTrafficConfigsDataSource,
+		NewHTTPProxyDataSource,
+		NewL4ProxyDataSource,
+		NewRoutedDsrDataSource,
+		NewCertificateDataSource,
 		NewCertificatesDataSource,
+		NewCACertificateDataSource,
 		NewCaCertificatesDataSource,
+		NewCustomPageDataSource,
 		NewCustomPagesDataSource,
+		NewIPSourceDataSource,
 		NewIpSourcesDataSource,
+		NewIPListDataSource,
 		NewIPListsDataSource,
 	}
 }

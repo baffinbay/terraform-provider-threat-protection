@@ -50,49 +50,7 @@ func (d *IPListsDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 			"ip_lists": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Computed: true,
-						},
-						"type": schema.StringAttribute{
-							Computed: true,
-						},
-						"name": schema.StringAttribute{
-							Computed: true,
-						},
-						"entries": schema.ListNestedAttribute{
-							Computed: true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"value": schema.StringAttribute{
-										Computed: true,
-									},
-									"note": schema.StringAttribute{
-										Computed: true,
-									},
-								},
-							},
-						},
-						"used_by": schema.ListNestedAttribute{
-							Computed: true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"id": schema.StringAttribute{
-										Computed: true,
-									},
-									"type": schema.StringAttribute{
-										Computed: true,
-									},
-								},
-							},
-						},
-						"created_at": schema.StringAttribute{
-							Computed: true,
-						},
-						"last_updated_at": schema.StringAttribute{
-							Computed: true,
-						},
-					},
+					Attributes: ipListDataSourceAttributes(false),
 				},
 			},
 		},
@@ -130,33 +88,46 @@ func (d *IPListsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			return
 		}
 
-		usedBy := make([]IPListUsedByModel, 0, len(ipList.Relationships.UsedBy.Data))
-		for _, reference := range ipList.Relationships.UsedBy.Data {
-			usedBy = append(usedBy, IPListUsedByModel{
-				ID:   types.StringValue(reference.ID),
-				Type: types.StringValue(reference.Type),
-			})
-		}
-
-		createdAt := types.StringNull()
-		if ipList.Meta.CreatedAt != "" {
-			createdAt = types.StringValue(ipList.Meta.CreatedAt)
-		}
-		lastUpdatedAt := types.StringNull()
-		if ipList.Meta.LastUpdatedAt != "" {
-			lastUpdatedAt = types.StringValue(ipList.Meta.LastUpdatedAt)
-		}
-
-		state.IPLists = append(state.IPLists, IPListDataSourceModel{
-			ID:            types.StringValue(ipList.ID),
-			Type:          types.StringValue(ipList.Type),
-			Name:          types.StringValue(ipList.Attributes.Name),
-			Entries:       ipListEntriesToModel(ipList.Attributes.Entries),
-			UsedBy:        usedBy,
-			CreatedAt:     createdAt,
-			LastUpdatedAt: lastUpdatedAt,
-		})
+		state.IPLists = append(state.IPLists, mapIPListDataSourceModel(ipList))
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func ipListDataSourceAttributes(idRequired bool) map[string]schema.Attribute {
+	id := schema.Attribute(schema.StringAttribute{Computed: true})
+	if idRequired {
+		id = singularDataSourceIDAttribute("The UUID of the IP list to retrieve.")
+	}
+	return map[string]schema.Attribute{
+		"id":   id,
+		"type": schema.StringAttribute{Computed: true},
+		"name": schema.StringAttribute{Computed: true},
+		"entries": schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
+			"value": schema.StringAttribute{Computed: true},
+			"note":  schema.StringAttribute{Computed: true},
+		}}},
+		"used_by": schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
+			"id":   schema.StringAttribute{Computed: true},
+			"type": schema.StringAttribute{Computed: true},
+		}}},
+		"created_at":      schema.StringAttribute{Computed: true},
+		"last_updated_at": schema.StringAttribute{Computed: true},
+	}
+}
+
+func mapIPListDataSourceModel(ipList client.IPListData) IPListDataSourceModel {
+	usedBy := make([]IPListUsedByModel, 0, len(ipList.Relationships.UsedBy.Data))
+	for _, reference := range ipList.Relationships.UsedBy.Data {
+		usedBy = append(usedBy, IPListUsedByModel{ID: types.StringValue(reference.ID), Type: types.StringValue(reference.Type)})
+	}
+	return IPListDataSourceModel{
+		ID:            types.StringValue(ipList.ID),
+		Type:          types.StringValue(ipList.Type),
+		Name:          types.StringValue(ipList.Attributes.Name),
+		Entries:       ipListEntriesToModel(ipList.Attributes.Entries),
+		UsedBy:        usedBy,
+		CreatedAt:     nullableStringValue(ipList.Meta.CreatedAt),
+		LastUpdatedAt: nullableStringValue(ipList.Meta.LastUpdatedAt),
+	}
 }
