@@ -136,6 +136,7 @@ func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource
 		NewCaCertificatesDataSource,
 		NewCustomPagesDataSource,
 		NewIpSourcesDataSource,
+		NewIPListsDataSource,
 	}
 }
 
@@ -144,6 +145,7 @@ func (p *BaffinBayProvider) Resources(ctx context.Context) []func() resource.Res
 		NewCertificateResource,
 		NewCaCertificateResource,
 		NewCustomPageResource,
+		NewIPListResource,
 		NewTrafficConfigResource,
 		NewHTTPProxyResource,
 		NewL4ProxyResource,

@@ -364,7 +364,7 @@ func mapHTTPProxyResponseToModel(tc *client.HTTPProxyResponse, prior HTTPProxyRe
 		prior.IPBasedAccessControl = mapHTTPProxyIPAccessControlFromAPI(attributes.IPBasedAccessControl)
 	}
 	if attributes.TrafficRules != nil {
-		prior.TrafficRules = mapHTTPProxyTrafficRulesFromAPI(*attributes.TrafficRules)
+		prior.TrafficRules = mapHTTPProxyTrafficRulesFromAPI(*attributes.TrafficRules, prior.TrafficRules)
 	}
 	return prior
 }
@@ -512,20 +512,34 @@ func mapHTTPProxyStagedWAFFromAPI(data *client.HTTPProxyStagedWAF) *HTTPProxySta
 	return result
 }
 
-func mapHTTPProxyTrafficRulesFromAPI(data []client.HTTPProxyTrafficRule) []HTTPProxyTrafficRuleModel {
+func mapHTTPProxyTrafficRulesFromAPI(data []client.HTTPProxyTrafficRule, prior []HTTPProxyTrafficRuleModel) []HTTPProxyTrafficRuleModel {
 	result := make([]HTTPProxyTrafficRuleModel, 0, len(data))
-	for _, rule := range data {
-		model := HTTPProxyTrafficRuleModel{Name: types.StringValue(rule.Name), MatchingConditions: make([]HTTPProxyTrafficMatchingConditionModel, 0, len(rule.MatchingConditions)), Actions: mapHTTPProxyTrafficRuleActionsFromAPI(rule.Actions)}
-		for _, condition := range rule.MatchingConditions {
-			model.MatchingConditions = append(model.MatchingConditions, HTTPProxyTrafficMatchingConditionModel{Paths: stringSliceToTypeValues(condition.Paths), Hosts: &HTTPProxyTrafficRuleHostMatchModel{Type: types.StringValue(condition.Hosts.Type), Values: stringSliceToTypeValues(condition.Hosts.Values)}})
+	for i, rule := range data {
+		var priorRule *HTTPProxyTrafficRuleModel
+		if i < len(prior) {
+			priorRule = &prior[i]
+		}
+		model := HTTPProxyTrafficRuleModel{Name: types.StringValue(rule.Name), MatchingConditions: make([]HTTPProxyTrafficMatchingConditionModel, 0, len(rule.MatchingConditions)), Actions: mapHTTPProxyTrafficRuleActionsFromAPI(rule.Actions, priorRuleActions(priorRule))}
+		for j, condition := range rule.MatchingConditions {
+			var priorValues []types.String
+			if priorRule != nil && j < len(priorRule.MatchingConditions) && priorRule.MatchingConditions[j].Hosts != nil {
+				priorValues = priorRule.MatchingConditions[j].Hosts.Values
+			}
+			model.MatchingConditions = append(model.MatchingConditions, HTTPProxyTrafficMatchingConditionModel{Paths: stringSliceToTypeValues(condition.Paths), Hosts: &HTTPProxyTrafficRuleHostMatchModel{Type: types.StringValue(condition.Hosts.Type), Values: mapHTTPProxyOptionalStringListFromAPI(condition.Hosts.Values, priorValues)}})
 		}
 		result = append(result, model)
 	}
 	return result
 }
 
-func mapHTTPProxyTrafficRuleActionsFromAPI(data client.HTTPProxyTrafficRuleActions) *HTTPProxyTrafficRuleActionsModel {
-	result := &HTTPProxyTrafficRuleActionsModel{Backends: []HTTPProxyBackendHostModel{}, Headers: []HTTPProxyHeaderModel{}}
+func mapHTTPProxyTrafficRuleActionsFromAPI(data client.HTTPProxyTrafficRuleActions, prior *HTTPProxyTrafficRuleActionsModel) *HTTPProxyTrafficRuleActionsModel {
+	result := &HTTPProxyTrafficRuleActionsModel{}
+	if prior != nil && prior.Backends != nil {
+		result.Backends = []HTTPProxyBackendHostModel{}
+	}
+	if prior != nil && prior.Headers != nil {
+		result.Headers = []HTTPProxyHeaderModel{}
+	}
 	for _, backend := range data.SetBackends {
 		result.Backends = append(result.Backends, HTTPProxyBackendHostModel{Address: types.StringValue(backend.Address), Port: types.Int64Value(backend.Port)})
 	}
@@ -548,6 +562,23 @@ func mapHTTPProxyTrafficRuleActionsFromAPI(data client.HTTPProxyTrafficRuleActio
 		}
 	}
 	return result
+}
+
+func priorRuleActions(prior *HTTPProxyTrafficRuleModel) *HTTPProxyTrafficRuleActionsModel {
+	if prior == nil {
+		return nil
+	}
+	return prior.Actions
+}
+
+func mapHTTPProxyOptionalStringListFromAPI(data []string, prior []types.String) []types.String {
+	if len(data) > 0 {
+		return stringSliceToTypeValues(data)
+	}
+	if prior != nil {
+		return []types.String{}
+	}
+	return nil
 }
 
 func boolValuePointer(value types.Bool) *bool {

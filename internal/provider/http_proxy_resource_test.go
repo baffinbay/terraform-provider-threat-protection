@@ -221,6 +221,58 @@ func TestHTTPProxyResourceLifecycleFullPortalShape(t *testing.T) {
 	assertFullHTTPProxyPayload(t, payload)
 }
 
+func TestHTTPProxyResourceTrafficRuleOptionalListsRemainNull(t *testing.T) {
+	setTestTokenCache(t)
+	server := newHTTPProxyStateServer(t)
+	defer server.Close()
+	config := testProviderConfig(server.URL) + `
+resource "baffinbay_http_proxy" "traffic_rules" {
+  name = "traffic-rules-http"
+  frontend = {
+    connection_type = "PLAINTEXT"
+    ipv4 = "192.0.2.11"
+    port = 80
+    hosts = [{ host = "rules.example.com" }]
+  }
+  backend = { hosts = [{ address = "origin.example.com", port = 80 }] }
+  protocol_settings = { version = "HTTP1.1" }
+  traffic_rules = [
+    {
+      name = "redirect"
+      matching_conditions = [{ paths = ["/old/{*}"], hosts = { type = "ALL" } }]
+      actions = {
+        redirect = { url = "https://rules.example.com/new", status_code = 301, append_original_path = true }
+      }
+    },
+    {
+      name = "backend"
+      matching_conditions = [{ paths = ["/api/{*}"], hosts = { type = "ALL" } }]
+      actions = {
+        backends = [{ address = "api-origin.example.com", port = 80 }]
+      }
+    },
+    {
+      name = "header"
+      matching_conditions = [{ paths = ["/internal/{*}"], hosts = { type = "SELECT", values = ["rules.example.com"] } }]
+      actions = {
+        headers = [{ key = "X-Environment", value = "terraform" }]
+      }
+    }
+  ]
+}
+`
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{{
+		Config: config,
+		Check: tfresource.ComposeAggregateTestCheckFunc(
+			tfresource.TestCheckNoResourceAttr("baffinbay_http_proxy.traffic_rules", "traffic_rules.0.actions.backends"),
+			tfresource.TestCheckNoResourceAttr("baffinbay_http_proxy.traffic_rules", "traffic_rules.0.actions.headers"),
+			tfresource.TestCheckNoResourceAttr("baffinbay_http_proxy.traffic_rules", "traffic_rules.0.matching_conditions.0.hosts.values"),
+			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.traffic_rules", "traffic_rules.1.actions.backends.#", "1"),
+			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.traffic_rules", "traffic_rules.2.actions.headers.#", "1"),
+		),
+	}}})
+}
+
 func TestHTTPProxyResourceImportThenUpdatePreservesRemoteFields(t *testing.T) {
 	setTestTokenCache(t)
 	server := newHTTPProxyStateServer(t)
@@ -374,6 +426,33 @@ func TestHTTPProxyResponseFixtureMapsCurrentBackendShape(t *testing.T) {
 	}
 	if mapped.ConnectionReuse.IsNull() || mapped.ConnectionReuse.ValueBool() {
 		t.Fatal("explicit connectionReuseEnabled=false was not preserved")
+	}
+}
+
+func TestHTTPProxyTrafficRuleResponsePreservesOptionalListShape(t *testing.T) {
+	response := []client.HTTPProxyTrafficRule{{
+		Name: "redirect",
+		MatchingConditions: []client.HTTPProxyTrafficMatchingCondition{{
+			Paths: []string{"/old/{*}"},
+			Hosts: client.HTTPProxyTrafficRuleHostMatch{Type: "ALL", Values: []string{}},
+		}},
+		Actions: client.HTTPProxyTrafficRuleActions{SetBackends: []client.HTTPProxyBackendHost{}, SetHeaders: []client.HTTPProxyHeader{}},
+	}}
+
+	omitted := mapHTTPProxyTrafficRulesFromAPI(response, []HTTPProxyTrafficRuleModel{{
+		MatchingConditions: []HTTPProxyTrafficMatchingConditionModel{{Hosts: &HTTPProxyTrafficRuleHostMatchModel{}}},
+		Actions:            &HTTPProxyTrafficRuleActionsModel{},
+	}})
+	if omitted[0].Actions.Backends != nil || omitted[0].Actions.Headers != nil || omitted[0].MatchingConditions[0].Hosts.Values != nil {
+		t.Fatalf("omitted optional lists should remain nil: %#v", omitted[0])
+	}
+
+	explicitEmpty := mapHTTPProxyTrafficRulesFromAPI(response, []HTTPProxyTrafficRuleModel{{
+		MatchingConditions: []HTTPProxyTrafficMatchingConditionModel{{Hosts: &HTTPProxyTrafficRuleHostMatchModel{Values: []types.String{}}}},
+		Actions:            &HTTPProxyTrafficRuleActionsModel{Backends: []HTTPProxyBackendHostModel{}, Headers: []HTTPProxyHeaderModel{}},
+	}})
+	if explicitEmpty[0].Actions.Backends == nil || explicitEmpty[0].Actions.Headers == nil || explicitEmpty[0].MatchingConditions[0].Hosts.Values == nil {
+		t.Fatalf("explicit empty optional lists should remain non-nil: %#v", explicitEmpty[0])
 	}
 }
 
