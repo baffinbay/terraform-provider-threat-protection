@@ -41,6 +41,7 @@ func TestProviderIncludesSingularDataSources(t *testing.T) {
 		"baffinbay_certificate",
 		"baffinbay_ca_certificate",
 		"baffinbay_custom_page",
+		"baffinbay_known_service",
 		"baffinbay_ip_source",
 		"baffinbay_traffic_config",
 		"baffinbay_http_proxy",
