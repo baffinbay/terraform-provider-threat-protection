@@ -7,8 +7,8 @@ terraform {
 }
 
 provider "baffinbay" {
-  # Credentials are read from BAFFINBAY_CLIENT_ID / BAFFINBAY_CLIENT_SECRET
-  # environment variables by default.
+  # Configuration is read from BAFFINBAY_CLIENT_ID, BAFFINBAY_CLIENT_SECRET,
+  # and BAFFINBAY_TENANT_ID environment variables by default.
 }
 
 resource "baffinbay_custom_page" "example" {

@@ -6,7 +6,166 @@ info:
 servers:
   - url: https://portal.baffinbay.com
     description: Production
+
 paths:
+  /api/v2/traffic-mgmt/ip-lists:
+    post:
+      tags:
+        - Shared Resources
+      summary: Create IP List
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: "#/components/schemas/IpListCreateRequest"
+      responses:
+        201:
+          description: "The created IP List"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/IpListResponseData"
+
+    get:
+      tags:
+        - Shared Resources
+      summary: Get IP Lists
+      parameters:
+        - name: filter[tenant-id]
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Tenant id
+      responses:
+        200:
+          description: "IP Lists"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IpListResponseData"
+        403:
+          description: Forbidden
+        500:
+          description: Internal Server Error
+
+  /api/v2/traffic-mgmt/ip-lists/{ipListId}:
+    get:
+      tags:
+        - Shared Resources
+      summary: Get IP Lists
+      parameters:
+        - $ref: "#/components/parameters/ipListId"
+      responses:
+        200:
+          description: "IP Lists"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/IpListResponseData"
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+    put:
+      tags:
+        - Shared Resources
+      summary: Update IP List
+      parameters:
+        - $ref: "#/components/parameters/ipListId"
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: "#/components/schemas/IpListUpdateRequest"
+      responses:
+        202:
+          description: "Updated IP List"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/IpListResponseData"
+        400:
+          description: Bad Request
+        422:
+          description: Unprocessable Entity
+        403:
+          description: Forbidden
+        500:
+          description: Internal Server Error
+    delete:
+      tags:
+        - Shared Resources
+      summary: Delete IP List
+      parameters:
+        - $ref: "#/components/parameters/ipListId"
+      responses:
+        204:
+          description: No Content
+        403:
+          description: Forbidden
+        409:
+          description: Conflict
+        500:
+          description: Internal Server Error
+
+  /api/v2/traffic-mgmt/ip-lists/{ipListId}/changelog:
+    get:
+      tags:
+        - Shared Resources
+      summary: Get IP List change log
+      description: |
+        Retrieves the change log for an IP List, including all modifications such as additions, deletions, and updates to IP addresses. Each entry contains a timestamp and detailed information about the specific change.
+
+        Within the changes array, the path property indicates the field that was modified in the IP List payload. Array fields are represented as maps for consistency.
+
+        The change log reflects differences based on the latest version of the IP List API payload. As a result, changes related to deprecated or newly introduced features outside the current payload structure are not included.  "
+      parameters:
+        - $ref: "#/components/parameters/ipListId"
+      responses:
+        200:
+          description: "IP Lists"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IpListChangeLog"
+        403:
+          description: Forbidden
+        404:
+          description: Not Found
+        500:
+          description: Internal Server Error
+
   /api/v2/traffic-mgmt/tpc-ip-sources:
     get:
       tags:
@@ -24,16 +183,54 @@ paths:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/Ipv4Source'
-                        - $ref: '#/components/schemas/Ipv6Source'
+                        - $ref: "#/components/schemas/Ipv4Source"
+                        - $ref: "#/components/schemas/Ipv6Source"
+
+  /api/v2/traffic-mgmt/known-services:
+    get:
+      tags:
+        - Known Services
+      summary: Get the catalog of Baffin Bay-managed known services
+      description: |
+        Returns the list of curated Known Service that can be referenced by id from a KnownServiceRule.
+      responses:
+        200:
+          description: List of Known Services.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/KnownService"
+
+  /api/v2/traffic-mgmt/known-services/{knownServiceId}:
+    get:
+      tags:
+        - Known Services
+      summary: Get a Known Service
+      description: Returns a Known Service
+      responses:
+        200:
+          description: Known Service
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/KnownService"
+
   /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}/changelog/{changeId}:
     get:
       tags:
         - Traffic Management
       summary: Get a Change Log entry
       parameters:
-        - $ref: '#/components/parameters/trafficConfigId'
-        - $ref: '#/components/parameters/changeId'
+        - $ref: "#/components/parameters/trafficConfigId"
+        - $ref: "#/components/parameters/changeId"
       responses:
         200:
           description: Traffic Configuration change status.
@@ -42,15 +239,17 @@ paths:
               schema:
                 type: object
                 oneOf:
-                  - $ref: '#/components/schemas/StateChange'
-                  - $ref: '#/components/schemas/StateApplied'
-                  - $ref: '#/components/schemas/StateFailed'
+                  - $ref: "#/components/schemas/StateChange"
+                  - $ref: "#/components/schemas/StateApplied"
+                  - $ref: "#/components/schemas/StateFailed"
+
   /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}:
     get:
       tags:
         - Traffic Management
       summary: Get a Traffic Configuration
       parameters:
+        - $ref: "#/components/parameters/trafficConfigId"
         - in: query
           name: include
           schema:
@@ -72,41 +271,22 @@ paths:
                       type:
                         type: string
                         enum:
-                          - httpProxy
-                          - routedDsr
-                          - l4Proxy
+                          - "httpProxy"
+                          - "routedDsr"
+                          - "l4Proxy"
                       id:
                         type: string
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/HttpProxy'
-                          - $ref: '#/components/schemas/RoutedDsr'
-                          - $ref: '#/components/schemas/L4Proxy'
+                          - $ref: "#/components/schemas/HttpProxy"
+                          - $ref: "#/components/schemas/RoutedDsr"
+                          - $ref: "#/components/schemas/L4Proxy"
                       relationships:
                         type: object
                         properties:
-                          activeChange:
-                            type: object
-                            properties:
-                              links:
-                                type: object
-                                properties:
-                                  self:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/e85b8585-af30-4526-b07d-58b18ef9ffe6/relationships/active-change
-                                  related:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/active-change
-                              data:
-                                type: object
-                                properties:
-                                  type:
-                                    type: string
-                                    example: routedDsr
-                                  id:
-                                    type: string
-                                    format: uuid
+                          activeRollout:
+                            $ref: "#/components/schemas/ActiveRolloutRelationship"
                           belongsTo:
                             type: object
                             properties:
@@ -115,7 +295,7 @@ paths:
                                 properties:
                                   type:
                                     type: string
-                                    example: account
+                                    example: "account"
                                   id:
                                     type: string
                                     format: uuid
@@ -129,22 +309,24 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: coreRuleSet
+                                      example: "coreRuleSet"
                                     id:
                                       type: string
-                                      example: crs-v4.22.0
+                                      example: "crs-v4.22.0"
                           managedConfig:
-                            $ref: '#/components/schemas/ManagedConfig'
+                            $ref: "#/components/schemas/ManagedConfig"
                   included:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/IncludedManagedConfig'
+                        - $ref: "#/components/schemas/IncludedManagedConfig"
     patch:
       summary: Patch a Traffic Configuration
       tags:
         - Traffic Management
       description: Patch a Traffic Configuration
+      parameters:
+        - $ref: "#/components/parameters/trafficConfigId"
       requestBody:
         required: true
         content:
@@ -168,12 +350,12 @@ paths:
                         - routedDsr
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/PatchHttpProxy'
-                        - $ref: '#/components/schemas/PatchL4Proxy'
-                        - $ref: '#/components/schemas/PatchRoutedDsr'
+                        - $ref: "#/components/schemas/PatchHttpProxy"
+                        - $ref: "#/components/schemas/PatchL4Proxy"
+                        - $ref: "#/components/schemas/PatchRoutedDsr"
       responses:
         202:
-          description: Response object
+          description: "Response object"
           content:
             application/vnd.api+json:
               schema:
@@ -193,36 +375,14 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/PatchHttpProxy'
-                          - $ref: '#/components/schemas/PatchL4Proxy'
-                          - $ref: '#/components/schemas/PatchRoutedDsr'
+                          - $ref: "#/components/schemas/PatchHttpProxy"
+                          - $ref: "#/components/schemas/PatchL4Proxy"
+                          - $ref: "#/components/schemas/PatchRoutedDsr"
                       relationships:
                         type: object
                         properties:
-                          activeChange:
-                            type: object
-                            properties:
-                              links:
-                                type: object
-                                properties:
-                                  self:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/16e06a1c-81a1-41f5-8c09-16f2e5b2ca87/relationships/active-change
-                                  related:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/e0d0bf18-b77b-462b-83fb-d7a702392fc5/active-change
-                              data:
-                                type: object
-                                properties:
-                                  type:
-                                    type: string
-                                    enum:
-                                      - l4Proxy
-                                      - routedDsr
-                                      - httpProxy
-                                  id:
-                                    type: string
-                                    format: uuid
+                          activeRollout:
+                            $ref: "#/components/schemas/ActiveRolloutRelationship"
                           belongsTo:
                             type: object
                             properties:
@@ -245,22 +405,24 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: coreRuleSet
+                                      example: "coreRuleSet"
                                     id:
                                       type: string
-                                      example: crs-v4.22.0
+                                      example: "crs-v4.22.0"
                           managedConfig:
-                            $ref: '#/components/schemas/ManagedConfig'
+                            $ref: "#/components/schemas/ManagedConfig"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
     put:
       summary: Update a Traffic Configuration
       tags:
         - Traffic Management
+      parameters:
+        - $ref: "#/components/parameters/trafficConfigId"
       requestBody:
         required: true
         description: ""
@@ -275,14 +437,14 @@ paths:
                     type:
                       type: string
                       enum:
-                        - httpProxy
-                        - l4Proxy
-                        - routedDsr
+                        - "httpProxy"
+                        - "l4Proxy"
+                        - "routedDsr"
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/HttpProxy'
-                        - $ref: '#/components/schemas/L4Proxy'
-                        - $ref: '#/components/schemas/RoutedDsr'
+                        - $ref: "#/components/schemas/HttpProxy"
+                        - $ref: "#/components/schemas/L4Proxy"
+                        - $ref: "#/components/schemas/RoutedDsr"
                     relationships:
                       type: object
                       properties:
@@ -294,13 +456,13 @@ paths:
                               properties:
                                 type:
                                   type: string
-                                  example: account
+                                  example: "account"
                                 id:
                                   type: string
                                   format: uuid
       responses:
         202:
-          description: The created object
+          description: "The created object"
           content:
             application/vnd.api+json:
               schema:
@@ -312,41 +474,22 @@ paths:
                       type:
                         type: string
                         enum:
-                          - httpProxy
-                          - l4Proxy
-                          - routedDsr
+                          - "httpProxy"
+                          - "l4Proxy"
+                          - "routedDsr"
                       id:
                         type: string
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/HttpProxy'
-                          - $ref: '#/components/schemas/L4Proxy'
-                          - $ref: '#/components/schemas/RoutedDsr'
+                          - $ref: "#/components/schemas/HttpProxy"
+                          - $ref: "#/components/schemas/L4Proxy"
+                          - $ref: "#/components/schemas/RoutedDsr"
                       relationships:
                         type: object
                         properties:
-                          activeChange:
-                            type: object
-                            properties:
-                              links:
-                                type: object
-                                properties:
-                                  self:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/16e06a1c-81a1-41f5-8c09-16f2e5b2ca87/relationships/active-change
-                                  related:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/e0d0bf18-b77b-462b-83fb-d7a702392fc5/active-change
-                              data:
-                                type: object
-                                properties:
-                                  type:
-                                    type: string
-                                    example: routedDsr
-                                  id:
-                                    type: string
-                                    format: uuid
+                          activeRollout:
+                            $ref: "#/components/schemas/ActiveRolloutRelationship"
                           belongsTo:
                             type: object
                             properties:
@@ -355,7 +498,7 @@ paths:
                                 properties:
                                   type:
                                     type: string
-                                    example: account
+                                    example: "account"
                                   id:
                                     type: string
                                     format: uuid
@@ -369,24 +512,24 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: coreRuleSet
+                                      example: "coreRuleSet"
                                     id:
                                       type: string
-                                      example: crs-v4.22.0
+                                      example: "crs-v4.22.0"
                           managedConfig:
-                            $ref: '#/components/schemas/ManagedConfig'
+                            $ref: "#/components/schemas/ManagedConfig"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
     delete:
       tags:
         - Traffic Management
       summary: Delete a Traffic Configuration
       parameters:
-        - $ref: '#/components/parameters/trafficConfigId'
+        - $ref: "#/components/parameters/trafficConfigId"
       responses:
         200:
           description: Ok
@@ -396,6 +539,7 @@ paths:
           description: Not Found
         500:
           description: Internal Server Error
+
   /api/v2/traffic-mgmt/custom-pages:
     get:
       description: List of all available Custom Pages.
@@ -452,7 +596,7 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: account
+                                      example: "account"
                                     id:
                                       type: string
                                       format: uuid
@@ -509,7 +653,7 @@ paths:
                               properties:
                                 type:
                                   type: string
-                                  example: account
+                                  example: "account"
                                 id:
                                   type: string
                                   format: uuid
@@ -558,7 +702,7 @@ paths:
                                 properties:
                                   type:
                                     type: string
-                                    example: account
+                                    example: "account"
                                   id:
                                     type: string
                                     format: uuid
@@ -573,7 +717,7 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: traffic_config
+                                      example: "traffic_config"
                                     id:
                                       type: string
                                       format: uuid
@@ -585,12 +729,15 @@ paths:
           description: Conflict
         500:
           description: Internal Server Error
-  /api/v2/traffic-mgmt/custom-pages/{custom-page-id}:
+
+  /api/v2/traffic-mgmt/custom-pages/{customPageId}:
     delete:
       description: Delete a Custom Page by id
       tags:
         - Custom Pages Management
       summary: Delete a Custom Page
+      parameters:
+        - $ref: "#/components/parameters/customPageId"
       responses:
         204:
           description: No Content
@@ -602,12 +749,15 @@ paths:
           description: Conflict
         500:
           description: Internal Server Error
-  /api/v2/traffic-mgmt/custom-pages/{custom-page-id}/file:
+
+  /api/v2/traffic-mgmt/custom-pages/{customPageId}/file:
     get:
       description: Download a Custom Page by id
       tags:
         - Custom Pages Management
       summary: Download a Custom Page
+      parameters:
+        - $ref: "#/components/parameters/customPageId"
       responses:
         200:
           description: HTML file returned successfully
@@ -622,6 +772,7 @@ paths:
           description: Not Found
         500:
           description: Internal Server Error
+
   /api/v2/traffic-mgmt/traffic-configs:
     get:
       tags:
@@ -657,41 +808,22 @@ paths:
                         type:
                           type: string
                           enum:
-                            - httpProxy
-                            - routedDsr
-                            - l4Proxy
+                            - "httpProxy"
+                            - "routedDsr"
+                            - "l4Proxy"
                         id:
                           type: string
                           format: uuid
                         attributes:
                           oneOf:
-                            - $ref: '#/components/schemas/HttpProxy'
-                            - $ref: '#/components/schemas/RoutedDsr'
-                            - $ref: '#/components/schemas/L4Proxy'
+                            - $ref: "#/components/schemas/HttpProxy"
+                            - $ref: "#/components/schemas/RoutedDsr"
+                            - $ref: "#/components/schemas/L4Proxy"
                         relationships:
                           type: object
                           properties:
-                            activeChange:
-                              type: object
-                              properties:
-                                links:
-                                  type: object
-                                  properties:
-                                    self:
-                                      type: string
-                                      example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/relationships/active-change
-                                    related:
-                                      type: string
-                                      example: /api/v2/traffic-mgmt/traffic-configs/0bd6b4da-c31a-4ad8-9a04-6512115690a5/active-change
-                                data:
-                                  type: object
-                                  properties:
-                                    type:
-                                      type: string
-                                      example: routedDsr
-                                    id:
-                                      type: string
-                                      format: uuid
+                            activeRollout:
+                              $ref: "#/components/schemas/ActiveRolloutRelationship"
                             belongsTo:
                               type: object
                               properties:
@@ -700,7 +832,7 @@ paths:
                                   properties:
                                     type:
                                       type: string
-                                      example: account
+                                      example: "account"
                                     id:
                                       type: string
                                       format: uuid
@@ -714,17 +846,18 @@ paths:
                                     properties:
                                       type:
                                         type: string
-                                        example: coreRuleSet
+                                        example: "coreRuleSet"
                                       id:
                                         type: string
-                                        example: crs-v4.22.0
+                                        example: "crs-v4.22.0"
                             managedConfig:
-                              $ref: '#/components/schemas/ManagedConfig'
+                              $ref: "#/components/schemas/ManagedConfig"
                   included:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/IncludedManagedConfig'
+                        - $ref: "#/components/schemas/IncludedManagedConfig"
+
     post:
       summary: Create a Traffic Configuration
       tags:
@@ -754,9 +887,9 @@ paths:
                         - l4Proxy
                     attributes:
                       oneOf:
-                        - $ref: '#/components/schemas/CreateHttpProxy'
-                        - $ref: '#/components/schemas/CreateRoutedDsr'
-                        - $ref: '#/components/schemas/CreateL4Proxy'
+                        - $ref: "#/components/schemas/CreateHttpProxy"
+                        - $ref: "#/components/schemas/CreateRoutedDsr"
+                        - $ref: "#/components/schemas/CreateL4Proxy"
                     relationships:
                       type: object
                       required:
@@ -775,13 +908,13 @@ paths:
                               properties:
                                 type:
                                   type: string
-                                  example: account
+                                  example: "account"
                                 id:
                                   type: string
                                   format: uuid
       responses:
         202:
-          description: The created object
+          description: "The created object"
           content:
             application/vnd.api+json:
               schema:
@@ -801,36 +934,14 @@ paths:
                         format: uuid
                       attributes:
                         oneOf:
-                          - $ref: '#/components/schemas/HttpProxy'
-                          - $ref: '#/components/schemas/L4Proxy'
-                          - $ref: '#/components/schemas/RoutedDsr'
+                          - $ref: "#/components/schemas/HttpProxy"
+                          - $ref: "#/components/schemas/L4Proxy"
+                          - $ref: "#/components/schemas/RoutedDsr"
                       relationships:
                         type: object
                         properties:
-                          activeChange:
-                            type: object
-                            properties:
-                              links:
-                                type: object
-                                properties:
-                                  self:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/7e54738d-6c87-4a3f-b283-45e3953b7b10/relationships/active-change
-                                  related:
-                                    type: string
-                                    example: /api/v2/traffic-mgmt/traffic-configs/7e54738d-6c87-4a3f-b283-45e3953b7b10/active-change
-                              data:
-                                type: object
-                                properties:
-                                  type:
-                                    type: string
-                                    enum:
-                                      - httpProxy
-                                      - l4Proxy
-                                      - routedDsr
-                                  id:
-                                    type: string
-                                    example: 7e54738d-6c87-4a3f-b283-45e3953b7b10
+                          activeRollout:
+                            $ref: "#/components/schemas/ActiveRolloutRelationship"
                           belongsTo:
                             type: object
                             properties:
@@ -839,18 +950,19 @@ paths:
                                 properties:
                                   type:
                                     type: string
-                                    example: account
+                                    example: "account"
                                   id:
                                     type: string
                                     format: uuid
                           managedConfig:
-                            $ref: '#/components/schemas/ManagedConfig'
+                            $ref: "#/components/schemas/ManagedConfig"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
+
   /api/v2/traffic-mgmt/certificates:
     get:
       tags:
@@ -868,8 +980,9 @@ paths:
                     type: array
                     items:
                       oneOf:
-                        - $ref: '#/components/schemas/ImportedCertificateConfigData'
-                        - $ref: '#/components/schemas/LetsEncryptConfigData'
+                        - $ref: "#/components/schemas/ImportedCertificateConfigData"
+                        - $ref: "#/components/schemas/LetsEncryptConfigData"
+
   /api/v2/traffic-mgmt/certificates/lets-encrypt:
     post:
       tags:
@@ -887,7 +1000,7 @@ paths:
                   properties:
                     type:
                       type: string
-                      example: letsEncrypt
+                      example: "letsEncrypt"
                     attributes:
                       type: object
                       properties:
@@ -904,13 +1017,13 @@ paths:
                               properties:
                                 type:
                                   type: string
-                                  example: account
+                                  example: "account"
                                 id:
                                   type: string
                                   format: uuid
       responses:
         200:
-          description: The created object
+          description: "The created object"
           content:
             application/vnd.api+json:
               schema:
@@ -921,7 +1034,7 @@ paths:
                     properties:
                       type:
                         type: string
-                        example: letsEncrypt
+                        example: "letsEncrypt"
                       id:
                         type: string
                         format: uuid
@@ -945,13 +1058,15 @@ paths:
                                 enum:
                                   - UNINITIATED
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
+
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
+
   /api/v2/traffic-mgmt/certificates/pem:
     post:
       tags:
@@ -969,7 +1084,7 @@ paths:
                   properties:
                     type:
                       type: string
-                      example: importPemCertificate
+                      example: "importPemCertificate"
                     attributes:
                       type: object
                       properties:
@@ -993,13 +1108,13 @@ paths:
                               properties:
                                 type:
                                   type: string
-                                  example: account
+                                  example: "account"
                                 id:
                                   type: string
                                   format: uuid
       responses:
         200:
-          description: The created object
+          description: "The created object"
           content:
             application/vnd.api+json:
               schema:
@@ -1010,27 +1125,28 @@ paths:
                     properties:
                       type:
                         type: string
-                        example: importedCertificate
+                        example: "importedCertificate"
                       id:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+                        $ref: "#/components/schemas/ImportedCertificateConfigAttributes"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
+
   /api/v2/traffic-mgmt/certificates/{certificateConfigId}:
     delete:
       tags:
         - Certificate Management
       summary: Delete a Certificate
       parameters:
-        - $ref: '#/components/parameters/certificateConfigId'
+        - $ref: "#/components/parameters/certificateConfigId"
       responses:
         204:
           description: Ok
@@ -1040,25 +1156,27 @@ paths:
           description: Not Found
         500:
           description: Internal Server Error
+
   /api/v2/traffic-mgmt/certificates/lets-encrypt/{certificateConfigId}/renew:
     post:
       tags:
         - Certificate Management
       summary: Trigger manual renewal of Let's Encrypt Certificate
       parameters:
-        - $ref: '#/components/parameters/certificateConfigId'
+        - $ref: "#/components/parameters/certificateConfigId"
       responses:
         200:
           description: Ok
         404:
           description: Not Found
+
   /api/v2/traffic-mgmt/core-rule-sets/{coreRuleSetId}:
     get:
       tags:
         - Core Rule Set Management
       summary: Get a Core Rule Set
       parameters:
-        - $ref: '#/components/parameters/coreRuleSetId'
+        - $ref: "#/components/parameters/coreRuleSetId"
       responses:
         200:
           description: Return the core rule set corresponding to the coreRuleSetId parameter.
@@ -1072,23 +1190,25 @@ paths:
                     properties:
                       id:
                         type: string
-                        example: crs-v4.22.0
+                        example: "crs-v4.22.0"
                       type:
                         type: string
-                        example: coreRuleSet
+                        example: "coreRuleSet"
                       attributes:
-                        $ref: '#/components/schemas/CoreRuleSet'
+                        $ref: "#/components/schemas/CoreRuleSet"
         403:
           description: Forbidden
         404:
           description: Not Found
         500:
           description: Internal Server Error
+
   /api/v2/traffic-mgmt/ip-allocations/tenants/{tenantId}/sub-tenants/{subTenantId}/ips/{ipAddress}:
     delete:
       tags:
         - IP Allocation
       summary: Delete an IP Allocation
+
       parameters:
         - in: path
           name: tenantId
@@ -1120,9 +1240,10 @@ paths:
         404:
           description: NOT FOUND
         409:
-          description: 'CONFLICT: when trying to delete an IP Allocation that is in use by a traffic config'
+          description: "CONFLICT: when trying to delete an IP Allocation that is in use by a traffic config"
         500:
           description: INTERNAL ERROR
+
   /api/v2/traffic-mgmt/ca-certificates:
     post:
       description: Create a CA Certificate
@@ -1130,7 +1251,7 @@ paths:
         - CA Certificate Management
       summary: Create a CA Certificate
       requestBody:
-        description: Upload a CA Certificate
+        description: "Upload a CA Certificate"
         content:
           application/vnd.api+json:
             schema:
@@ -1150,7 +1271,7 @@ paths:
                       enum:
                         - caCertificate
                     attributes:
-                      $ref: '#/components/schemas/CreateCaCertificate'
+                      $ref: "#/components/schemas/CreateCaCertificate"
                     relationships:
                       type: object
                       required:
@@ -1173,6 +1294,7 @@ paths:
                                 id:
                                   type: string
                                   format: uuid
+
       responses:
         200:
           description: The created object
@@ -1192,22 +1314,23 @@ paths:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/CaCertificate'
+                        $ref: "#/components/schemas/CaCertificate"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         400:
           description: Bad Request
           content:
             application/vnd.api+json:
               schema:
-                $ref: '#/components/schemas/BadRequest'
+                $ref: "#/components/schemas/BadRequest"
+
     get:
       description: Get CA Certificates
       tags:
         - CA Certificate Management
       summary: Get CA Certificates
       parameters:
-        - $ref: ./general-components/parameters/optional-tenantId-filter.yaml
+        - $ref: "./general-components/parameters/optional-tenantId-filter.yaml"
       responses:
         200:
           description: A list of CA Certificates
@@ -1229,19 +1352,22 @@ paths:
                           type: string
                           format: uuid
                         attributes:
-                          $ref: '#/components/schemas/CaCertificate'
+                          $ref: "#/components/schemas/CaCertificate"
                         relationships:
-                          $ref: '#/components/schemas/CertificateRelationships'
+                          $ref: "#/components/schemas/CertificateRelationships"
         403:
           description: Forbidden
         500:
           description: Internal Server Error
+
   /api/v2/traffic-mgmt/ca-certificates/{caCertificateId}:
     get:
       description: Get CA Certificate by id
       tags:
         - CA Certificate Management
       summary: Get CA Certificate by id
+      parameters:
+        - $ref: "#/components/parameters/caCertificateId"
       responses:
         200:
           description: The response object
@@ -1261,20 +1387,23 @@ paths:
                         type: string
                         format: uuid
                       attributes:
-                        $ref: '#/components/schemas/CaCertificate'
+                        $ref: "#/components/schemas/CaCertificate"
                       relationships:
-                        $ref: '#/components/schemas/CertificateRelationships'
+                        $ref: "#/components/schemas/CertificateRelationships"
         403:
           description: Forbidden
         404:
           description: Not Found
         500:
           description: Internal Server Error
+
     delete:
       description: Delete a CA Certificate by id
       tags:
         - CA Certificate Management
       summary: Delete a CA Certificate
+      parameters:
+        - $ref: "#/components/parameters/caCertificateId"
       responses:
         200:
           description: Ok
@@ -1286,6 +1415,7 @@ paths:
           description: Conflict
         500:
           description: Internal Server Error
+
 components:
   parameters:
     changeId:
@@ -1297,12 +1427,48 @@ components:
       schema:
         type: string
         format: uuid
+    rolloutId:
+      name: rolloutId
+      in: path
+      description: Rollout Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
     trafficConfigId:
       name: trafficConfigId
       in: path
       description: Traffic Configuration Id
       required: true
       example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    customPageId:
+      name: customPageId
+      in: path
+      description: Custom Page Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    caCertificateId:
+      name: caCertificateId
+      in: path
+      description: CA Certificate Id
+      required: true
+      example: a767ec76-9ba2-439e-86d6-2257f46bf331
+      schema:
+        type: string
+        format: uuid
+    ipListId:
+      name: "ipListId"
+      in: "path"
+      description: "IP List Id"
+      required: true
+      example: "a767ec76-9ba2-439e-86d6-2257f46bf331"
       schema:
         type: string
         format: uuid
@@ -1331,7 +1497,7 @@ components:
         id:
           type: string
           format: uuid
-          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+          example: "a767ec76-9ba2-439e-86d6-2257f46bf331"
         type:
           enum:
             - ipv4
@@ -1347,7 +1513,7 @@ components:
         id:
           type: string
           format: uuid
-          example: a767ec76-9ba2-439e-86d6-2257f46bf331
+          example: "a767ec76-9ba2-439e-86d6-2257f46bf331"
         type:
           enum:
             - ipv6
@@ -1447,6 +1613,53 @@ components:
             - FAILED
         announced:
           type: boolean
+    ActiveRolloutRelationship:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - rollout
+            id:
+              type: string
+              format: uuid
+              example: "e03e6851-bfb1-40b4-af03-4be9c275f0ca"
+        links:
+          type: object
+          properties:
+            self:
+              type: string
+              example: ""
+            related:
+              type: string
+              example: "/api/v2/traffic-mgmt/traffic-configs/7cf15a0b-3503-4b7a-9f6b-496d74de95d9/rollouts/e03e6851-bfb1-40b4-af03-4be9c275f0ca"
+
+    RolloutResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - rollout
+            id:
+              type: string
+              format: uuid
+              example: "e03e6851-bfb1-40b4-af03-4be9c275f0ca"
+            attributes:
+              type: object
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - IN_PROGRESS
+                    - SUCCEEDED
+
     L4Proxy:
       type: object
       required:
@@ -1458,7 +1671,7 @@ components:
         - protocol
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
@@ -1467,11 +1680,11 @@ components:
           properties:
             ipv4:
               type: string
-              example: 192.168.1.0
+              example: "192.168.1.0"
               description: Frontend IPv4
             ipv6:
               type: string
-              example: 2001:db8::8a2e:370:7334
+              example: "2001:db8::8a2e:370:7334"
               description: Frontend IPv6
             port:
               type: number
@@ -1532,25 +1745,30 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/L4CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/L4KnownServiceRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
           enum:
             - ENABLED
             - DISABLED
+
     CreateL4Proxy:
       type: object
       required:
@@ -1560,7 +1778,7 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           default: 0.0.1
@@ -1572,11 +1790,11 @@ components:
           properties:
             ipv4:
               type: string
-              example: 192.168.1.0
+              example: "192.168.1.0"
               description: Frontend IPv4
             ipv6:
               type: string
-              example: 2001:db8::8a2e:370:7334
+              example: "2001:db8::8a2e:370:7334"
               description: Frontend IPv6
             port:
               type: number
@@ -1626,8 +1844,7 @@ components:
                 - UNDEPLOYED
         protocols:
           type: array
-          default:
-            - TCP
+          default: [TCP]
           items:
             type: string
             enum:
@@ -1656,21 +1873,25 @@ components:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/L4CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/L4KnownServiceRule"
                 geoLocations:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
@@ -1678,12 +1899,13 @@ components:
           enum:
             - ENABLED
             - DISABLED
+
     PatchL4Proxy:
       type: object
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
@@ -1693,11 +1915,11 @@ components:
           properties:
             ipv4:
               type: string
-              example: 192.168.1.0
+              example: "192.168.1.0"
               description: Frontend IPv4
             ipv6:
               type: string
-              example: 2001:db8::8a2e:370:7334
+              example: "2001:db8::8a2e:370:7334"
               description: Frontend IPv6
             port:
               type: number
@@ -1763,19 +1985,23 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/L4CidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/L4KnownServiceRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         proxyProtocol:
           type: string
@@ -1783,6 +2009,7 @@ components:
           enum:
             - ENABLED
             - DISABLED
+
     ManagedConfig:
       type: object
       properties:
@@ -1796,6 +2023,7 @@ components:
               type: string
               enum:
                 - managedConfig
+
     IncludedManagedConfig:
       type: object
       properties:
@@ -1820,10 +2048,35 @@ components:
                       properties:
                         resolvedId:
                           type: string
-                          example: crs-v4.22.0
+                          example: "crs-v4.22.0"
                         resolvedAt:
                           type: string
                           format: date-time
+                        crsSelectedAt:
+                          type: string
+                          format: date-time
+                ipLists:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      entries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            value:
+                              type: string
+                              example: "1.2.3.4/32"
+                            note:
+                              type: string
+                              example: "Employee 1's home IP"
+
     HttpProxy:
       type: object
       required:
@@ -1837,14 +2090,14 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.0.1
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/FrontendsTlsCase'
-            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+            - "$ref": "#/components/schemas/FrontendsTlsCase"
+            - "$ref": "#/components/schemas/FrontendsPlaintextCase"
         backend:
           type: object
           required:
@@ -1916,8 +2169,8 @@ components:
                 - verifyCertificate
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+            - "$ref": "#/components/schemas/ProtocolSettingsHttp1_1"
+            - "$ref": "#/components/schemas/ProtocolSettingsHttp2_0"
         deployment:
           type: object
           properties:
@@ -1961,7 +2214,7 @@ components:
                   description: If `enabled` is set to `true`, the list cannot be empty
                   items:
                     type: string
-                    example: 192.168.1.1/32
+                    example: "192.168.1.1/32"
             httpCompliance:
               type: object
               required:
@@ -2031,6 +2284,7 @@ components:
                             type: boolean
                           parseMultipartRequestEnabled:
                             type: boolean
+
             pathExclusions:
               type: array
               default: []
@@ -2099,10 +2353,26 @@ components:
               properties:
                 version:
                   type: string
-                  example: 4.*.*
-                  description: |
-                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
-                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+                  example: "4.22.*"
+                  description: >
+                    The requested core rule set version. The version must always consist of
+                    three numeric parts: `MAJOR.MINOR.PATCH`.
+
+                    Rules:
+                    - The `MAJOR` version must be a fixed number (wildcards are not allowed).
+                    - A wildcard (`*`) may be used in `MINOR` or `PATCH`.
+                    - If a wildcard is used, all subsequent parts must also be wildcards.
+
+                    Valid examples:
+                    - `4.22.0`   → exact version
+                    - `4.22.*`   → automatically update patch version
+                    - `4.*.*`    → automatically update minor and patch versions
+
+                    Invalid examples:
+                    - `*.22.0`   → wildcard not allowed in major version
+                    - `4.*.1`    → cannot specify PATCH after wildcard
+                    - `4.22`     → must include all three parts
+                    - `4.*`      → must include all three parts
         geoFencing:
           type: object
           required:
@@ -2133,7 +2403,7 @@ components:
               type: array
               items:
                 type: string
-                example: 192.168.1.1/32
+                example: "192.168.1.1/32"
         ipBasedAccessControl:
           type: object
           properties:
@@ -2149,30 +2419,34 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/HttpCidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/HttpKnownServiceRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: '#/components/schemas/RateLimit'
+            - $ref: "#/components/schemas/RateLimit"
             - type: object
               properties:
                 exclusions:
                   type: array
                   items:
                     type: string
-                    example: 192.0.0.1/24
+                    example: "192.0.0.1/24"
         trafficRules:
           type: array
           items:
@@ -2226,7 +2500,7 @@ components:
                       properties:
                         address:
                           type: string
-                          example: www.example.com
+                          example: "www.example.com"
                         port:
                           type: number
                           example: 443
@@ -2237,10 +2511,10 @@ components:
                       properties:
                         key:
                           type: string
-                          example: X-Custom
+                          example: "X-Custom"
                         value:
                           type: string
-                          example: Value
+                          example: "Value"
                   setHostHeader:
                     type: string
                     example: www.example.com
@@ -2249,7 +2523,7 @@ components:
                     properties:
                       url:
                         type: string
-                        example: www.test2.se
+                        example: "www.test2.se"
                       statusCode:
                         type: integer
                         enum:
@@ -2259,9 +2533,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/RateLimit'
+                    $ref: "#/components/schemas/RateLimit"
                   setMaxBodySize:
-                    $ref: '#/components/schemas/MaxBodySize'
+                    $ref: "#/components/schemas/MaxBodySize"
         dataProtection:
           type: object
           properties:
@@ -2291,29 +2565,314 @@ components:
               type:
                 type: string
                 example: WAF
-                enum:
-                  - WAF
-                  - "429"
-                  - "500"
-                  - "502"
-                  - "503"
-                  - "504"
+                enum: ["WAF", "429", "500", "502", "503", "504"]
         multiplexingEnabled:
           type: object
           example: true
+
+    IpListCreateRequest:
+      $ref: "#/components/schemas/IpListRequestProperties"
+
+    IpListUpdateRequest:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+        - $ref: "#/components/schemas/IpListRequestProperties"
+
+    IpListRequestProperties:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - ipList
+        attributes:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Allowlist for Employees"
+            entries:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    example: "1.2.3.4/32"
+                  note:
+                    type: string
+                    example: "Employee 1's home IP"
+        relationships:
+          type: object
+          properties:
+            belongsTo:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - tenant
+                    id:
+                      type: string
+                      format: uuid
+
+    IpListResponseData:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - ipList
+        attributes:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Allowlist for Employees"
+            entries:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    example: "1.2.3.4/32"
+                  note:
+                    type: string
+                    example: "Employee 1's home IP"
+        relationships:
+          type: object
+          properties:
+            belongsTo:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - tenant
+                    id:
+                      type: string
+                      format: uuid
+            usedBy:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                          - l4Proxy
+            createdBy:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    type:
+                      type: string
+                      enum:
+                        - account
+            lastUpdatedBy:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    type:
+                      type: string
+                      enum:
+                        - account
+        meta:
+          type: object
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+            lastUpdatedAt:
+              type: string
+              format: date-time
+    IpListChangeLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - ipListChangeLog
+        attributes:
+          type: object
+          properties:
+            changes:
+              type: array
+              items:
+                type: object
+                properties:
+                  op:
+                    type: string
+                    enum:
+                      - add
+                      - remove
+                      - replace
+                  path:
+                    type: string
+                    example: /entries/4.0.0.0~124
+                  payload:
+                    type: object
+                    description: "raw json representation for the path value"
+                    example: '{"value": "4.0.0.0/24", "note": "employee 1"}'
+        relationships:
+          type: object
+          properties:
+            createdBy:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    type:
+                      type: string
+                      enum:
+                        - account
+    relationships:
+      type: object
+      properties:
+        ipList:
+          type: object
+          properties:
+            data:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - ipList
+                id:
+                  type: string
+                  format: uuid
+        belongsTo:
+          type: object
+          properties:
+            data:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - tenant
+                id:
+                  type: string
+                  format: uuid
+        meta:
+          type: object
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+    WafSnapshot:
+      type: object
+      properties:
+        pathExclusions:
+          type: array
+          default: []
+          items:
+            type: object
+            required:
+              - match
+              - disableAll
+              - rules
+            properties:
+              match:
+                type: string
+              disableAll:
+                type: boolean
+              rules:
+                type: array
+                default: []
+                items:
+                  type: object
+                  required:
+                    - type
+                    - id
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - rule
+                    id:
+                      type: string
+        cookieExclusions:
+          type: array
+          default: []
+          items:
+            type: object
+            required:
+              - cookieName
+              - excludeAllRules
+              - excludedRules
+            properties:
+              cookieName:
+                type: string
+              excludeAllRules:
+                type: boolean
+              excludedRules:
+                type: array
+                default: []
+                required:
+                  - type
+                  - id
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - rule
+                    id:
+                      type: string
     PatchHttpProxy:
       type: object
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           example: 0.1.0
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/PatchFrontendsTlsCase'
-            - $ref: '#/components/schemas/PatchFrontendsPlaintextCase'
+            - "$ref": "#/components/schemas/PatchFrontendsTlsCase"
+            - "$ref": "#/components/schemas/PatchFrontendsPlaintextCase"
         backend:
           type: object
           minProperties: 1
@@ -2386,8 +2945,8 @@ components:
                         - mode
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/PatchProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/PatchProtocolSettingsHttp2_0'
+            - "$ref": "#/components/schemas/PatchProtocolSettingsHttp1_1"
+            - "$ref": "#/components/schemas/PatchProtocolSettingsHttp2_0"
         deployment:
           type: object
           minProperties: 1
@@ -2423,7 +2982,7 @@ components:
                   type: array
                   items:
                     type: string
-                    example: 192.168.1.1/32
+                    example: "192.168.1.1/32"
             httpCompliance:
               type: object
               minProperties: 1
@@ -2444,14 +3003,11 @@ components:
                           example: 500
                     allowedHttpMethods:
                       type: array
-                      example:
-                        - GET
-                        - POST
-                        - DELETE
-                        - PATCH
-                        - PUT
+                      example: [GET, POST, DELETE, PATCH, PUT]
                       minItems: 2
-                      description: "The array must contain at least two items. \nBoth \"GET\" and \"POST\" must be included if present.\n"
+                      description: |
+                        The array must contain at least two items.
+                        Both "GET" and "POST" must be included if present.
                       items:
                         type: string
                         enum:
@@ -2466,11 +3022,7 @@ components:
                           - TRACE
                     allowedHttpVersions:
                       type: array
-                      example:
-                        - HTTP/1.0
-                        - HTTP/1.1
-                        - HTTP/2.0
-                        - HTTP/2
+                      example: [HTTP/1.0, HTTP/1.1, HTTP/2.0, HTTP/2]
                       minItems: 1
                       items:
                         type: string
@@ -2509,6 +3061,7 @@ components:
                             type: boolean
                           parseMultipartRequestEnabled:
                             type: boolean
+
             pathExclusions:
               type: array
               items:
@@ -2573,10 +3126,26 @@ components:
               properties:
                 version:
                   type: string
-                  example: 4.*.*
-                  description: |
-                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
-                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+                  example: "4.22.*"
+                  description: >
+                    The requested core rule set version. The version must always consist of
+                    three numeric parts: `MAJOR.MINOR.PATCH`.
+
+                    Rules:
+                    - The `MAJOR` version must be a fixed number (wildcards are not allowed).
+                    - A wildcard (`*`) may be used in `MINOR` or `PATCH`.
+                    - If a wildcard is used, all subsequent parts must also be wildcards.
+
+                    Valid examples:
+                    - `4.22.0`   → exact version
+                    - `4.22.*`   → automatically update patch version
+                    - `4.*.*`    → automatically update minor and patch versions
+
+                    Invalid examples:
+                    - `*.22.0`   → wildcard not allowed in major version
+                    - `4.*.1`    → cannot specify PATCH after wildcard
+                    - `4.22`     → must include all three parts
+                    - `4.*`      → must include all three parts
         ipBasedAccessControl:
           type: object
           minProperties: 1
@@ -2595,33 +3164,37 @@ components:
                 ipRanges:
                   type: array
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/HttpCidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/HttpKnownServiceRule"
                 geoLocations:
                   type: array
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         maxBodySize:
-          $ref: '#/components/schemas/PatchMaxBodySize'
+          $ref: "#/components/schemas/PatchMaxBodySize"
         rateLimiting:
           minProperties: 1
           allOf:
-            - $ref: '#/components/schemas/PatchRateLimit'
+            - $ref: "#/components/schemas/PatchRateLimit"
             - type: object
               properties:
                 exclusions:
                   type: array
                   items:
                     type: string
-                    example: 192.0.0.0/24
+                    example: "192.0.0.0/24"
         trafficRules:
           type: array
           items:
@@ -2678,7 +3251,7 @@ components:
                       properties:
                         address:
                           type: string
-                          example: www.example.com
+                          example: "www.example.com"
                         port:
                           type: number
                           example: 443
@@ -2692,10 +3265,10 @@ components:
                       properties:
                         key:
                           type: string
-                          example: X-Custom
+                          example: "X-Custom"
                         value:
                           type: string
-                          example: Value
+                          example: "Value"
                   setHostHeader:
                     type: string
                     example: www.example.com
@@ -2705,7 +3278,7 @@ components:
                     properties:
                       url:
                         type: string
-                        example: www.test2.se
+                        example: "www.test2.se"
                       statusCode:
                         type: integer
                         enum:
@@ -2715,9 +3288,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/PatchRateLimit'
+                    $ref: "#/components/schemas/PatchRateLimit"
                   maxBodySize:
-                    $ref: '#/components/schemas/PatchMaxBodySize'
+                    $ref: "#/components/schemas/PatchMaxBodySize"
         dataProtection:
           type: object
           minProperties: 1
@@ -2729,12 +3302,12 @@ components:
                   type: array
                   items:
                     type: string
-                    example: Authorization
+                    example: "Authorization"
                 cookies:
                   type: array
                   items:
                     type: string
-                    example: auth_token
+                    example: "auth_token"
         customPages:
           type: array
           items:
@@ -2766,6 +3339,11 @@ components:
                 - ALWAYS_ON
                 - AUTO
                 - DISABLED
+            challengeType:
+              type: string
+              enum:
+                - HTTP
+                - JS
         multiplexingEnabled:
           type: boolean
           example: true
@@ -2779,14 +3357,14 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         version:
           type: string
           default: 0.1.0
         frontend:
           oneOf:
-            - $ref: '#/components/schemas/FrontendsTlsCase'
-            - $ref: '#/components/schemas/FrontendsPlaintextCase'
+            - "$ref": "#/components/schemas/FrontendsTlsCase"
+            - "$ref": "#/components/schemas/FrontendsPlaintextCase"
         backend:
           type: object
           required:
@@ -2861,8 +3439,8 @@ components:
                 - verifyCertificate
         protocolSettings:
           oneOf:
-            - $ref: '#/components/schemas/ProtocolSettingsHttp1_1'
-            - $ref: '#/components/schemas/ProtocolSettingsHttp2_0'
+            - "$ref": "#/components/schemas/ProtocolSettingsHttp1_1"
+            - "$ref": "#/components/schemas/ProtocolSettingsHttp2_0"
         deployment:
           type: object
           properties:
@@ -2902,7 +3480,7 @@ components:
                   default: []
                   items:
                     type: string
-                    example: 192.168.1.1/32
+                    example: "192.168.1.1/32"
             httpCompliance:
               type: object
               required:
@@ -2930,14 +3508,11 @@ components:
                           default: 500
                     allowedHttpMethods:
                       type: array
-                      default:
-                        - GET
-                        - POST
-                        - DELETE
-                        - PATCH
-                        - PUT
+                      default: [GET, POST, DELETE, PATCH, PUT]
                       minItems: 2
-                      description: "The array must contain at least two items. \nBoth \"GET\" and \"POST\" must be included if present.\n"
+                      description: |
+                        The array must contain at least two items.
+                        Both "GET" and "POST" must be included if present.
                       items:
                         type: string
                         enum:
@@ -2952,11 +3527,7 @@ components:
                           - TRACE
                     allowedHttpVersions:
                       type: array
-                      default:
-                        - HTTP/1.0
-                        - HTTP/1.1
-                        - HTTP/2.0
-                        - HTTP/2
+                      default: [HTTP/1.0, HTTP/1.1, HTTP/2.0, HTTP/2]
                       minItems: 1
                       items:
                         type: string
@@ -2996,6 +3567,7 @@ components:
                             type: boolean
                           parseMultipartRequestEnabled:
                             type: boolean
+
             pathExclusions:
               type: array
               default: []
@@ -3062,10 +3634,26 @@ components:
               properties:
                 version:
                   type: string
-                  example: 4.*.*
-                  description: |
-                    The requested core rule set version. You can use wildcards (`*`) to allow automatic updates:
-                    - `4.22.0`: exact version   - `4.22.*`: automatically update patch   - `4.*.*` or `4.*`: automatically update patch and minor   - `*` or `*.*` or `*.*.*`: always use the newest available version, only allowed when enforcment is LOG
+                  example: "4.22.*"
+                  description: >
+                    The requested core rule set version. The version must always consist of
+                    three numeric parts: `MAJOR.MINOR.PATCH`.
+
+                    Rules:
+                    - The `MAJOR` version must be a fixed number (wildcards are not allowed).
+                    - A wildcard (`*`) may be used in `MINOR` or `PATCH`.
+                    - If a wildcard is used, all subsequent parts must also be wildcards.
+
+                    Valid examples:
+                    - `4.22.0`   → exact version
+                    - `4.22.*`   → automatically update patch version
+                    - `4.*.*`    → automatically update minor and patch versions
+
+                    Invalid examples:
+                    - `*.22.0`   → wildcard not allowed in major version
+                    - `4.*.1`    → cannot specify PATCH after wildcard
+                    - `4.22`     → must include all three parts
+                    - `4.*`      → must include all three parts
         geoFencing:
           type: object
           required:
@@ -3100,7 +3688,7 @@ components:
               default: []
               items:
                 type: string
-                example: 192.168.1.1/32
+                example: "192.168.1.1/32"
         ipBasedAccessControl:
           type: object
           required:
@@ -3124,25 +3712,29 @@ components:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/CidrWithNoteRule'
+                    $ref: "#/components/schemas/HttpCidrWithNoteRule"
                 ipLists:
                   type: array
                   items:
-                    $ref: '#/components/schemas/IpListRule'
+                    $ref: "#/components/schemas/IpListRule"
+                knownServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/HttpKnownServiceRule"
                 geoLocations:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/GeoLocationRule'
+                    $ref: "#/components/schemas/GeoLocationRule"
                 asns:
                   type: array
                   default: []
                   items:
-                    $ref: '#/components/schemas/AsnRule'
+                    $ref: "#/components/schemas/AsnRule"
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: '#/components/schemas/RateLimit'
+            - $ref: "#/components/schemas/RateLimit"
             - type: object
               properties:
                 exclusions:
@@ -3150,7 +3742,7 @@ components:
                   default: []
                   items:
                     type: string
-                    example: 192.0.0.0/24
+                    example: "192.0.0.0/24"
         trafficRules:
           type: array
           default: []
@@ -3208,7 +3800,7 @@ components:
                       properties:
                         address:
                           type: string
-                          example: www.example.com
+                          example: "www.example.com"
                         port:
                           type: number
                           example: 443
@@ -3222,10 +3814,10 @@ components:
                       properties:
                         key:
                           type: string
-                          example: X-Custom
+                          example: "X-Custom"
                         value:
                           type: string
-                          example: Value
+                          example: "Value"
                   setHostHeader:
                     type: string
                     example: www.example.com
@@ -3238,7 +3830,7 @@ components:
                     properties:
                       url:
                         type: string
-                        example: www.test2.se
+                        example: "www.test2.se"
                       statusCode:
                         type: integer
                         enum:
@@ -3248,9 +3840,9 @@ components:
                         type: boolean
                         example: false
                   setRateLimit:
-                    $ref: '#/components/schemas/RateLimit'
+                    $ref: "#/components/schemas/RateLimit"
                   setMaxBodySize:
-                    $ref: '#/components/schemas/MaxBodySize'
+                    $ref: "#/components/schemas/MaxBodySize"
         dataProtection:
           type: object
           properties:
@@ -3262,13 +3854,13 @@ components:
                   default: []
                   items:
                     type: string
-                    example: Authorization
+                    example: "Authorization"
                 cookies:
                   type: array
                   default: []
                   items:
                     type: string
-                    example: auth_token
+                    example: "auth_token"
         customPages:
           type: array
           default: []
@@ -3371,6 +3963,7 @@ components:
             burst:
               type: integer
               default: 10
+
     PatchRateLimit:
       type: object
       minProperties: 1
@@ -3427,6 +4020,7 @@ components:
             burst:
               type: integer
               example: 10
+
     ProtocolSettingsHttp1_1:
       type: object
       required:
@@ -3482,11 +4076,11 @@ components:
             - SECURE
         ipv4:
           type: string
-          example: 192.168.1.0
+          example: "192.168.1.0"
           description: Frontend IPv4
         ipv6:
           type: string
-          example: 2001:db8::8a2e:370:7334
+          example: "2001:db8::8a2e:370:7334"
           description: Frontend IPv6
         port:
           type: number
@@ -3556,6 +4150,7 @@ components:
                     type: string
               required:
                 - mode
+
     PatchFrontendsPlaintextCase:
       type: object
       description: Plaintext case. When switching from HTTP2.0 to HTTP1.1, the connection type needs to be provided
@@ -3567,11 +4162,11 @@ components:
             - PLAINTEXT
         ipv4:
           type: string
-          example: 192.168.1.0
+          example: "192.168.1.0"
           description: Frontend IPv4
         ipv6:
           type: string
-          example: 2001:db8::8a2e:370:7334
+          example: "2001:db8::8a2e:370:7334"
           description: Frontend IPv6
         port:
           type: number
@@ -3603,11 +4198,11 @@ components:
             - SECURE
         ipv4:
           type: string
-          example: 192.168.1.0
+          example: "192.168.1.0"
           description: Frontend IPv4
         ipv6:
           type: string
-          example: 2001:db8::8a2e:370:7334
+          example: "2001:db8::8a2e:370:7334"
           description: Frontend IPv6
         port:
           type: number
@@ -3680,7 +4275,8 @@ components:
                     format: uuid
               required:
                 - mode
-                - verifyCrl - caCertificateIds
+                - verifyCrl
+                  - caCertificateIds
       minProperties: 6
       maxProperties: 7
     FrontendsPlaintextCase:
@@ -3697,11 +4293,11 @@ components:
             - PLAINTEXT
         ipv4:
           type: string
-          example: 192.168.1.0
+          example: "192.168.1.0"
           description: Frontend IPv4
         ipv6:
           type: string
-          example: 2001:db8::8a2e:370:7334
+          example: "2001:db8::8a2e:370:7334"
           description: Frontend IPv6
         port:
           type: number
@@ -3723,10 +4319,10 @@ components:
       type: object
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
-          example: 192.168.1.0/24
+          example: "192.168.1.0/24"
           description: Prefix using cidr notation
         announced:
           type: boolean
@@ -3740,6 +4336,7 @@ components:
               enum:
                 - DEPLOYED
                 - UNDEPLOYED
+
     CreateRoutedDsr:
       type: object
       required:
@@ -3748,10 +4345,10 @@ components:
         - deployment
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
-          example: 192.168.1.0/24
+          example: "192.168.1.0/24"
           description: Prefix using cidr notation
         announced:
           type: boolean
@@ -3767,15 +4364,16 @@ components:
               enum:
                 - DEPLOYED
                 - UNDEPLOYED
+
     PatchRoutedDsr:
       type: object
       minProperties: 1
       properties:
         name:
-          $ref: '#/components/schemas/TrafficConfigName'
+          $ref: "#/components/schemas/TrafficConfigName"
         prefix:
           type: string
-          example: 192.168.1.0/24
+          example: "192.168.1.0/24"
           description: Prefix using cidr notation
         announced:
           type: boolean
@@ -3790,8 +4388,10 @@ components:
               enum:
                 - DEPLOYED
                 - UNDEPLOYED
+
     RoutedDsrReferences:
       type: object
+
     HttpProxyReferences:
       type: object
       properties:
@@ -3844,6 +4444,7 @@ components:
                         type: string
                       sha512:
                         type: string
+
     Deployment:
       type: object
       properties:
@@ -3866,23 +4467,27 @@ components:
               format: date-time
             status:
               type: string
-              example: SUCCEEDED/PARTIALY_SUCCEEDED/FAILED
+              example: "SUCCEEDED/PARTIALY_SUCCEEDED/FAILED"
             errors:
               type: array
               items:
                 type: string
         ref:
           type: string
-          example: /api/v2/traffic-mgmt/deployments/<id>
+          example: "/api/v2/traffic-mgmt/deployments/<id>"
+
     TrafficConfigId:
       type: string
       format: uuid
+
     CertificateConfigId:
       type: string
       format: uuid
+
     TrafficConfigName:
       type: string
-      example: A sample name
+      example: "A sample name"
+
     MaxBodySize:
       type: object
       required:
@@ -3899,6 +4504,7 @@ components:
           minimum: 1
           maximum: 1099511627776
           example: 10000
+
     PatchMaxBodySize:
       type: object
       minProperties: 1
@@ -3911,14 +4517,16 @@ components:
         value:
           type: integer
           example: 10000
+
     AccountId:
       type: string
       format: uuid
+
     ImportedCertificateConfigAttributes:
       type: object
       properties:
         activeCertificate:
-          $ref: '#/components/schemas/Certificate'
+          $ref: "#/components/schemas/Certificate"
         createdBy:
           type: string
         createdAt:
@@ -3930,6 +4538,7 @@ components:
           type: array
           items:
             type: string
+
     CreateLetsEncryptConfigAttributesResponse:
       type: object
       properties:
@@ -3947,34 +4556,37 @@ components:
               type: string
               enum:
                 - UNINITIATED
+
     LetsEncryptConfigData:
       type: object
       properties:
         type:
           type: string
           enum:
-            - letsEncrypt
+            - "letsEncrypt"
         id:
           type: string
           format: uuid
         attributes:
-          $ref: '#/components/schemas/CreatedLetsEncryptConfigAttributes'
+          $ref: "#/components/schemas/CreatedLetsEncryptConfigAttributes"
         relationships:
-          $ref: '#/components/schemas/CertificateRelationships'
+          $ref: "#/components/schemas/CertificateRelationships"
+
     ImportedCertificateConfigData:
       type: object
       properties:
         type:
           type: string
           enum:
-            - importedCertificate
+            - "importedCertificate"
         id:
           type: string
           format: uuid
         attributes:
-          $ref: '#/components/schemas/ImportedCertificateConfigAttributes'
+          $ref: "#/components/schemas/ImportedCertificateConfigAttributes"
         relationships:
-          $ref: '#/components/schemas/CertificateRelationships'
+          $ref: "#/components/schemas/CertificateRelationships"
+
     CertificateRelationships:
       type: object
       properties:
@@ -3986,7 +4598,7 @@ components:
               properties:
                 type:
                   type: string
-                  example: account
+                  example: "account"
                 id:
                   type: string
                   format: uuid
@@ -3998,7 +4610,7 @@ components:
               properties:
                 related:
                   type: string
-                  example: /api/v2/traffic-mgmt/traffic-configs
+                  example: "/api/v2/traffic-mgmt/traffic-configs"
             data:
               type: array
               items:
@@ -4007,10 +4619,11 @@ components:
                 properties:
                   type:
                     type: string
-                    example: httpProxy
+                    example: "httpProxy"
                   id:
                     type: string
                     format: uuid
+
     CreatedLetsEncryptConfigAttributes:
       type: object
       properties:
@@ -4029,7 +4642,7 @@ components:
         activeCertificate:
           nullable: true
           allOf:
-            - $ref: '#/components/schemas/Certificate'
+            - $ref: "#/components/schemas/Certificate"
         renewal:
           oneOf:
             - type: object
@@ -4090,6 +4703,7 @@ components:
                         - RATE_LIMITED
                         - CHALLENGE_VALIDATION_FAILED
                         - INTERNAL_ERROR
+
     Certificate:
       type: object
       properties:
@@ -4123,12 +4737,13 @@ components:
               - CLIENT
           uniqueItems: true
           minItems: 1
+
     CoreRuleSet:
       type: object
       properties:
         name:
           type: string
-          example: CRS v4.20.0
+          example: "CRS v4.20.0"
         releaseState:
           type: string
           enum:
@@ -4142,36 +4757,33 @@ components:
               id:
                 type: string
                 format: uuid
-                example: cd8eb280-ffb0-499d-8b71-ce905f18f5a5
+                example: "cd8eb280-ffb0-499d-8b71-ce905f18f5a5"
               name:
                 type: string
-                example: OS File Access Attempt
+                example: "OS File Access Attempt"
               wafRuleId:
                 type: string
                 format: uuid
-                example: 2fdaa312-a303-4e0d-80e7-d6ff345b94f9
+                example: "2fdaa312-a303-4e0d-80e7-d6ff345b94f9"
               modSecId:
                 type: string
                 example: "910100"
               category:
                 type: string
-                example: REQUEST-930-APPLICATION-ATTACK-LFI
+                example: "REQUEST-930-APPLICATION-ATTACK-LFI"
               tags:
                 type: array
                 items:
                   type: string
-                example:
-                  - application-multi
-                  - attack-generic
+                example: ["application-multi", "attack-generic"]
               inspectionTargets:
                 nullable: true
                 type: array
                 items:
                   type: string
-                example:
-                  - REQUEST_URI
-                  - REQUEST_BODY
-    CidrWithNoteRule:
+                example: ["REQUEST_URI", "REQUEST_BODY"]
+
+    L4CidrWithNoteRule:
       type: object
       required:
         - policy
@@ -4182,15 +4794,16 @@ components:
           enum:
             - BLOCK
             - ALLOW
-          description: Determines if ip or cidr should be blocked or allowed
+          description: Determines if traffic from the IP/CIDR should be blocked or allowed
         address:
           type: string
-          example: 192.168.1.1/32
+          example: "192.168.1.1/32"
           description: CIDR IP or subnet
         note:
           type: string
-          example: Office ip
+          example: "Office ip"
           description: Comments about the rule
+
     AsnRule:
       type: object
       properties:
@@ -4206,8 +4819,9 @@ components:
           description: The Autonomous System Number to which the rule applies.
         note:
           type: string
-          example: Temporary block due to excessive requests.
+          example: "Temporary block due to excessive requests."
           description: Comments about this rule.
+
     GeoLocationRule:
       type: object
       required:
@@ -4222,27 +4836,30 @@ components:
           description: Determines region should be blocked or allowed
         region:
           type: string
-          example: SE
+          example: "SE"
           description: Country Code
         note:
           type: string
-          example: Bad traffic from this country
+          example: "Bad traffic from this country"
           description: Comments about the rule
+
     IpListRule:
       type: object
       properties:
         type:
+          type: string
           enum:
             - ipList
         id:
           format: uuid
-          description: ID of a cidr list to include
+          description: ID of a ip list to include
         policy:
           type: string
           enum:
             - BLOCK
             - ALLOW
           description: Determines if items in list should be blocked or allowed
+
     CreateCaCertificate:
       type: object
       required:
@@ -4257,12 +4874,13 @@ components:
             properties:
               certificate:
                 type: string
-                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+                example: -----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----
                 description: The certificate in PEM format
               crlUrl:
                 type: string
                 example: http://some.cert.revocation.list.crl
                 description: The url of the certificate revocation list (CRL)
+
     CaCertificate:
       type: object
       properties:
@@ -4303,10 +4921,11 @@ components:
                 example: http://some.cert.revocation.list.crl
               certificate:
                 type: string
-                example: '-----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----'
+                example: -----BEGIN CERTIFICATE-----...-----END CERTIFICATE-----
         name:
           type: string
           example: some-ca-common-name
+
     BadRequest:
       type: object
       required:
@@ -4326,3 +4945,114 @@ components:
                 type: string
               reason:
                 type: string
+
+    HttpCidrWithNoteRule:
+      type: object
+      required:
+        - policy
+        - address
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines if traffic from the IP/CIDR should be blocked or allowed
+        address:
+          type: string
+          example: "192.168.1.1/32"
+          description: CIDR IP or subnet
+        note:
+          type: string
+          example: "Office ip"
+          description: Comments about the rule
+        bypassProtection:
+          type: object
+          required:
+            - botProtection
+          properties:
+            botProtection:
+              type: boolean
+              description: Toggle to specify if IP/CIDR should bypass further inspection by bot protection
+              example: true
+
+    L4KnownServiceRule:
+      type: object
+      required:
+        - policy
+        - id
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines if traffic from the Known Service should be blocked or allowed
+        id:
+          type: string
+          format: uuid
+          description: Id of a Baffin Bay-managed known service (see GET /api/v2/traffic-mgmt/known-services)
+        note:
+          type: string
+          example: "To enable traffic from our GH website"
+          description: Comments about the rule
+
+    HttpKnownServiceRule:
+      type: object
+      required:
+        - policy
+        - id
+        - bypass
+      properties:
+        policy:
+          type: string
+          enum:
+            - BLOCK
+            - ALLOW
+          description: Determines if traffic from the Known Service should be blocked or allowed
+        id:
+          type: string
+          format: uuid
+          description: Id of a Baffin Bay-managed known service (see GET /api/v2/traffic-mgmt/known-services)
+        note:
+          type: string
+          example: "To enable traffic from our GH website"
+          description: Comments about the rule
+        bypassProtection:
+          type: object
+          required:
+            - botProtection
+          properties:
+            botProtection:
+              type: boolean
+              description: Toggle to specify if Known Service should bypass further inspection by bot protection
+              example: true
+
+    KnownService:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - knownService
+        id:
+          type: string
+          format: uuid
+          description: Known Service Id; this is the value used in KnownServiceRule.id
+        attributes:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "gh-pages"
+              description: Name of the Known Service
+            tags:
+              type: array
+              items:
+                type: string
+              example: ["gh-pages"]
+              description: Categorization tags (e.g. cdn, crawler, ai, scanner, monitoring, search, social, payment, anonymous-proxy)
+            provider:
+              type: string
+              example: "github"
+              description: Upstream provider/owner of the IPs

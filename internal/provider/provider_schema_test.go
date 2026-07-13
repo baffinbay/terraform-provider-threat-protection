@@ -28,8 +28,8 @@ func TestProviderSchema(t *testing.T) {
 	if _, ok := resp.Schema.Attributes["oidc_url"]; !ok {
 		t.Error("Missing oidc_url attribute")
 	}
-	if _, ok := resp.Schema.Attributes["account_id"]; !ok {
-		t.Error("Missing account_id attribute")
+	if _, ok := resp.Schema.Attributes["tenant_id"]; !ok {
+		t.Error("Missing tenant_id attribute")
 	}
 	if _, ok := resp.Schema.Attributes["api_key"]; ok {
 		t.Error("Unexpected api_key attribute — should have been removed")

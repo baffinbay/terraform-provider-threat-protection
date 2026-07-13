@@ -9,15 +9,19 @@ description: |-
 The Baffin Bay Threat Protection provider is used to interact with the Baffin Bay API.
 It authenticates using the OIDC `client_credentials` grant; access tokens are
 cached on disk and refreshed automatically.
+A tenant ID is required for provider configuration and may be supplied with the
+`tenant_id` argument or the `BAFFINBAY_TENANT_ID` environment variable.
 
 ## Example Usage
 
 ```terraform
 provider "baffinbay" {
-  # Credentials are read from BAFFINBAY_CLIENT_ID / BAFFINBAY_CLIENT_SECRET
-  # environment variables by default. They can also be set explicitly:
+  # Configuration is read from BAFFINBAY_CLIENT_ID, BAFFINBAY_CLIENT_SECRET,
+  # and BAFFINBAY_TENANT_ID environment variables by default.
+  # These can also be set explicitly:
   # client_id     = "your-oidc-client-id"
   # client_secret = "your-oidc-client-secret"
+  # tenant_id     = "your-tenant-id"
 }
 ```
 
@@ -34,8 +38,8 @@ cache file is written at mode `0600`; concurrent invocations coordinate via
 
 ### Optional
 
-- `account_id` (String) The Account ID for Baffin Bay Threat Protection. Required for some resources.
 - `api_url` (String) The API URL for Baffin Bay Threat Protection API. Defaults to production URL.
 - `client_id` (String) The OIDC Client ID for authentication. May also be set via the `BAFFINBAY_CLIENT_ID` environment variable.
 - `client_secret` (String, Sensitive) The OIDC Client Secret for authentication. May also be set via the `BAFFINBAY_CLIENT_SECRET` environment variable.
 - `oidc_url` (String) The OIDC token endpoint URL. Defaults to production URL.
+- `tenant_id` (String) The tenant ID for Baffin Bay Threat Protection. May also be set via the `BAFFINBAY_TENANT_ID` environment variable.

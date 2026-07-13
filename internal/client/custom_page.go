@@ -5,19 +5,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 )
 
+type CustomPageData struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		Name      string `json:"name"`
+		CreatedAt string `json:"createdAt"`
+	} `json:"attributes"`
+}
+
 type CustomPageResponse struct {
-	Data struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			Name      string `json:"name"`
-			CreatedAt string `json:"createdAt"`
-		} `json:"attributes"`
-	} `json:"data"`
+	Data CustomPageData `json:"data"`
 }
 
 type CustomPageRequest struct {
@@ -36,8 +40,8 @@ type CustomPageRequest struct {
 }
 
 func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*CustomPageResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a custom page")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a custom page")
 	}
 
 	body := &bytes.Buffer{}
@@ -62,7 +66,7 @@ func (c *Client) CreateCustomPage(ctx context.Context, name, content string) (*C
 	reqData := CustomPageRequest{}
 	reqData.Data.Type = "custom-page"
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -112,6 +116,10 @@ func (c *Client) DeleteCustomPage(ctx context.Context, id string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return httpStatusError(resp, "delete custom page")
 	}
@@ -120,19 +128,13 @@ func (c *Client) DeleteCustomPage(ctx context.Context, id string) error {
 }
 
 type CustomPagesResponse struct {
-	Data []struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			Name string `json:"name"`
-		} `json:"attributes"`
-	} `json:"data"`
+	Data []CustomPageData `json:"data"`
 }
 
 func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPagesResponse, error) {
 	path := "/api/v2/traffic-mgmt/custom-pages"
 	if tenantID != "" {
-		path += "?filter[tenantId]=" + tenantID
+		path += "?filter[tenantId]=" + url.QueryEscape(tenantID)
 	}
 	req, err := c.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
@@ -155,4 +157,47 @@ func (c *Client) GetCustomPages(ctx context.Context, tenantID string) (*CustomPa
 	}
 
 	return &cpResp, nil
+}
+
+func (c *Client) FindCustomPageByID(ctx context.Context, id string) (*CustomPageData, error) {
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to read a custom page")
+	}
+
+	cpResp, err := c.GetCustomPages(ctx, c.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range cpResp.Data {
+		if cpResp.Data[i].ID == id {
+			return &cpResp.Data[i], nil
+		}
+	}
+
+	return nil, &HTTPStatusError{Action: "find custom page", StatusCode: http.StatusNotFound}
+}
+
+func (c *Client) DownloadCustomPage(ctx context.Context, id string) (string, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/custom-pages/"+id+"/file", nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", httpStatusError(resp, "download custom page")
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
 }

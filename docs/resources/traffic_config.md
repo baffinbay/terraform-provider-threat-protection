@@ -3,12 +3,12 @@
 page_title: "baffinbay_traffic_config Resource - baffinbay"
 subcategory: ""
 description: |-
-  Manages a Baffin Bay Traffic Configuration.
+  Manages a Baffin Bay Traffic Configuration. New configurations should use the type-specific baffinbay_http_proxy, baffinbay_l4_proxy, or baffinbay_routed_dsr resource. This compatibility resource remains available for existing state.
 ---
 
 # baffinbay_traffic_config (Resource)
 
-Manages a Baffin Bay Traffic Configuration.
+Manages a Baffin Bay Traffic Configuration. New configurations should use the type-specific `baffinbay_http_proxy`, `baffinbay_l4_proxy`, or `baffinbay_routed_dsr` resource. This compatibility resource remains available for existing state.
 
 
 

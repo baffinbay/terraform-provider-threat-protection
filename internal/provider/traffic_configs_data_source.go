@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -17,7 +16,7 @@ func NewTrafficConfigsDataSource() datasource.DataSource {
 }
 
 type TrafficConfigsDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type TrafficConfigsDataSourceModel struct {
@@ -58,23 +57,6 @@ func (d *TrafficConfigsDataSource) Schema(ctx context.Context, req datasource.Sc
 	}
 }
 
-func (d *TrafficConfigsDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
-}
-
 func (d *TrafficConfigsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state TrafficConfigsDataSourceModel
 
@@ -85,10 +67,15 @@ func (d *TrafficConfigsDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	for _, config := range respConfigs.Data {
+		name := types.StringNull()
+		if config.Attributes.Name != nil {
+			name = types.StringValue(*config.Attributes.Name)
+		}
+
 		state.Configs = append(state.Configs, TrafficConfigModel{
 			ID:   types.StringValue(config.ID),
 			Type: types.StringValue(config.Type),
-			Name: types.StringValue(config.Attributes.Name),
+			Name: name,
 		})
 	}
 

@@ -3,6 +3,7 @@ package provider
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -12,6 +13,28 @@ import (
 
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 	"baffinbay": providerserver.NewProtocol6WithError(New()),
+}
+
+func TestAccProviderRequiresTenantID(t *testing.T) {
+	t.Setenv("BAFFINBAY_TOKEN_CACHE", t.TempDir()+"/token-cache.json")
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `provider "baffinbay" {
+                    client_id     = "test-id"
+                    client_secret = "test-secret"
+                    api_url       = "https://example.com"
+                    oidc_url      = "https://example.com/oauth/token"
+                }
+
+                data "baffinbay_ip_sources" "oidc_test" {}
+                `,
+				ExpectError: regexp.MustCompile(`Missing Tenant ID`),
+			},
+		},
+	})
 }
 
 func TestAccProvider(t *testing.T) {
@@ -46,6 +69,7 @@ func TestAccProvider(t *testing.T) {
                     client_secret = "test-secret"
                     api_url       = "` + server.URL + `"
                     oidc_url      = "` + server.URL + `/oauth/token"
+                    tenant_id     = "test-tenant-id"
                 }
 
                 data "baffinbay_ip_sources" "oidc_test" {}

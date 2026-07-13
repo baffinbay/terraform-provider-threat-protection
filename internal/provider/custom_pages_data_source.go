@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -17,7 +16,7 @@ func NewCustomPagesDataSource() datasource.DataSource {
 }
 
 type CustomPagesDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type CustomPagesDataSourceModel struct {
@@ -65,23 +64,6 @@ func (d *CustomPagesDataSource) Schema(ctx context.Context, req datasource.Schem
 			},
 		},
 	}
-}
-
-func (d *CustomPagesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
 }
 
 func (d *CustomPagesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

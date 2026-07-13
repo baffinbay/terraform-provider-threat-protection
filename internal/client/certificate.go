@@ -28,20 +28,33 @@ type CertificateRequest struct {
 	} `json:"data"`
 }
 
+type CertificateAttributes struct {
+	CommonName string `json:"commonName"`
+	FQDN       string `json:"fqdn"`
+}
+
+type CertificateData struct {
+	ID         string                `json:"id"`
+	Type       string                `json:"type"`
+	Attributes CertificateAttributes `json:"attributes"`
+}
+
 type CertificateResponse struct {
-	Data struct {
-		ID string `json:"id"`
-	} `json:"data"`
+	Data CertificateData `json:"data"`
+}
+
+type CertificatesResponse struct {
+	Data []CertificateData `json:"data"`
 }
 
 func (c *Client) CreateCertificate(ctx context.Context, certType, cert, intermediate, key, fqdn string) (*CertificateResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a certificate")
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a certificate")
 	}
 
 	reqData := CertificateRequest{}
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	var path string
 	switch certType {
@@ -101,6 +114,10 @@ func (c *Client) DeleteCertificate(ctx context.Context, id string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return httpStatusError(resp, "delete certificate")
 	}
@@ -112,8 +129,7 @@ type CaCertificateRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
-			Name        string `json:"name"`
-			Certificate string `json:"certificate"`
+			Certificates []CaCertificateRequestCertificate `json:"certificates"`
 		} `json:"attributes"`
 		Relationships struct {
 			BelongsTo struct {
@@ -126,23 +142,45 @@ type CaCertificateRequest struct {
 	} `json:"data"`
 }
 
-type CaCertificateResponse struct {
-	Data struct {
-		ID string `json:"id"`
-	} `json:"data"`
+type CaCertificateRequestCertificate struct {
+	Certificate string `json:"certificate"`
+	CRLURL      string `json:"crlUrl,omitempty"`
 }
 
-func (c *Client) CreateCaCertificate(ctx context.Context, name, certificate string) (*CaCertificateResponse, error) {
-	if c.AccountID == "" {
-		return nil, fmt.Errorf("account_id is required to create a CA certificate")
+type CaCertificateAttributes struct {
+	Name         string                         `json:"name"`
+	Certificates []CaCertificateDataCertificate `json:"certificates"`
+}
+
+type CaCertificateDataCertificate struct {
+	Certificate string `json:"certificate"`
+	CRLURL      string `json:"crlUrl"`
+}
+
+type CaCertificateData struct {
+	ID         string                  `json:"id"`
+	Type       string                  `json:"type"`
+	Attributes CaCertificateAttributes `json:"attributes"`
+}
+
+type CaCertificateResponse struct {
+	Data CaCertificateData `json:"data"`
+}
+
+type CaCertificatesResponse struct {
+	Data []CaCertificateData `json:"data"`
+}
+
+func (c *Client) CreateCaCertificate(ctx context.Context, _ string, certificate string) (*CaCertificateResponse, error) {
+	if c.TenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required to create a CA certificate")
 	}
 
 	reqData := CaCertificateRequest{}
 	reqData.Data.Type = "caCertificate"
-	reqData.Data.Attributes.Name = name
-	reqData.Data.Attributes.Certificate = certificate
+	reqData.Data.Attributes.Certificates = []CaCertificateRequestCertificate{{Certificate: certificate}}
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.AccountID
+	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -174,6 +212,30 @@ func (c *Client) CreateCaCertificate(ctx context.Context, name, certificate stri
 	return &caResp, nil
 }
 
+func (c *Client) GetCaCertificate(ctx context.Context, id string) (*CaCertificateResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, httpStatusError(resp, "get CA certificate")
+	}
+
+	var caResp CaCertificateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&caResp); err != nil {
+		return nil, err
+	}
+
+	return &caResp, nil
+}
+
 func (c *Client) DeleteCaCertificate(ctx context.Context, id string) error {
 	req, err := c.NewRequest(ctx, "DELETE", "/api/v2/traffic-mgmt/ca-certificates/"+id, nil)
 	if err != nil {
@@ -186,21 +248,15 @@ func (c *Client) DeleteCaCertificate(ctx context.Context, id string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return httpStatusError(resp, "delete CA certificate")
 	}
 
 	return nil
-}
-
-type CertificatesResponse struct {
-	Data []struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			CommonName string `json:"commonName"`
-		} `json:"attributes"`
-	} `json:"data"`
 }
 
 func (c *Client) GetCertificates(ctx context.Context) (*CertificatesResponse, error) {
@@ -227,14 +283,19 @@ func (c *Client) GetCertificates(ctx context.Context) (*CertificatesResponse, er
 	return &certsResp, nil
 }
 
-type CaCertificatesResponse struct {
-	Data []struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			Name string `json:"name"`
-		} `json:"attributes"`
-	} `json:"data"`
+func (c *Client) FindCertificateByID(ctx context.Context, id string) (*CertificateData, error) {
+	certsResp, err := c.GetCertificates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range certsResp.Data {
+		if certsResp.Data[i].ID == id {
+			return &certsResp.Data[i], nil
+		}
+	}
+
+	return nil, &HTTPStatusError{Action: "find certificate", StatusCode: http.StatusNotFound}
 }
 
 func (c *Client) GetCaCertificates(ctx context.Context) (*CaCertificatesResponse, error) {

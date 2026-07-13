@@ -5,14 +5,14 @@ This is the official Terraform provider for Baffin Bay Threat Protection, enabli
 ## Requirements
 
 * [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-* [Go](https://golang.org/doc/install) >= 1.21
+* [Go](https://golang.org/doc/install) >= 1.26.4
 
 ## Local Development
 
 ### Prerequisites
 
 Ensure you have the following installed:
-*   Go (1.21 or later)
+*   Go (1.26.4 or later)
 *   Terraform (1.0 or later)
 *   Make (optional, but recommended)
 
@@ -69,8 +69,8 @@ Set your OIDC credentials in the environment before running Terraform or `bb-too
     set -a && source .env && set +a
     ```
 
-Required variables: `BAFFINBAY_CLIENT_ID`, `BAFFINBAY_CLIENT_SECRET`.
-Optional: `BAFFINBAY_ACCOUNT_ID`, `BAFFINBAY_API_URL`, `BAFFINBAY_OIDC_URL`, `BAFFINBAY_TOKEN_CACHE`.
+Required variables: `BAFFINBAY_CLIENT_ID`, `BAFFINBAY_CLIENT_SECRET`, `BAFFINBAY_TENANT_ID`.
+Optional: `BAFFINBAY_API_URL`, `BAFFINBAY_OIDC_URL`, `BAFFINBAY_TOKEN_CACHE`.
 
 ### Token cache
 

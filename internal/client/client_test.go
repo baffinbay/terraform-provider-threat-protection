@@ -121,6 +121,19 @@ func TestHttpStatusError_EmptyBody(t *testing.T) {
 	}
 }
 
+func TestHttpStatusError_StatusHelpers(t *testing.T) {
+	err := httpStatusError(responseWith(404, "not found"), "get traffic config")
+	if !IsHTTPStatus(err, http.StatusNotFound) {
+		t.Fatalf("expected IsHTTPStatus to detect 404 for %T", err)
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected IsNotFound to detect 404")
+	}
+	if IsHTTPStatus(err, http.StatusForbidden) {
+		t.Fatalf("did not expect 404 error to match 403")
+	}
+}
+
 func TestHttpStatusError_NonJSONSnippet(t *testing.T) {
 	err := httpStatusError(responseWith(502, "<html>bad gateway</html>"), "get IP sources")
 	got := err.Error()
