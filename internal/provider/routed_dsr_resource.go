@@ -27,7 +27,7 @@ func NewRoutedDsrResource() resource.Resource {
 }
 
 type RoutedDsrResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type RoutedDsrResourceModel struct {
@@ -78,23 +78,6 @@ func (r *RoutedDsrResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 		},
 	}
-}
-
-func (r *RoutedDsrResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
 }
 
 func (r *RoutedDsrResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -152,33 +135,15 @@ func (r *RoutedDsrResource) Read(ctx context.Context, req resource.ReadRequest, 
 }
 
 func (r *RoutedDsrResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data RoutedDsrResourceModel
+	updateTypedTrafficConfigResource(ctx, req, resp, r.client, "Routed DSR", r.readRoutedDsr, addRoutedDsrReadDiagnostic)
+}
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+func (data RoutedDsrResourceModel) trafficConfigID() string {
+	return data.ID.ValueString()
+}
 
-	reqData := mapRoutedDsrModelToRequest(data)
-
-	tc, err := r.client.UpdateTrafficConfig(ctx, data.ID.ValueString(), reqData)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update Routed DSR traffic config, got error: %s", err))
-		return
-	}
-
-	if err := r.client.WaitForTrafficConfigChange(ctx, data.ID.ValueString(), tc.Data.ActiveChangeID()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for Routed DSR traffic config update, got error: %s", err))
-		return
-	}
-
-	data, err = r.readRoutedDsr(ctx, data)
-	if err != nil {
-		addRoutedDsrReadDiagnostic(&resp.Diagnostics, data.ID.ValueString(), err, "after update")
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+func (data RoutedDsrResourceModel) trafficConfigRequest() client.TrafficConfigRequest {
+	return mapRoutedDsrModelToRequest(data)
 }
 
 func (r *RoutedDsrResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -277,9 +242,7 @@ func (e trafficConfigTypeMismatchError) Error() string {
 	return fmt.Sprintf("traffic config %q has type %q, expected %q", e.ID, e.GotType, e.WantType)
 }
 
-func addRoutedDsrReadDiagnostic(diags interface {
-	AddError(summary string, detail string)
-}, id string, err error, context string) {
+func addRoutedDsrReadDiagnostic(diags errorDiagnostics, id string, err error, context string) {
 	if _, ok := err.(trafficConfigTypeMismatchError); ok {
 		diags.AddError(
 			"Traffic Config Type Mismatch",

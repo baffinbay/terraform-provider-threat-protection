@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -17,7 +15,7 @@ func NewCaCertificatesDataSource() datasource.DataSource {
 }
 
 type CaCertificatesDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type CaCertificatesDataSourceModel struct {
@@ -35,44 +33,7 @@ func (d *CaCertificatesDataSource) Metadata(ctx context.Context, req datasource.
 }
 
 func (d *CaCertificatesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		MarkdownDescription: "Retrieves all Baffin Bay CA Certificates.",
-		Attributes: map[string]schema.Attribute{
-			"ca_certificates": schema.ListNestedAttribute{
-				Computed: true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Computed: true,
-						},
-						"type": schema.StringAttribute{
-							Computed: true,
-						},
-						"name": schema.StringAttribute{
-							Computed: true,
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func (d *CaCertificatesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
+	resp.Schema = collectionDataSourceSchema("Retrieves all Baffin Bay CA Certificates.", "ca_certificates", "name")
 }
 
 func (d *CaCertificatesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

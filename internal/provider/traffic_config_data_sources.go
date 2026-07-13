@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -30,19 +29,19 @@ func NewRoutedDsrDataSource() datasource.DataSource {
 }
 
 type TrafficConfigDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type HTTPProxyDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type L4ProxyDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type RoutedDsrDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 func (d *TrafficConfigDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -51,10 +50,6 @@ func (d *TrafficConfigDataSource) Metadata(ctx context.Context, req datasource.M
 
 func (d *TrafficConfigDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	setComputedDataSourceSchemaFromResource(ctx, resp, NewTrafficConfigResource(), "Retrieves a Baffin Bay Traffic Configuration by UUID.")
-}
-
-func (d *TrafficConfigDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	d.client = configureSingularDataSourceClient(req, resp)
 }
 
 func (d *TrafficConfigDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -81,29 +76,14 @@ func (d *HTTPProxyDataSource) Schema(ctx context.Context, req datasource.SchemaR
 	setComputedDataSourceSchemaFromResource(ctx, resp, NewHTTPProxyResource(), "Retrieves a Baffin Bay HTTP Proxy traffic configuration by UUID.")
 }
 
-func (d *HTTPProxyDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	d.client = configureSingularDataSourceClient(req, resp)
-}
-
 func (d *HTTPProxyDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state HTTPProxyResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	response, err := d.client.GetHTTPProxy(ctx, state.ID.ValueString())
-	if err != nil {
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "HTTP Proxy", state.ID.ValueString(), httpProxyTrafficConfigType, err)
-		return
-	}
-	if response.Data.Type != httpProxyTrafficConfigType {
-		err = trafficConfigTypeMismatchError{ID: state.ID.ValueString(), GotType: response.Data.Type, WantType: httpProxyTrafficConfigType}
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "HTTP Proxy", state.ID.ValueString(), httpProxyTrafficConfigType, err)
-		return
-	}
-	state = mapHTTPProxyResponseToModel(response, state)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	readTypedTrafficDataSource(
+		ctx, req, resp, "HTTP Proxy", httpProxyTrafficConfigType,
+		func(state HTTPProxyResourceModel) string { return state.ID.ValueString() },
+		d.client.GetHTTPProxy,
+		func(response *client.HTTPProxyResponse) string { return response.Data.Type },
+		mapHTTPProxyResponseToModel,
+	)
 }
 
 func (d *L4ProxyDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -114,29 +94,14 @@ func (d *L4ProxyDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 	setComputedDataSourceSchemaFromResource(ctx, resp, NewL4ProxyResource(), "Retrieves a Baffin Bay L4 Proxy traffic configuration by UUID.")
 }
 
-func (d *L4ProxyDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	d.client = configureSingularDataSourceClient(req, resp)
-}
-
 func (d *L4ProxyDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state L4ProxyResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	response, err := d.client.GetTrafficConfig(ctx, state.ID.ValueString())
-	if err != nil {
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "L4 Proxy", state.ID.ValueString(), l4ProxyTrafficConfigType, err)
-		return
-	}
-	if response.Data.Type != l4ProxyTrafficConfigType {
-		err = trafficConfigTypeMismatchError{ID: state.ID.ValueString(), GotType: response.Data.Type, WantType: l4ProxyTrafficConfigType}
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "L4 Proxy", state.ID.ValueString(), l4ProxyTrafficConfigType, err)
-		return
-	}
-	state = mapL4ProxyResponseToModel(response, state)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	readTypedTrafficDataSource(
+		ctx, req, resp, "L4 Proxy", l4ProxyTrafficConfigType,
+		func(state L4ProxyResourceModel) string { return state.ID.ValueString() },
+		d.client.GetTrafficConfig,
+		func(response *client.TrafficConfigResponse) string { return response.Data.Type },
+		mapL4ProxyResponseToModel,
+	)
 }
 
 func (d *RoutedDsrDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -147,39 +112,44 @@ func (d *RoutedDsrDataSource) Schema(ctx context.Context, req datasource.SchemaR
 	setComputedDataSourceSchemaFromResource(ctx, resp, NewRoutedDsrResource(), "Retrieves a Baffin Bay Routed DSR traffic configuration by UUID.")
 }
 
-func (d *RoutedDsrDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	d.client = configureSingularDataSourceClient(req, resp)
+func (d *RoutedDsrDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	readTypedTrafficDataSource(
+		ctx, req, resp, "Routed DSR", routedDsrTrafficConfigType,
+		func(state RoutedDsrResourceModel) string { return state.ID.ValueString() },
+		d.client.GetTrafficConfig,
+		func(response *client.TrafficConfigResponse) string { return response.Data.Type },
+		mapRoutedDsrResponseToModel,
+	)
 }
 
-func (d *RoutedDsrDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state RoutedDsrResourceModel
+func readTypedTrafficDataSource[State, Response any](
+	ctx context.Context,
+	req datasource.ReadRequest,
+	resp *datasource.ReadResponse,
+	objectName, expectedType string,
+	stateID func(State) string,
+	read func(context.Context, string) (Response, error),
+	responseType func(Response) string,
+	mapResponse func(Response, State) State,
+) {
+	var state State
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	response, err := d.client.GetTrafficConfig(ctx, state.ID.ValueString())
+	id := stateID(state)
+	response, err := read(ctx, id)
 	if err != nil {
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "Routed DSR", state.ID.ValueString(), routedDsrTrafficConfigType, err)
+		addTypedTrafficDataSourceReadError(&resp.Diagnostics, objectName, id, expectedType, err)
 		return
 	}
-	if response.Data.Type != routedDsrTrafficConfigType {
-		err = trafficConfigTypeMismatchError{ID: state.ID.ValueString(), GotType: response.Data.Type, WantType: routedDsrTrafficConfigType}
-		addTypedTrafficDataSourceReadError(&resp.Diagnostics, "Routed DSR", state.ID.ValueString(), routedDsrTrafficConfigType, err)
+	if actualType := responseType(response); actualType != expectedType {
+		err = trafficConfigTypeMismatchError{ID: id, GotType: actualType, WantType: expectedType}
+		addTypedTrafficDataSourceReadError(&resp.Diagnostics, objectName, id, expectedType, err)
 		return
 	}
-	state = mapRoutedDsrResponseToModel(response, state)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-}
 
-func configureSingularDataSourceClient(req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) *client.Client {
-	if req.ProviderData == nil {
-		return nil
-	}
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return nil
-	}
-	return configuredClient
+	state = mapResponse(response, state)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

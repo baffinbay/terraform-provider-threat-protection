@@ -620,21 +620,6 @@ func assertNestedStringAttribute(t *testing.T, attrs map[string]fwrschema.Attrib
 	}
 }
 
-func assertNestedListAttribute(t *testing.T, attrs map[string]fwrschema.Attribute, name string, required, computed bool) {
-	t.Helper()
-
-	attr, ok := attrs[name].(fwrschema.ListAttribute)
-	if !ok {
-		t.Fatalf("%s attribute has type %T, want schema.ListAttribute", name, attrs[name])
-	}
-	if attr.Required != required {
-		t.Fatalf("%s required: got %t, want %t", name, attr.Required, required)
-	}
-	if attr.Computed != computed {
-		t.Fatalf("%s computed: got %t, want %t", name, attr.Computed, computed)
-	}
-}
-
 func assertNestedInt64Attribute(t *testing.T, attrs map[string]fwrschema.Attribute, name string, required bool) {
 	t.Helper()
 

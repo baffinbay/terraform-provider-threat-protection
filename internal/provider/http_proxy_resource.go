@@ -40,7 +40,7 @@ func NewHTTPProxyResource() resource.Resource {
 }
 
 type HTTPProxyResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type HTTPProxyResourceModel struct {
@@ -543,18 +543,6 @@ func httpProxyTrafficRulesAttribute() schema.ListNestedAttribute {
 			}},
 		}},
 	}}}
-}
-
-func (r *HTTPProxyResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	apiClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return
-	}
-	r.client = apiClient
 }
 
 func (r *HTTPProxyResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {

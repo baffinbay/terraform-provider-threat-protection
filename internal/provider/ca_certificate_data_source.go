@@ -22,7 +22,7 @@ func NewCACertificateDataSource() datasource.DataSource {
 }
 
 type CACertificateDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type CACertificateDataSourceModel struct {
@@ -65,18 +65,6 @@ func (d *CACertificateDataSource) ConfigValidators(ctx context.Context) []dataso
 	}
 }
 
-func (d *CACertificateDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return
-	}
-	d.client = configuredClient
-}
-
 func (d *CACertificateDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config CACertificateDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
@@ -98,22 +86,13 @@ func (d *CACertificateDataSource) Read(ctx context.Context, req datasource.ReadR
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to list CA Certificates while looking up name %q, got error: %s", config.Name.ValueString(), err))
 			return
 		}
-		matches := make([]client.CaCertificateData, 0, 1)
-		for _, candidate := range response.Data {
-			if candidate.Attributes.Name == config.Name.ValueString() {
-				matches = append(matches, candidate)
-			}
-		}
-		switch len(matches) {
-		case 0:
-			resp.Diagnostics.AddError("CA Certificate Not Found", fmt.Sprintf("Unable to find a CA Certificate with exact name %q.", config.Name.ValueString()))
-			return
-		case 1:
-			certificate = matches[0]
-		default:
-			resp.Diagnostics.AddError("Ambiguous CA Certificate Name", fmt.Sprintf("Found %d CA Certificates with exact name %q. Configure the data source with an ID instead.", len(matches), config.Name.ValueString()))
+		match, ok := findDataSourceByExactName(&resp.Diagnostics, "CA Certificate", "CA Certificates", config.Name.ValueString(), response.Data, func(candidate client.CaCertificateData) string {
+			return candidate.Attributes.Name
+		})
+		if !ok {
 			return
 		}
+		certificate = match
 	}
 
 	state := CACertificateDataSourceModel{

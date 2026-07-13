@@ -22,7 +22,7 @@ func NewCaCertificateResource() resource.Resource {
 }
 
 type CaCertificateResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type CaCertificateResourceModel struct {
@@ -60,23 +60,6 @@ func (r *CaCertificateResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 		},
 	}
-}
-
-func (r *CaCertificateResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
 }
 
 func (r *CaCertificateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

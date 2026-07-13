@@ -85,7 +85,29 @@ func computedDataSourceAttribute(attribute resourceschema.Attribute) (datasource
 	}
 }
 
-func addSingularDataSourceReadError(diags interface{ AddError(summary, detail string) }, objectName, id string, err error) {
+func findDataSourceByExactName[T any](diags errorDiagnostics, objectName, objectPlural, name string, candidates []T, candidateName func(T) string) (T, bool) {
+	var match T
+	matchCount := 0
+	for _, candidate := range candidates {
+		if candidateName(candidate) == name {
+			match = candidate
+			matchCount++
+		}
+	}
+
+	switch matchCount {
+	case 0:
+		diags.AddError(objectName+" Not Found", fmt.Sprintf("Unable to find a %s with exact name %q.", objectName, name))
+		return match, false
+	case 1:
+		return match, true
+	default:
+		diags.AddError("Ambiguous "+objectName+" Name", fmt.Sprintf("Found %d %s with exact name %q. Configure the data source with an ID instead.", matchCount, objectPlural, name))
+		return match, false
+	}
+}
+
+func addSingularDataSourceReadError(diags errorDiagnostics, objectName, id string, err error) {
 	if client.IsNotFound(err) {
 		diags.AddError(objectName+" Not Found", fmt.Sprintf("Unable to find %s with ID %q.", objectName, id))
 		return
@@ -93,7 +115,7 @@ func addSingularDataSourceReadError(diags interface{ AddError(summary, detail st
 	diags.AddError("Client Error", fmt.Sprintf("Unable to read %s %q, got error: %s", objectName, id, err))
 }
 
-func addTypedTrafficDataSourceReadError(diags interface{ AddError(summary, detail string) }, objectName, id, expectedType string, err error) {
+func addTypedTrafficDataSourceReadError(diags errorDiagnostics, objectName, id, expectedType string, err error) {
 	if mismatch, ok := err.(trafficConfigTypeMismatchError); ok {
 		diags.AddError("Traffic Config Type Mismatch", fmt.Sprintf("Unable to read %s %q: %s. Reference a traffic config with API type %q.", objectName, id, mismatch, expectedType))
 		return

@@ -17,7 +17,7 @@ func NewIPListsDataSource() datasource.DataSource {
 }
 
 type IPListsDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type IPListsDataSourceModel struct {
@@ -55,23 +55,6 @@ func (d *IPListsDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 			},
 		},
 	}
-}
-
-func (d *IPListsDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = configuredClient
 }
 
 func (d *IPListsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

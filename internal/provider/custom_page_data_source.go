@@ -22,7 +22,7 @@ func NewCustomPageDataSource() datasource.DataSource {
 }
 
 type CustomPageDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type CustomPageDataSourceModel struct {
@@ -67,18 +67,6 @@ func (d *CustomPageDataSource) ConfigValidators(ctx context.Context) []datasourc
 	}
 }
 
-func (d *CustomPageDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return
-	}
-	d.client = configuredClient
-}
-
 func (d *CustomPageDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config CustomPageDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
@@ -100,22 +88,13 @@ func (d *CustomPageDataSource) Read(ctx context.Context, req datasource.ReadRequ
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to list Custom Pages while looking up name %q, got error: %s", config.Name.ValueString(), err))
 			return
 		}
-		matches := make([]client.CustomPageData, 0, 1)
-		for _, candidate := range response.Data {
-			if candidate.Attributes.Name == config.Name.ValueString() {
-				matches = append(matches, candidate)
-			}
-		}
-		switch len(matches) {
-		case 0:
-			resp.Diagnostics.AddError("Custom Page Not Found", fmt.Sprintf("Unable to find a Custom Page with exact name %q.", config.Name.ValueString()))
-			return
-		case 1:
-			page = matches[0]
-		default:
-			resp.Diagnostics.AddError("Ambiguous Custom Page Name", fmt.Sprintf("Found %d Custom Pages with exact name %q. Configure the data source with an ID instead.", len(matches), config.Name.ValueString()))
+		match, ok := findDataSourceByExactName(&resp.Diagnostics, "Custom Page", "Custom Pages", config.Name.ValueString(), response.Data, func(candidate client.CustomPageData) string {
+			return candidate.Attributes.Name
+		})
+		if !ok {
 			return
 		}
+		page = match
 	}
 
 	content, err := d.client.DownloadCustomPage(ctx, page.ID)

@@ -30,7 +30,7 @@ func NewIPListResource() resource.Resource {
 }
 
 type IPListResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type IPListResourceModel struct {
@@ -94,23 +94,6 @@ func (r *IPListResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			},
 		},
 	}
-}
-
-func (r *IPListResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = configuredClient
 }
 
 func (r *IPListResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {

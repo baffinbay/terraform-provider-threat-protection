@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -17,7 +16,7 @@ func NewIPSourceDataSource() datasource.DataSource {
 }
 
 type IPSourceDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 func (d *IPSourceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -30,18 +29,6 @@ func (d *IPSourceDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 		"type": schema.StringAttribute{Computed: true},
 		"cidr": schema.StringAttribute{Computed: true},
 	}}
-}
-
-func (d *IPSourceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return
-	}
-	d.client = configuredClient
 }
 
 func (d *IPSourceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

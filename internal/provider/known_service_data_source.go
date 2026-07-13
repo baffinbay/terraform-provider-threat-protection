@@ -22,7 +22,7 @@ func NewKnownServiceDataSource() datasource.DataSource {
 }
 
 type KnownServiceDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 type KnownServiceDataSourceModel struct {
@@ -68,10 +68,6 @@ func (d *KnownServiceDataSource) ConfigValidators(ctx context.Context) []datasou
 	}
 }
 
-func (d *KnownServiceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	d.client = configureSingularDataSourceClient(req, resp)
-}
-
 func (d *KnownServiceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config KnownServiceDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
@@ -93,22 +89,13 @@ func (d *KnownServiceDataSource) Read(ctx context.Context, req datasource.ReadRe
 			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to list Known Services while looking up name %q, got error: %s", config.Name.ValueString(), err))
 			return
 		}
-		matches := make([]client.KnownServiceData, 0, 1)
-		for _, candidate := range response.Data {
-			if candidate.Attributes.Name == config.Name.ValueString() {
-				matches = append(matches, candidate)
-			}
-		}
-		switch len(matches) {
-		case 0:
-			resp.Diagnostics.AddError("Known Service Not Found", fmt.Sprintf("Unable to find a Known Service with exact name %q.", config.Name.ValueString()))
-			return
-		case 1:
-			knownService = matches[0]
-		default:
-			resp.Diagnostics.AddError("Ambiguous Known Service Name", fmt.Sprintf("Found %d Known Services with exact name %q. Configure the data source with an ID instead.", len(matches), config.Name.ValueString()))
+		match, ok := findDataSourceByExactName(&resp.Diagnostics, "Known Service", "Known Services", config.Name.ValueString(), response.Data, func(candidate client.KnownServiceData) string {
+			return candidate.Attributes.Name
+		})
+		if !ok {
 			return
 		}
+		knownService = match
 	}
 
 	if knownService.Type != client.KnownServiceType {

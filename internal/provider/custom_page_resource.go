@@ -21,7 +21,7 @@ func NewCustomPageResource() resource.Resource {
 }
 
 type CustomPageResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type CustomPageResourceModel struct {
@@ -61,23 +61,6 @@ func (r *CustomPageResource) Schema(ctx context.Context, req resource.SchemaRequ
 			},
 		},
 	}
-}
-
-func (r *CustomPageResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
 }
 
 func (r *CustomPageResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

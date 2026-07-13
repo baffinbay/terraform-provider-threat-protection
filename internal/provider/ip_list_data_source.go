@@ -16,7 +16,7 @@ func NewIPListDataSource() datasource.DataSource {
 }
 
 type IPListDataSource struct {
-	client *client.Client
+	configuredDataSource
 }
 
 func (d *IPListDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -28,18 +28,6 @@ func (d *IPListDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 		MarkdownDescription: "Retrieves a Baffin Bay IP List by UUID.",
 		Attributes:          ipListDataSourceAttributes(true),
 	}
-}
-
-func (d *IPListDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	configuredClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
-		return
-	}
-	d.client = configuredClient
 }
 
 func (d *IPListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

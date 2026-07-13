@@ -23,7 +23,7 @@ func NewCertificateResource() resource.Resource {
 }
 
 type CertificateResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type CertificateResourceModel struct {
@@ -93,23 +93,6 @@ func (r *CertificateResource) Schema(ctx context.Context, req resource.SchemaReq
 			},
 		},
 	}
-}
-
-func (r *CertificateResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
 }
 
 func (r *CertificateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

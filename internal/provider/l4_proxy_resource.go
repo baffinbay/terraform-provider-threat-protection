@@ -33,7 +33,7 @@ func NewL4ProxyResource() resource.Resource {
 }
 
 type L4ProxyResource struct {
-	client *client.Client
+	configuredResource
 }
 
 type L4ProxyResourceModel struct {
@@ -366,23 +366,6 @@ func l4AutonomousSystemRuleAttrTypes() map[string]attr.Type {
 	}
 }
 
-func (r *L4ProxyResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	apiClient, ok := req.ProviderData.(*client.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = apiClient
-}
-
 func (r *L4ProxyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data L4ProxyResourceModel
 
@@ -438,33 +421,15 @@ func (r *L4ProxyResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *L4ProxyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data L4ProxyResourceModel
+	updateTypedTrafficConfigResource(ctx, req, resp, r.client, "L4 Proxy", r.readL4Proxy, addL4ProxyReadDiagnostic)
+}
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+func (data L4ProxyResourceModel) trafficConfigID() string {
+	return data.ID.ValueString()
+}
 
-	reqData := mapL4ProxyModelToRequest(data)
-
-	tc, err := r.client.UpdateTrafficConfig(ctx, data.ID.ValueString(), reqData)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update L4 Proxy traffic config, got error: %s", err))
-		return
-	}
-
-	if err := r.client.WaitForTrafficConfigChange(ctx, data.ID.ValueString(), tc.Data.ActiveChangeID()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for L4 Proxy traffic config update, got error: %s", err))
-		return
-	}
-
-	data, err = r.readL4Proxy(ctx, data)
-	if err != nil {
-		addL4ProxyReadDiagnostic(&resp.Diagnostics, data.ID.ValueString(), err, "after update")
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+func (data L4ProxyResourceModel) trafficConfigRequest() client.TrafficConfigRequest {
+	return mapL4ProxyModelToRequest(data)
 }
 
 func (r *L4ProxyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -875,9 +840,7 @@ func mapL4BackendResponseToModel(backend *client.TrafficConfigResponseBackend, p
 	return data
 }
 
-func addL4ProxyReadDiagnostic(diags interface {
-	AddError(summary string, detail string)
-}, id string, err error, context string) {
+func addL4ProxyReadDiagnostic(diags errorDiagnostics, id string, err error, context string) {
 	if _, ok := err.(trafficConfigTypeMismatchError); ok {
 		diags.AddError(
 			"Traffic Config Type Mismatch",
