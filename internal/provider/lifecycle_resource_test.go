@@ -702,13 +702,34 @@ func readTrafficConfigTypeAndNameFromRequest(t *testing.T, r *http.Request) (str
 		Data struct {
 			Type       string `json:"type"`
 			Attributes struct {
-				Name string `json:"name"`
+				Name           string             `json:"name"`
+				Version        string             `json:"version"`
+				ProxyProtocol  string             `json:"proxyProtocol"`
+				GeoFencing     *json.RawMessage   `json:"geoFencing"`
+				AllowedSources *json.RawMessage   `json:"allowedSources"`
+				IPBasedAccess  *testIPBasedAccess `json:"ipBasedAccessControl"`
 			} `json:"attributes"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		t.Errorf("failed to decode traffic config request: %v", err)
 		return "", ""
+	}
+
+	if req.Data.Type == l4ProxyTrafficConfigType && req.Data.Attributes.Version != l4ProxyTrafficConfigVersion {
+		t.Errorf("expected L4 traffic config request version %q, got %q", l4ProxyTrafficConfigVersion, req.Data.Attributes.Version)
+	}
+	if req.Data.Type == l4ProxyTrafficConfigType && req.Data.Attributes.ProxyProtocol != "DISABLED" {
+		t.Errorf("expected L4 traffic config request proxyProtocol DISABLED, got %q", req.Data.Attributes.ProxyProtocol)
+	}
+	if req.Data.Type == l4ProxyTrafficConfigType {
+		if req.Data.Attributes.GeoFencing != nil {
+			t.Errorf("L4 traffic config request unexpectedly included deprecated geoFencing")
+		}
+		if req.Data.Attributes.AllowedSources != nil {
+			t.Errorf("L4 traffic config request unexpectedly included deprecated allowedSources")
+		}
+		assertDefaultIPBasedAccess(t, req.Data.Attributes.IPBasedAccess)
 	}
 
 	return req.Data.Type, req.Data.Attributes.Name
@@ -1025,7 +1046,7 @@ func trafficConfigL4Response(name string) string {
 }
 
 func trafficConfigL4ResponseWithActiveChange(name, activeChangeID string) string {
-	return trafficConfigJSON("l4Proxy", fmt.Sprintf(`"name":%q,"version":"0.1.0","frontend":{"ipv4":"192.168.1.1","port":80},"backend":{"hosts":[{"address":"example.com","port":8080}],"deliveryMethod":"ROUND_ROBIN","serverName":"example.com"},"deployment":{"state":"UNDEPLOYED"},"protocols":["TCP"]`, name), activeChangeID)
+	return trafficConfigJSON("l4Proxy", fmt.Sprintf(`"name":%q,"version":%q,"frontend":{"ipv4":"192.168.1.1","port":80},"backend":{"hosts":[{"address":"example.com","port":8080}],"deliveryMethod":"ROUND_ROBIN","serverName":"example.com"},"deployment":{"state":"UNDEPLOYED"},"protocols":["TCP"],"proxyProtocol":"DISABLED"`, name, l4ProxyTrafficConfigVersion), activeChangeID)
 }
 
 func trafficConfigRoutedDsrResponse(name string) string {

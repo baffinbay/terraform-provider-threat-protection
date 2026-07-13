@@ -47,6 +47,7 @@ type TrafficConfigAttributes struct {
 	Backend          *Backend          `json:"backend,omitempty"`
 	Deployment       Deployment        `json:"deployment"`
 	Protocols        []string          `json:"protocols,omitempty"`
+	ProxyProtocol    string            `json:"proxyProtocol,omitempty"`
 	Prefix           string            `json:"prefix,omitempty"`
 	Announced        *bool             `json:"announced,omitempty"`
 	WAF              *WAF              `json:"waf,omitempty"`
@@ -121,11 +122,35 @@ type IPBasedAccess struct {
 }
 
 type IPBasedAccessRules struct {
-	IPRanges      []any `json:"ipRanges"`
-	KnownServices []any `json:"knownServices"`
-	IPLists       []any `json:"ipLists"`
-	GeoLocations  []any `json:"geoLocations"`
-	ASNs          []any `json:"asns"`
+	IPRanges      []IPBasedAccessIPRangeRule      `json:"ipRanges"`
+	KnownServices *[]any                          `json:"knownServices,omitempty"`
+	IPLists       []IPBasedAccessIPListRule       `json:"ipLists"`
+	GeoLocations  []IPBasedAccessGeoLocationRule  `json:"geoLocations"`
+	ASNs          []IPBasedAccessAutonomousSystem `json:"asns"`
+}
+
+type IPBasedAccessIPRangeRule struct {
+	Policy  string `json:"policy"`
+	Address string `json:"address"`
+	Note    string `json:"note,omitempty"`
+}
+
+type IPBasedAccessIPListRule struct {
+	Type   string `json:"type,omitempty"`
+	ID     string `json:"id"`
+	Policy string `json:"policy"`
+}
+
+type IPBasedAccessGeoLocationRule struct {
+	Policy string `json:"policy"`
+	Region string `json:"region"`
+	Note   string `json:"note,omitempty"`
+}
+
+type IPBasedAccessAutonomousSystem struct {
+	Policy string `json:"policy"`
+	ASN    int64  `json:"asn"`
+	Note   string `json:"note,omitempty"`
 }
 
 type BotProtection struct {
@@ -223,9 +248,13 @@ type TrafficConfigResponseAttributes struct {
 	Backend          *TrafficConfigResponseBackend          `json:"backend,omitempty"`
 	Deployment       *TrafficConfigResponseDeployment       `json:"deployment,omitempty"`
 	Protocols        []string                               `json:"protocols,omitempty"`
+	ProxyProtocol    *string                                `json:"proxyProtocol,omitempty"`
 	Prefix           *string                                `json:"prefix,omitempty"`
 	Announced        *bool                                  `json:"announced,omitempty"`
 	WAF              *TrafficConfigResponseWAF              `json:"waf,omitempty"`
+	GeoFencing       *TrafficConfigResponseGeoFencing       `json:"geoFencing,omitempty"`
+	AllowedSources   *TrafficConfigResponseAllowedSources   `json:"allowedSources,omitempty"`
+	IPBasedAccess    *TrafficConfigResponseIPBasedAccess    `json:"ipBasedAccessControl,omitempty"`
 	RateLimiting     *TrafficConfigResponseRateLimit        `json:"rateLimiting,omitempty"`
 	ProtocolSettings *TrafficConfigResponseProtocolSettings `json:"protocolSettings,omitempty"`
 }
@@ -352,6 +381,53 @@ type TrafficConfigResponseRateLimitRule struct {
 	Enforcement *string `json:"enforcement,omitempty"`
 }
 
+type TrafficConfigResponseGeoFencing struct {
+	Type    *string  `json:"type,omitempty"`
+	Regions []string `json:"regions,omitempty"`
+}
+
+type TrafficConfigResponseAllowedSources struct {
+	Enforcement *string  `json:"enforcement,omitempty"`
+	Sources     []string `json:"sources,omitempty"`
+}
+
+type TrafficConfigResponseIPBasedAccess struct {
+	DefaultPolicy *string                                  `json:"defaultPolicy,omitempty"`
+	Rules         *TrafficConfigResponseIPBasedAccessRules `json:"rules,omitempty"`
+}
+
+type TrafficConfigResponseIPBasedAccessRules struct {
+	IPRanges      []TrafficConfigResponseIPRangeRule      `json:"ipRanges,omitempty"`
+	KnownServices []any                                   `json:"knownServices,omitempty"`
+	IPLists       []TrafficConfigResponseIPListRule       `json:"ipLists,omitempty"`
+	GeoLocations  []TrafficConfigResponseGeoLocationRule  `json:"geoLocations,omitempty"`
+	ASNs          []TrafficConfigResponseAutonomousSystem `json:"asns,omitempty"`
+}
+
+type TrafficConfigResponseIPRangeRule struct {
+	Policy  *string `json:"policy,omitempty"`
+	Address *string `json:"address,omitempty"`
+	Note    *string `json:"note,omitempty"`
+}
+
+type TrafficConfigResponseIPListRule struct {
+	Type   *string `json:"type,omitempty"`
+	ID     *string `json:"id,omitempty"`
+	Policy *string `json:"policy,omitempty"`
+}
+
+type TrafficConfigResponseGeoLocationRule struct {
+	Policy *string `json:"policy,omitempty"`
+	Region *string `json:"region,omitempty"`
+	Note   *string `json:"note,omitempty"`
+}
+
+type TrafficConfigResponseAutonomousSystem struct {
+	Policy *string `json:"policy,omitempty"`
+	ASN    *int64  `json:"asn,omitempty"`
+	Note   *string `json:"note,omitempty"`
+}
+
 func (d TrafficConfigData) ActiveChangeID() string {
 	return d.Relationships.ActiveChange.Data.ID
 }
@@ -376,7 +452,9 @@ func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigR
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
-	reqData.Data.Attributes.Version = "0.1.0" // Default version
+	if reqData.Data.Attributes.Version == "" {
+		reqData.Data.Attributes.Version = "0.1.0" // Default version
+	}
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
@@ -442,7 +520,9 @@ func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData Tra
 
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
-	reqData.Data.Attributes.Version = "0.1.0"
+	if reqData.Data.Attributes.Version == "" {
+		reqData.Data.Attributes.Version = "0.1.0"
+	}
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {

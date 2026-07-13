@@ -449,7 +449,7 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	reqData := client.TrafficConfigRequest{}
 	reqData.Data.Type = data.Type.ValueString()
 	reqData.Data.Attributes.Name = data.Name.ValueString()
-	reqData.Data.Attributes.Version = "0.1.0"
+	reqData.Data.Attributes.Version = trafficConfigVersionForType(data.Type.ValueString())
 
 	if !data.DeploymentState.IsNull() {
 		reqData.Data.Attributes.Deployment.State = data.DeploymentState.ValueString()
@@ -543,6 +543,8 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 
 	if data.Type.ValueString() == "l4Proxy" {
 		reqData.Data.Attributes.Protocols = []string{"TCP"}
+		reqData.Data.Attributes.ProxyProtocol = "DISABLED"
+		reqData.Data.Attributes.IPBasedAccess = defaultL4IPBasedAccessControlRequest()
 	}
 
 	if data.Type.ValueString() == "httpProxy" {
@@ -581,6 +583,14 @@ func mapModelToRequest(data TrafficConfigResourceModel) client.TrafficConfigRequ
 	}
 
 	return reqData
+}
+
+func trafficConfigVersionForType(trafficConfigType string) string {
+	if trafficConfigType == l4ProxyTrafficConfigType {
+		return l4ProxyTrafficConfigVersion
+	}
+
+	return "0.1.0"
 }
 
 func mapWafModelToRequest(waf *WafModel) *client.WAF {
@@ -662,13 +672,18 @@ func defaultHTTPProxyIPBasedAccessRequest() *client.IPBasedAccess {
 	return &client.IPBasedAccess{
 		DefaultPolicy: "ALLOW",
 		Rules: client.IPBasedAccessRules{
-			IPRanges:      []any{},
-			KnownServices: []any{},
-			IPLists:       []any{},
-			GeoLocations:  []any{},
-			ASNs:          []any{},
+			IPRanges:      []client.IPBasedAccessIPRangeRule{},
+			KnownServices: emptyAnySlicePointer(),
+			IPLists:       []client.IPBasedAccessIPListRule{},
+			GeoLocations:  []client.IPBasedAccessGeoLocationRule{},
+			ASNs:          []client.IPBasedAccessAutonomousSystem{},
 		},
 	}
+}
+
+func emptyAnySlicePointer() *[]any {
+	empty := []any{}
+	return &empty
 }
 
 func defaultHTTPProxyBotProtectionRequest() *client.BotProtection {

@@ -3,6 +3,6 @@
   "type": "feature",
   "status": "new",
   "created_at": "2026-07-01T08:06:36Z",
-  "updated_at": "2026-07-01T08:38:48Z",
+  "updated_at": "2026-07-01T09:40:57Z",
   "description": "feature: replace the unified traffic configuration authoring experience with type-specific resources for HTTP Proxy, L4 Proxy, and Routed DSR while keeping the existing resource available for compatibility."
 }

@@ -36,7 +36,8 @@ This track introduces type-specific resources with narrow schemas and keeps the 
 - [ ] Task: Map the current unified schema into type-specific schemas.
     - [ ] Sub-task: Identify common attributes shared across all three resources, such as `id`, `name`, and `deployment_state`.
     - [ ] Sub-task: Identify HTTP Proxy-only attributes and nested blocks.
-    - [ ] Sub-task: Identify L4 Proxy-only attributes and nested blocks.
+    - [x] Sub-task: Identify L4 Proxy-only attributes and nested blocks.
+    - [x] Sub-task: Identify L4 access-control attributes required by the API: `protocols`, `proxyProtocol`, `geoFencing`, `allowedSources`, and `ipBasedAccessControl`.
     - [x] Sub-task: Identify Routed DSR-only attributes from the API spec: `prefix`, `announced`, and `deployment_state` mapped to API `deployment.state`.
 - [ ] Task: Decide whether nested object names should stay compatible with the unified resource.
     - [ ] Sub-task: Prefer preserving existing block names where they remain semantically correct.
@@ -53,6 +54,8 @@ This track introduces type-specific resources with narrow schemas and keeps the 
     - [ ] Sub-task: Reuse the existing client create, read, update, delete, and polling methods.
     - [ ] Sub-task: Register the new resources in `BaffinBayProvider.Resources`.
     - [x] Sub-task: Implement and register the first typed resource, `baffinbay_routed_dsr`.
+    - [x] Sub-task: Implement and register the second typed resource, `baffinbay_l4_proxy`.
+    - [x] Sub-task: Implement complete L4 request/response mapping and defaults for protocols, proxy protocol, geo fencing, allowed sources, and IP based access control.
 
 ## Phase 3: Import and Migration
 - [ ] Task: Implement import support for each typed resource.
@@ -60,6 +63,7 @@ This track introduces type-specific resources with narrow schemas and keeps the 
     - [ ] Sub-task: After import/read, verify the remote API type matches the target Terraform resource type.
     - [ ] Sub-task: Return a clear diagnostic if a user imports an HTTP Proxy into the L4 or Routed DSR resource.
     - [x] Sub-task: Implement import and wrong-type read/import diagnostics for `baffinbay_routed_dsr`.
+    - [x] Sub-task: Implement import and wrong-type read/import diagnostics for `baffinbay_l4_proxy`.
 - [ ] Task: Evaluate Terraform state migration support.
     - [ ] Sub-task: Implement `resource.ResourceWithMoveState` so users can use `moved` blocks from `baffinbay_traffic_config` to typed resources.
     - [ ] Sub-task: Document an import-based migration path as a fallback for users who do not use `moved` blocks.
@@ -72,12 +76,15 @@ This track introduces type-specific resources with narrow schemas and keeps the 
 - [ ] Task: Add schema tests for all typed resources.
     - [ ] Sub-task: Assert typed resources do not expose irrelevant attributes from other traffic config types.
     - [ ] Sub-task: Assert typed resources do not expose a user-settable `type`.
+    - [x] Sub-task: Assert `baffinbay_l4_proxy` does not expose `type`, HTTP-only fields, or Routed DSR-only fields.
+    - [x] Sub-task: Assert `baffinbay_l4_proxy` exposes and maps L4 access-control defaults and configured rule values.
 - [ ] Task: Add CRUD tests for each typed resource.
     - [ ] Sub-task: Cover HTTP Proxy create, update, read, import, and delete.
-    - [ ] Sub-task: Cover L4 Proxy create, update, read, import, and delete.
+    - [x] Sub-task: Cover L4 Proxy create, update, read, import, and delete.
     - [x] Sub-task: Cover Routed DSR create, update, read, import, and delete.
 - [ ] Task: Add negative import tests.
     - [ ] Sub-task: Importing the wrong remote type into a typed resource must fail with a useful error.
+    - [x] Sub-task: Cover wrong-type import for `baffinbay_l4_proxy`.
     - [x] Sub-task: Cover wrong-type import for `baffinbay_routed_dsr`.
 - [ ] Task: Preserve existing tests for `baffinbay_traffic_config`.
     - [ ] Sub-task: Keep the current tests passing while the compatibility resource remains registered.
