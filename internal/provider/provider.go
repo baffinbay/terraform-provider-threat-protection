@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -14,7 +14,9 @@ import (
 
 var _ provider.Provider = &BaffinBayProvider{}
 
-type BaffinBayProvider struct{}
+type BaffinBayProvider struct {
+	version string
+}
 
 type BaffinBayProviderModel struct {
 	APIURL       types.String `tfsdk:"api_url"`
@@ -24,12 +26,15 @@ type BaffinBayProviderModel struct {
 	TenantID     types.String `tfsdk:"tenant_id"`
 }
 
-func New() provider.Provider {
-	return &BaffinBayProvider{}
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &BaffinBayProvider{version: version}
+	}
 }
 
 func (p *BaffinBayProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "baffinbay"
+	resp.Version = p.version
 }
 
 func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {

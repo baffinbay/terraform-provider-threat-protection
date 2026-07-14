@@ -5,9 +5,11 @@ import (
 	"flag"
 	"log"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/provider"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
+
+var version = "dev"
 
 // Run "go generate" to generate the documentation for the registry/website
 //go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name baffinbay
@@ -19,11 +21,11 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/baffinbay/baffinbay",
+		Address: "registry.terraform.io/baffinbay/threat-protection",
 		Debug:   debug,
 	}
 
-	err := providerserver.Serve(context.Background(), provider.New, opts)
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
 
 	if err != nil {
 		log.Fatal(err.Error())

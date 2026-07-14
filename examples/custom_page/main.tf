@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     baffinbay = {
-      source = "baffinbay/baffinbay"
+      source = "baffinbay/threat-protection"
     }
   }
 }

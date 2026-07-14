@@ -28,3 +28,13 @@ Manages a Baffin Bay Routed DSR traffic configuration.
 ### Read-Only
 
 - `id` (String) The ID of the Routed DSR traffic configuration.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+terraform import baffinbay_routed_dsr.example 00000000-0000-0000-0000-000000000000
+```
