@@ -9,6 +9,7 @@
 *.dylib
 /terraform-provider-*
 /bb-tool
+/dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -44,3 +45,5 @@ internal/provider/.token_time
 .vscode/
 .idea/
 *.swp
+
+terraform-provider.log

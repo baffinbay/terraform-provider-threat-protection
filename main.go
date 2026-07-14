@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
+var version = "dev"
+
 // Run "go generate" to generate the documentation for the registry/website
 //go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name baffinbay
 
@@ -23,7 +25,7 @@ func main() {
 		Debug:   debug,
 	}
 
-	err := providerserver.Serve(context.Background(), provider.New, opts)
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
 
 	if err != nil {
 		log.Fatal(err.Error())

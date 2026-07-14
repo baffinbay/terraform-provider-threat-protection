@@ -7,6 +7,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 )
 
+func TestProviderMetadata(t *testing.T) {
+	p := New("1.2.3")().(*BaffinBayProvider)
+	resp := &provider.MetadataResponse{}
+	p.Metadata(context.Background(), provider.MetadataRequest{}, resp)
+
+	if resp.TypeName != "baffinbay" {
+		t.Fatalf("expected provider type baffinbay, got %q", resp.TypeName)
+	}
+	if resp.Version != "1.2.3" {
+		t.Fatalf("expected provider version 1.2.3, got %q", resp.Version)
+	}
+}
+
 func TestProviderSchema(t *testing.T) {
 	p := &BaffinBayProvider{}
 	resp := &provider.SchemaResponse{}

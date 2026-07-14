@@ -5,14 +5,14 @@ This is the official Terraform provider for Baffin Bay Threat Protection, enabli
 ## Requirements
 
 * [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-* [Go](https://golang.org/doc/install) >= 1.26.4
+* [Go](https://golang.org/doc/install) >= 1.26.5
 
 ## Local Development
 
 ### Prerequisites
 
 Ensure you have the following installed:
-*   Go (1.26.4 or later)
+*   Go (1.26.5 or later)
 *   Terraform (1.0 or later)
 *   Make (optional, but recommended)
 
@@ -119,6 +119,19 @@ The provider documentation is automatically generated using [terraform-plugin-do
     ```
 
 As long as the code and schema descriptions are maintained, the documentation requires minimal manual intervention.
+
+## Releasing
+
+Releases are automated through `.github/workflows/release.yml`. To release a version, tag the release commit with a Semantic Version prefixed by `v` and push the tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow runs the tests, verifies generated documentation, builds the supported platform archives, signs the checksum file, and creates the GitHub Release. The Terraform Registry release webhook then ingests the new `baffinbay/threat-protection` version automatically.
+
+Published versions are immutable. If a release needs to be corrected, create a new version instead of moving the tag or replacing its artifacts.
 
 ## Troubleshooting Utility (bb-tool)
 

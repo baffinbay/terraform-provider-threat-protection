@@ -23,3 +23,13 @@ Manages a Baffin Bay Custom Page.
 ### Read-Only
 
 - `id` (String) The ID of the custom page.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+terraform import baffinbay_custom_page.example 00000000-0000-0000-0000-000000000000
+```
