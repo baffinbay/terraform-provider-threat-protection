@@ -2,38 +2,63 @@ name: Build and Test
 
 on:
   push:
-    branches: [ master, initial-repo ]
-    paths-ignore:
-      - 'docs/**'
-      - 'examples/**'
-      - 'conductor/**'
-      - 'README.md'
-      - '.gitignore'
-      - 'api-spec/**'
-      - 'templates/**'
+    branches: [master]
   pull_request:
-    branches: [ master, initial-repo ]
-    paths-ignore:
-      - 'docs/**'
-      - 'examples/**'
-      - 'conductor/**'
-      - 'README.md'
-      - '.gitignore'
-      - 'api-spec/**'
-      - 'templates/**'
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
+  workflow-security:
+    name: Actions Security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
+          cache: false
+
+      - name: Validate workflow syntax
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+      - name: Audit workflow security
+        uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        with:
+          version: 1.26.1
+          persona: pedantic
+          advanced-security: false
+          annotations: true
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
           cache: true
 
       - name: Run Gofmt Check
@@ -45,24 +70,29 @@ jobs:
           fi
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: latest
-          install-mode: goinstall
+          version: v2.12.2
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     needs: lint
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
           cache: true
+
+      - name: Verify Go Modules
+        run: go mod verify
 
       - name: Build Provider
         run: go build -v -o terraform-provider-threat-protection .
@@ -71,9 +101,7 @@ jobs:
         run: go build -v -o bb-tool ./cmd/bb-tool
 
       - name: Run Go Vulnerability Check
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
       - name: Run Unit Tests
         run: go test -v ./...

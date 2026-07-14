@@ -2,10 +2,6 @@ version: 2
 
 project_name: terraform-provider-threat-protection
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: terraform-provider-threat-protection
     main: .
