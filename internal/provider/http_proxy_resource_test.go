@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	fwrschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"

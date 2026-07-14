@@ -65,7 +65,7 @@ jobs:
           cache: true
 
       - name: Build Provider
-        run: go build -v -o terraform-provider-baffinbay .
+        run: go build -v -o terraform-provider-threat-protection .
 
       - name: Build bb-tool
         run: go build -v -o bb-tool ./cmd/bb-tool

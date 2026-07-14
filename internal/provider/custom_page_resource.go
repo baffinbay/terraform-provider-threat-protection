@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"

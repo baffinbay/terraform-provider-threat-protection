@@ -1,4 +1,4 @@
-module github.com/baffinbay/terraform-provider-baffinbay
+module github.com/baffinbay/terraform-provider-threat-protection
 
 go 1.26.5
 

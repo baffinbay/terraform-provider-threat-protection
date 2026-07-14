@@ -20,13 +20,13 @@ Ensure you have the following installed:
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/baffinbay/terraform-provider-baffinbay
-    cd terraform-provider-baffinbay
+    git clone https://github.com/baffinbay/terraform-provider-threat-protection
+    cd terraform-provider-threat-protection
     ```
 
 2.  Build the provider:
     ```bash
-    go build -o terraform-provider-baffinbay
+    go build -o terraform-provider-threat-protection
     ```
 
 ### API Specification
@@ -44,7 +44,7 @@ To test the provider locally without publishing it to the Terraform Registry, yo
     provider_installation {
 
       dev_overrides {
-          "baffinbay/baffinbay" = "/path/to/repo"
+          "baffinbay/threat-protection" = "/path/to/repo"
       }
 
       # For all other providers, install them directly from their origin provider

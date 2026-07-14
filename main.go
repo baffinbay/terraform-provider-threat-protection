@@ -5,7 +5,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/provider"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
@@ -19,7 +19,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/baffinbay/baffinbay",
+		Address: "registry.terraform.io/baffinbay/threat-protection",
 		Debug:   debug,
 	}
 

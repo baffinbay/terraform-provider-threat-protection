@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/baffinbay/terraform-provider-baffinbay/internal/client"
+	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 )
 
 func main() {

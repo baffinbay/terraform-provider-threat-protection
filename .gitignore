@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-terraform-provider-baffinbay
+/terraform-provider-*
 /bb-tool
 
 # Test binary, built with `go test -c`
