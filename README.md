@@ -5,14 +5,14 @@ This is the official Terraform provider for Baffin Bay Threat Protection, enabli
 ## Requirements
 
 * [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-* [Go](https://golang.org/doc/install) >= 1.26.5
+* [Go](https://golang.org/doc/install) >= 1.26.6
 
 ## Local Development
 
 ### Prerequisites
 
 Ensure you have the following installed:
-*   Go (1.26.5 or later)
+*   Go (1.26.6 or later)
 *   Terraform (1.0 or later)
 *   Make (optional, but recommended)
 

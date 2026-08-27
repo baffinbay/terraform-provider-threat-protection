@@ -1,6 +1,6 @@
 module github.com/baffinbay/terraform-provider-threat-protection
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/gofrs/flock v0.13.0
