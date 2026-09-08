@@ -173,8 +173,9 @@ type HTTPProxyIPRangeRuleModel struct {
 }
 
 type HTTPProxyIPListRuleModel struct {
-	Policy types.String `tfsdk:"policy"`
-	ID     types.String `tfsdk:"id"`
+	Policy              types.String `tfsdk:"policy"`
+	ID                  types.String `tfsdk:"id"`
+	BypassBotProtection types.Bool   `tfsdk:"bypass_bot_protection"`
 }
 
 type HTTPProxyKnownServiceRuleModel struct {
@@ -270,17 +271,22 @@ type HTTPProxyTrafficRuleHostMatchModel struct {
 }
 
 type HTTPProxyTrafficRuleActionsModel struct {
-	Backends    []HTTPProxyBackendHostModel     `tfsdk:"backends"`
-	Headers     []HTTPProxyHeaderModel          `tfsdk:"headers"`
-	HostHeader  types.String                    `tfsdk:"host_header"`
-	Redirect    *HTTPProxyRedirectModel         `tfsdk:"redirect"`
-	RateLimit   *HTTPProxyTrafficRateLimitModel `tfsdk:"rate_limit"`
-	MaxBodySize *HTTPProxyMaximumBodySizeModel  `tfsdk:"max_body_size"`
+	Backends      []HTTPProxyBackendHostModel             `tfsdk:"backends"`
+	Headers       []HTTPProxyHeaderModel                  `tfsdk:"headers"`
+	HostHeader    types.String                            `tfsdk:"host_header"`
+	Redirect      *HTTPProxyRedirectModel                 `tfsdk:"redirect"`
+	RateLimit     *HTTPProxyTrafficRateLimitModel         `tfsdk:"rate_limit"`
+	MaxBodySize   *HTTPProxyMaximumBodySizeModel          `tfsdk:"max_body_size"`
+	BotProtection *HTTPProxyTrafficRuleBotProtectionModel `tfsdk:"bot_protection"`
 }
 
 type HTTPProxyHeaderModel struct {
 	Key   types.String `tfsdk:"key"`
 	Value types.String `tfsdk:"value"`
+}
+
+type HTTPProxyTrafficRuleBotProtectionModel struct {
+	Strategy types.String `tfsdk:"strategy"`
 }
 
 type HTTPProxyRedirectModel struct {
@@ -429,8 +435,9 @@ func httpProxyIPAccessControlAttribute() schema.SingleNestedAttribute {
 		"rules": schema.SingleNestedAttribute{Optional: true, Computed: true, Attributes: map[string]schema.Attribute{
 			"ip_ranges": schema.ListNestedAttribute{Optional: true, Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: httpProxyAccessRuleAttributes("address", true)}},
 			"ip_lists": schema.ListNestedAttribute{Optional: true, Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
-				"policy": schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.OneOf("ALLOW", "BLOCK")}},
-				"id":     schema.StringAttribute{Required: true},
+				"policy":                schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.OneOf("ALLOW", "BLOCK")}},
+				"id":                    schema.StringAttribute{Required: true},
+				"bypass_bot_protection": schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false)},
 			}}},
 			"known_services": schema.ListNestedAttribute{Optional: true, Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: httpProxyAccessRuleAttributes("id", true)}},
 			"geo_locations":  schema.ListNestedAttribute{Optional: true, Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: httpProxyAccessRuleAttributes("region", false)}},
@@ -540,6 +547,9 @@ func httpProxyTrafficRulesAttribute() schema.ListNestedAttribute {
 			"max_body_size": schema.SingleNestedAttribute{Optional: true, Attributes: map[string]schema.Attribute{
 				"enforcement": schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.OneOf("ENABLED", "DISABLED")}},
 				"value_bytes": schema.Int64Attribute{Optional: true, Validators: []validator.Int64{int64validator.Between(1, 1_099_511_627_776)}},
+			}},
+			"bot_protection": schema.SingleNestedAttribute{Optional: true, Attributes: map[string]schema.Attribute{
+				"strategy": schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.OneOf("DISABLED")}},
 			}},
 		}},
 	}}}
@@ -835,6 +845,11 @@ func defaultHTTPProxyIPAccessControlFields(v *HTTPProxyIPAccessControlModel) {
 			v.Rules.IPRanges[i].BypassBotProtection = types.BoolValue(false)
 		}
 	}
+	for i := range v.Rules.IPLists {
+		if v.Rules.IPLists[i].BypassBotProtection.IsNull() {
+			v.Rules.IPLists[i].BypassBotProtection = types.BoolValue(false)
+		}
+	}
 	for i := range v.Rules.KnownServices {
 		if v.Rules.KnownServices[i].BypassBotProtection.IsNull() {
 			v.Rules.KnownServices[i].BypassBotProtection = types.BoolValue(false)
@@ -911,11 +926,14 @@ func (r *HTTPProxyResource) Create(ctx context.Context, req resource.CreateReque
 
 	tc, err := r.client.CreateHTTPProxy(ctx, mapHTTPProxyModelToCreateRequest(data))
 	if err != nil {
+		if addFrontendBindingConflictDiagnostic(&resp.Diagnostics, err, "create", "HTTP Proxy", "baffinbay_http_proxy", data.Name.ValueString(), httpProxyFrontendBindingDescription(data)) {
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create HTTP Proxy traffic config, got error: %s", err))
 		return
 	}
 	data.ID = types.StringValue(tc.Data.ID)
-	if err := r.client.WaitForTrafficConfigChange(ctx, tc.Data.ID, tc.Data.ActiveChangeID()); err != nil {
+	if err := r.client.WaitForTrafficConfigRollout(ctx, tc.Data.ID, tc.Data.ActiveRolloutID()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for HTTP Proxy traffic config create, got error: %s", err))
 		return
 	}
@@ -953,10 +971,13 @@ func (r *HTTPProxyResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 	tc, err := r.client.UpdateHTTPProxy(ctx, data.ID.ValueString(), mapHTTPProxyModelToUpdateRequest(data))
 	if err != nil {
+		if addFrontendBindingConflictDiagnostic(&resp.Diagnostics, err, "update", "HTTP Proxy", "baffinbay_http_proxy", data.Name.ValueString(), httpProxyFrontendBindingDescription(data)) {
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update HTTP Proxy traffic config, got error: %s", err))
 		return
 	}
-	if err := r.client.WaitForTrafficConfigChange(ctx, data.ID.ValueString(), tc.Data.ActiveChangeID()); err != nil {
+	if err := r.client.WaitForTrafficConfigRollout(ctx, data.ID.ValueString(), tc.Data.ActiveRolloutID()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for HTTP Proxy traffic config update, got error: %s", err))
 		return
 	}
@@ -970,13 +991,35 @@ func (r *HTTPProxyResource) Update(ctx context.Context, req resource.UpdateReque
 
 func (r *HTTPProxyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data HTTPProxyResourceModel
+
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.DeleteTrafficConfig(ctx, data.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete HTTP Proxy traffic config, got error: %s", err))
+
+	undeploy := func(ctx context.Context) (string, error) {
+		current, err := r.readHTTPProxy(ctx, data)
+		if err != nil {
+			return "", err
+		}
+		current.DeploymentState = types.StringValue("UNDEPLOYED")
+		tc, err := r.client.UpdateHTTPProxy(ctx, current.ID.ValueString(), mapHTTPProxyModelToUpdateRequest(current))
+		if err != nil {
+			return "", err
+		}
+		return tc.Data.ActiveRolloutID(), nil
 	}
+
+	deleteTrafficConfigResource(
+		ctx,
+		resp,
+		r.client,
+		"HTTP Proxy",
+		data.ID.ValueString(),
+		func(tc *client.TrafficConfigResponse) bool { return tc.Data.Type == httpProxyTrafficConfigType },
+		undeploy,
+		addHTTPProxyReadDiagnostic,
+	)
 }
 
 func (r *HTTPProxyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -994,7 +1037,7 @@ func (r *HTTPProxyResource) readHTTPProxy(ctx context.Context, prior HTTPProxyRe
 	return mapHTTPProxyResponseToModel(tc, prior), nil
 }
 
-func addHTTPProxyReadDiagnostic(diags interface{ AddError(summary, detail string) }, id string, err error, context string) {
+func addHTTPProxyReadDiagnostic(diags errorDiagnostics, id string, err error, context string) {
 	if _, ok := err.(trafficConfigTypeMismatchError); ok {
 		diags.AddError("Traffic Config Type Mismatch", fmt.Sprintf("Unable to read HTTP Proxy traffic config %q%s: %s. Import or reference a traffic config with API type %q.", id, readContextSuffix(context), err, httpProxyTrafficConfigType))
 		return

@@ -54,9 +54,14 @@ type L4FrontendModel struct {
 }
 
 type L4BackendModel struct {
-	Hosts          []BackendHostModel `tfsdk:"hosts"`
-	DeliveryMethod types.String       `tfsdk:"delivery_method"`
-	ServerName     types.String       `tfsdk:"server_name"`
+	Hosts          []L4BackendHostModel `tfsdk:"hosts"`
+	DeliveryMethod types.String         `tfsdk:"delivery_method"`
+	ServerName     types.String         `tfsdk:"server_name"`
+}
+
+type L4BackendHostModel struct {
+	Address types.String `tfsdk:"address"`
+	Port    types.Int64  `tfsdk:"port"`
 }
 
 type L4IPBasedAccessControlModel struct {
@@ -374,17 +379,18 @@ func (r *L4ProxyResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	reqData := mapL4ProxyModelToRequest(data)
-
-	tc, err := r.client.CreateTrafficConfig(ctx, reqData)
+	tc, err := r.client.CreateL4Proxy(ctx, mapL4ProxyModelToRequest(data))
 	if err != nil {
+		if addFrontendBindingConflictDiagnostic(&resp.Diagnostics, err, "create", "L4 Proxy", "baffinbay_l4_proxy", data.Name.ValueString(), l4ProxyFrontendBindingDescription(data)) {
+			return
+		}
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create L4 Proxy traffic config, got error: %s", err))
 		return
 	}
 
 	data.ID = types.StringValue(tc.Data.ID)
 
-	if err := r.client.WaitForTrafficConfigChange(ctx, tc.Data.ID, tc.Data.ActiveChangeID()); err != nil {
+	if err := r.client.WaitForTrafficConfigRollout(ctx, tc.Data.ID, tc.Data.ActiveRolloutID()); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for L4 Proxy traffic config create, got error: %s", err))
 		return
 	}
@@ -421,15 +427,33 @@ func (r *L4ProxyResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *L4ProxyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	updateTypedTrafficConfigResource(ctx, req, resp, r.client, "L4 Proxy", r.readL4Proxy, addL4ProxyReadDiagnostic)
-}
+	var data L4ProxyResourceModel
 
-func (data L4ProxyResourceModel) trafficConfigID() string {
-	return data.ID.ValueString()
-}
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-func (data L4ProxyResourceModel) trafficConfigRequest() client.TrafficConfigRequest {
-	return mapL4ProxyModelToRequest(data)
+	tc, err := r.client.UpdateL4Proxy(ctx, data.ID.ValueString(), mapL4ProxyModelToRequest(data))
+	if err != nil {
+		if addFrontendBindingConflictDiagnostic(&resp.Diagnostics, err, "update", "L4 Proxy", "baffinbay_l4_proxy", data.Name.ValueString(), l4ProxyFrontendBindingDescription(data)) {
+			return
+		}
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update L4 Proxy traffic config, got error: %s", err))
+		return
+	}
+	if err := r.client.WaitForTrafficConfigRollout(ctx, data.ID.ValueString(), tc.Data.ActiveRolloutID()); err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to wait for L4 Proxy traffic config update, got error: %s", err))
+		return
+	}
+
+	data, err = r.readL4Proxy(ctx, data)
+	if err != nil {
+		addL4ProxyReadDiagnostic(&resp.Diagnostics, data.ID.ValueString(), err, "after update")
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *L4ProxyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -440,65 +464,83 @@ func (r *L4ProxyResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	err := r.client.DeleteTrafficConfig(ctx, data.ID.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete L4 Proxy traffic config, got error: %s", err))
-		return
+	undeploy := func(ctx context.Context) (string, error) {
+		current, err := r.readL4Proxy(ctx, data)
+		if err != nil {
+			return "", err
+		}
+		current.DeploymentState = types.StringValue("UNDEPLOYED")
+		tc, err := r.client.UpdateL4Proxy(ctx, current.ID.ValueString(), mapL4ProxyModelToRequest(current))
+		if err != nil {
+			return "", err
+		}
+		return tc.Data.ActiveRolloutID(), nil
 	}
+
+	deleteTrafficConfigResource(
+		ctx,
+		resp,
+		r.client,
+		"L4 Proxy",
+		data.ID.ValueString(),
+		func(tc *client.TrafficConfigResponse) bool { return tc.Data.Type == l4ProxyTrafficConfigType },
+		undeploy,
+		addL4ProxyReadDiagnostic,
+	)
 }
 
 func (r *L4ProxyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func mapL4ProxyModelToRequest(data L4ProxyResourceModel) client.TrafficConfigRequest {
-	reqData := client.TrafficConfigRequest{}
-	reqData.Data.Type = l4ProxyTrafficConfigType
-	reqData.Data.Attributes.Name = data.Name.ValueString()
-	reqData.Data.Attributes.Version = l4ProxyTrafficConfigVersion
-	reqData.Data.Attributes.Protocols = l4ProxyProtocolsOrDefault(data.Protocols)
-	reqData.Data.Attributes.ProxyProtocol = l4ProxyProxyProtocolOrDefault(data.ProxyProtocol)
-	reqData.Data.Attributes.IPBasedAccess = mapL4IPBasedAccessControlToRequest(data.IPBasedAccessControl)
+func mapL4ProxyModelToRequest(data L4ProxyResourceModel) client.L4ProxyRequest {
+	attrs := client.L4ProxyAttributes{
+		Name:          data.Name.ValueString(),
+		Version:       l4ProxyTrafficConfigVersion,
+		Protocols:     l4ProxyProtocolsOrDefault(data.Protocols),
+		ProxyProtocol: l4ProxyProxyProtocolOrDefault(data.ProxyProtocol),
+		IPBasedAccess: mapL4IPBasedAccessControlToRequest(data.IPBasedAccessControl),
+	}
 
 	if !data.DeploymentState.IsNull() {
-		reqData.Data.Attributes.Deployment.State = data.DeploymentState.ValueString()
+		attrs.Deployment.State = data.DeploymentState.ValueString()
 	} else {
-		reqData.Data.Attributes.Deployment.State = "UNDEPLOYED"
+		attrs.Deployment.State = "UNDEPLOYED"
 	}
 
 	if data.Frontend != nil {
-		reqData.Data.Attributes.Frontend = &client.Frontend{
+		attrs.Frontend = &client.L4ProxyFrontend{
 			Port: data.Frontend.Port.ValueInt64(),
 		}
 		if !data.Frontend.IPv4.IsNull() {
-			reqData.Data.Attributes.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
-			reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv4.ValueString()
+			attrs.Frontend.IPv4 = data.Frontend.IPv4.ValueString()
+			attrs.Frontend.IP = data.Frontend.IPv4.ValueString()
 		}
 		if !data.Frontend.IPv6.IsNull() {
-			reqData.Data.Attributes.Frontend.IPv6 = data.Frontend.IPv6.ValueString()
-			if reqData.Data.Attributes.Frontend.IP == "" {
-				reqData.Data.Attributes.Frontend.IP = data.Frontend.IPv6.ValueString()
+			attrs.Frontend.IPv6 = data.Frontend.IPv6.ValueString()
+			if attrs.Frontend.IP == "" {
+				attrs.Frontend.IP = data.Frontend.IPv6.ValueString()
 			}
 		}
 	}
 
 	if data.Backend != nil {
-		reqData.Data.Attributes.Backend = &client.Backend{
+		attrs.Backend = &client.L4ProxyBackend{
 			DeliveryMethod: data.Backend.DeliveryMethod.ValueString(),
 			ServerName:     data.Backend.ServerName.ValueString(),
 		}
 		for _, host := range data.Backend.Hosts {
-			reqData.Data.Attributes.Backend.Hosts = append(reqData.Data.Attributes.Backend.Hosts, client.Host{
+			attrs.Backend.Hosts = append(attrs.Backend.Hosts, client.L4ProxyHost{
 				Address: host.Address.ValueString(),
 				Port:    host.Port.ValueInt64(),
 			})
 		}
 	}
 
-	return reqData
+	return client.NewL4ProxyRequest(attrs)
 }
 
-func mapL4IPBasedAccessControlToRequest(data *L4IPBasedAccessControlModel) *client.IPBasedAccess {
+func mapL4IPBasedAccessControlToRequest(data *L4IPBasedAccessControlModel) *client.L4ProxyIPBasedAccess {
 	req := defaultL4IPBasedAccessControlRequest()
 	if data == nil {
 		return req
@@ -514,49 +556,49 @@ func mapL4IPBasedAccessControlToRequest(data *L4IPBasedAccessControlModel) *clie
 	return req
 }
 
-func defaultL4IPBasedAccessControlRequest() *client.IPBasedAccess {
-	return &client.IPBasedAccess{
+func defaultL4IPBasedAccessControlRequest() *client.L4ProxyIPBasedAccess {
+	return &client.L4ProxyIPBasedAccess{
 		DefaultPolicy: "ALLOW",
-		Rules: client.IPBasedAccessRules{
-			IPRanges:     []client.IPBasedAccessIPRangeRule{},
-			IPLists:      []client.IPBasedAccessIPListRule{},
-			GeoLocations: []client.IPBasedAccessGeoLocationRule{},
-			ASNs:         []client.IPBasedAccessAutonomousSystem{},
+		Rules: client.L4ProxyIPBasedAccessRules{
+			IPRanges:     []client.L4ProxyIPBasedAccessIPRangeRule{},
+			IPLists:      []client.L4ProxyIPBasedAccessIPListRule{},
+			GeoLocations: []client.L4ProxyIPBasedAccessGeoLocationRule{},
+			ASNs:         []client.L4ProxyIPBasedAccessAutonomousSystem{},
 		},
 	}
 }
 
-func mapL4IPBasedAccessControlRulesToRequest(data *L4IPBasedAccessControlRulesModel) client.IPBasedAccessRules {
-	req := client.IPBasedAccessRules{
-		IPRanges:     []client.IPBasedAccessIPRangeRule{},
-		IPLists:      []client.IPBasedAccessIPListRule{},
-		GeoLocations: []client.IPBasedAccessGeoLocationRule{},
-		ASNs:         []client.IPBasedAccessAutonomousSystem{},
+func mapL4IPBasedAccessControlRulesToRequest(data *L4IPBasedAccessControlRulesModel) client.L4ProxyIPBasedAccessRules {
+	req := client.L4ProxyIPBasedAccessRules{
+		IPRanges:     []client.L4ProxyIPBasedAccessIPRangeRule{},
+		IPLists:      []client.L4ProxyIPBasedAccessIPListRule{},
+		GeoLocations: []client.L4ProxyIPBasedAccessGeoLocationRule{},
+		ASNs:         []client.L4ProxyIPBasedAccessAutonomousSystem{},
 	}
 
 	for _, rule := range data.IPRanges {
-		req.IPRanges = append(req.IPRanges, client.IPBasedAccessIPRangeRule{
+		req.IPRanges = append(req.IPRanges, client.L4ProxyIPBasedAccessIPRangeRule{
 			Policy:  rule.Policy.ValueString(),
 			Address: rule.Address.ValueString(),
 			Note:    optionalStringValue(rule.Note),
 		})
 	}
 	for _, rule := range data.IPLists {
-		req.IPLists = append(req.IPLists, client.IPBasedAccessIPListRule{
+		req.IPLists = append(req.IPLists, client.L4ProxyIPBasedAccessIPListRule{
 			Type:   "ipList",
 			ID:     rule.ID.ValueString(),
 			Policy: rule.Policy.ValueString(),
 		})
 	}
 	for _, rule := range data.GeoLocations {
-		req.GeoLocations = append(req.GeoLocations, client.IPBasedAccessGeoLocationRule{
+		req.GeoLocations = append(req.GeoLocations, client.L4ProxyIPBasedAccessGeoLocationRule{
 			Policy: rule.Policy.ValueString(),
 			Region: rule.Region.ValueString(),
 			Note:   optionalStringValue(rule.Note),
 		})
 	}
 	for _, rule := range data.ASNs {
-		req.ASNs = append(req.ASNs, client.IPBasedAccessAutonomousSystem{
+		req.ASNs = append(req.ASNs, client.L4ProxyIPBasedAccessAutonomousSystem{
 			Policy: rule.Policy.ValueString(),
 			ASN:    rule.ASN.ValueInt64(),
 			Note:   optionalStringValue(rule.Note),
@@ -601,7 +643,7 @@ func optionalStringValue(value types.String) string {
 }
 
 func (r *L4ProxyResource) readL4Proxy(ctx context.Context, prior L4ProxyResourceModel) (L4ProxyResourceModel, error) {
-	tc, err := r.client.GetTrafficConfig(ctx, prior.ID.ValueString())
+	tc, err := r.client.GetL4Proxy(ctx, prior.ID.ValueString())
 	if err != nil {
 		return prior, err
 	}
@@ -822,9 +864,9 @@ func mapL4BackendResponseToModel(backend *client.TrafficConfigResponseBackend, p
 	}
 
 	if backend.Hosts != nil {
-		data.Hosts = make([]BackendHostModel, 0, len(backend.Hosts))
+		data.Hosts = make([]L4BackendHostModel, 0, len(backend.Hosts))
 		for _, host := range backend.Hosts {
-			data.Hosts = append(data.Hosts, BackendHostModel{
+			data.Hosts = append(data.Hosts, L4BackendHostModel{
 				Address: optionalStringPtrValue(host.Address),
 				Port:    optionalInt64PtrValue(host.Port),
 			})

@@ -38,3 +38,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 ```shell
 terraform import baffinbay_routed_dsr.example 00000000-0000-0000-0000-000000000000
 ```
+
+When using Terraform config generation, Terraform may emit `provider = threat-protection` because the registry source is `baffinbay/threat-protection`. If your `required_providers` block uses the normal local name `baffinbay`, remove that generated line or change it to `provider = baffinbay` before applying the generated configuration.

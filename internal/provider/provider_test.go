@@ -38,6 +38,14 @@ func TestAccProviderRequiresTenantID(t *testing.T) {
 }
 
 func TestAccProvider(t *testing.T) {
+	testAccProviderOIDC(t, false)
+}
+
+func TestAccProviderUsesEndpointURLsFromEnvironment(t *testing.T) {
+	testAccProviderOIDC(t, true)
+}
+
+func testAccProviderOIDC(t *testing.T, useOIDCEnv bool) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {
 			w.Header().Set("Content-Type", "application/json")
@@ -59,6 +67,17 @@ func TestAccProvider(t *testing.T) {
 	defer server.Close()
 
 	t.Setenv("BAFFINBAY_TOKEN_CACHE", t.TempDir()+"/token-cache.json")
+	if useOIDCEnv {
+		t.Setenv("BAFFINBAY_API_URL", server.URL)
+		t.Setenv("BAFFINBAY_OIDC_URL", server.URL+"/oauth/token")
+	}
+
+	apiConfig := `api_url       = "` + server.URL + `"`
+	oidcConfig := `oidc_url      = "` + server.URL + `/oauth/token"`
+	if useOIDCEnv {
+		apiConfig = ""
+		oidcConfig = ""
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -67,8 +86,8 @@ func TestAccProvider(t *testing.T) {
 				Config: `provider "baffinbay" {
                     client_id     = "test-id"
                     client_secret = "test-secret"
-                    api_url       = "` + server.URL + `"
-                    oidc_url      = "` + server.URL + `/oauth/token"
+                    ` + apiConfig + `
+                    ` + oidcConfig + `
                     tenant_id     = "test-tenant-id"
                 }
 
