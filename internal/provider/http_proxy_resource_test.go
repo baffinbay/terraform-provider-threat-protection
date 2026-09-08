@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
@@ -26,11 +27,14 @@ const (
 	testCACertificateID     = "22222222-2222-4222-8222-222222222222"
 	testClientCertificateID = "33333333-3333-4333-8333-333333333333"
 	testCustomPageID        = "44444444-4444-4444-8444-444444444444"
+	testRateLimitPageID     = "44444444-4444-4444-8444-444444444445"
+	testInternalErrorPageID = "44444444-4444-4444-8444-444444444446"
+	testNetworkErrorPageID  = "44444444-4444-4444-8444-444444444447"
 	testIPListID            = "55555555-5555-4555-8555-555555555555"
 	testWAFRuleID           = "66666666-6666-4666-8666-666666666666"
 )
 
-func TestProviderResourcesIncludeHTTPProxyAndExistingTrafficConfigResources(t *testing.T) {
+func TestProviderResourcesIncludeTypedTrafficConfigResources(t *testing.T) {
 	p := &BaffinBayProvider{}
 	resourceTypes := map[string]bool{}
 	for _, newResource := range p.Resources(context.Background()) {
@@ -39,7 +43,10 @@ func TestProviderResourcesIncludeHTTPProxyAndExistingTrafficConfigResources(t *t
 		r.Metadata(context.Background(), fwresource.MetadataRequest{ProviderTypeName: "baffinbay"}, resp)
 		resourceTypes[resp.TypeName] = true
 	}
-	for _, resourceType := range []string{"baffinbay_traffic_config", "baffinbay_http_proxy", "baffinbay_l4_proxy", "baffinbay_routed_dsr"} {
+	if resourceTypes["baffinbay_traffic_config"] {
+		t.Fatal("expected baffinbay_traffic_config to be deregistered")
+	}
+	for _, resourceType := range []string{"baffinbay_http_proxy", "baffinbay_l4_proxy", "baffinbay_routed_dsr"} {
 		if !resourceTypes[resourceType] {
 			t.Fatalf("expected %s to be registered", resourceType)
 		}
@@ -86,6 +93,11 @@ func TestHTTPProxyResourceSchema(t *testing.T) {
 		if _, ok := resp.Schema.Attributes[attrName]; !ok {
 			t.Fatalf("HTTP Proxy schema is missing %q", attrName)
 		}
+	}
+	trafficRules := resp.Schema.Attributes["traffic_rules"].(fwrschema.ListNestedAttribute)
+	actions := trafficRules.NestedObject.Attributes["actions"].(fwrschema.SingleNestedAttribute)
+	if _, ok := actions.Attributes["bot_protection"].(fwrschema.SingleNestedAttribute); !ok {
+		t.Fatal("traffic_rules.actions schema is missing bot_protection")
 	}
 }
 
@@ -200,9 +212,11 @@ func TestHTTPProxyResourceLifecycleFullPortalShape(t *testing.T) {
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "id", "traffic-config-id"),
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "backend.delivery_method", "IP_HASH"),
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "custom_pages.0.type", "WAF_BLOCK"),
+					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "ip_based_access_control.rules.ip_lists.0.bypass_bot_protection", "true"),
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "ip_based_access_control.rules.known_services.0.bypass_bot_protection", "true"),
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "waf.staged_waf.mode", "CRS_VERSION"),
 					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "traffic_rules.0.actions.redirect.status_code", "302"),
+					tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "traffic_rules.0.actions.bot_protection.strategy", "DISABLED"),
 				),
 			},
 			{ResourceName: "baffinbay_http_proxy.test", ImportState: true, ImportStateVerify: true},
@@ -219,6 +233,64 @@ func TestHTTPProxyResourceLifecycleFullPortalShape(t *testing.T) {
 	}
 	payload := server.lastMutation(t)
 	assertFullHTTPProxyPayload(t, payload)
+}
+
+func TestHTTPProxyResourceDeleteUndeploysDeployedProxy(t *testing.T) {
+	setTestTokenCache(t)
+	t.Cleanup(client.SetTrafficConfigChangePollIntervalForTesting(time.Millisecond))
+	server := newHTTPProxyStateServer(t)
+	defer server.Close()
+
+	config := testProviderConfig(server.URL) + strings.Replace(
+		httpProxyMinimalResource("test-http", true),
+		`name = "test-http"`,
+		"name = \"test-http\"\n  deployment_state = \"DEPLOYED\"",
+		1,
+	)
+
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{{
+			Config: config,
+			Check:  tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "deployment_state", "DEPLOYED"),
+		}},
+	})
+
+	if server.putCount.Load() != 1 || server.deleteCount.Load() != 1 {
+		t.Fatalf("expected undeploy PUT and delete calls, put=%d delete=%d", server.putCount.Load(), server.deleteCount.Load())
+	}
+	payload := server.lastMutation(t)
+	if payload.Data.Attributes.Deployment == nil || payload.Data.Attributes.Deployment.State != "UNDEPLOYED" {
+		t.Fatalf("expected destroy to undeploy before delete, got %#v", payload.Data.Attributes.Deployment)
+	}
+	if server.rolloutReads.Load() < 2 {
+		t.Fatalf("expected destroy to wait until rollout completed, got %d rollout reads", server.rolloutReads.Load())
+	}
+}
+
+func TestHTTPProxyResourceCreateConflictExplainsFrontendBinding(t *testing.T) {
+	setTestTokenCache(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			writeTokenResponse(w)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs" {
+			http.Error(w, "frontend binding already exists", http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{{
+			Config:      testProviderConfig(server.URL) + httpProxyMinimalResource("test-http", true),
+			ExpectError: regexp.MustCompile(`(?s)Frontend Binding Conflict.*192\.0\.2\.10:80.*terraform import baffinbay_http_proxy\.<resource_name>`),
+		}},
+	})
 }
 
 func TestHTTPProxyResourceTrafficRuleOptionalListsRemainNull(t *testing.T) {
@@ -482,19 +554,22 @@ func TestHTTPProxyCrossFieldValidators(t *testing.T) {
 
 type httpProxyStateServer struct {
 	*httptest.Server
-	t           *testing.T
-	mu          sync.Mutex
-	attributes  client.HTTPProxyAttributes
-	mutations   []client.HTTPProxyRequest
-	remoteType  atomic.Value
-	putCount    atomic.Int64
-	deleteCount atomic.Int64
+	t               *testing.T
+	mu              sync.Mutex
+	attributes      client.HTTPProxyAttributes
+	mutations       []client.HTTPProxyRequest
+	remoteType      atomic.Value
+	activeRolloutID atomic.Value
+	putCount        atomic.Int64
+	deleteCount     atomic.Int64
+	rolloutReads    atomic.Int64
 }
 
 func newHTTPProxyStateServer(t *testing.T) *httpProxyStateServer {
 	t.Helper()
 	s := &httpProxyStateServer{t: t}
 	s.remoteType.Store(httpProxyTrafficConfigType)
+	s.activeRolloutID.Store("")
 	s.Server = httptest.NewServer(http.HandlerFunc(s.handle))
 	return s
 }
@@ -513,14 +588,27 @@ func (s *httpProxyStateServer) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPut && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 		s.putCount.Add(1)
 		s.readMutation(r)
+		s.activeRolloutID.Store("undeploy-rollout")
 		w.WriteHeader(http.StatusAccepted)
 		s.writeResponse(w)
 		return
 	case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 		s.writeResponse(w)
 		return
+	case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id/rollouts/undeploy-rollout":
+		state := "IN_PROGRESS"
+		if s.rolloutReads.Add(1) >= 2 {
+			state = "COMPLETED"
+			s.activeRolloutID.Store("")
+		}
+		writeTrafficConfigRollout(w, "undeploy-rollout", state)
+		return
 	case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 		s.deleteCount.Add(1)
+		if s.activeRolloutID.Load().(string) != "" {
+			http.Error(w, "traffic config is not fully undeployed", http.StatusConflict)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -552,6 +640,8 @@ func (s *httpProxyStateServer) writeResponse(w http.ResponseWriter) {
 	response.Data.ID = "traffic-config-id"
 	response.Data.Type = s.remoteType.Load().(string)
 	response.Data.Attributes = attributes
+	response.Data.Relationships.ActiveRollout.Data.Type = "rollout"
+	response.Data.Relationships.ActiveRollout.Data.ID = s.activeRolloutID.Load().(string)
 	writeJSONAPI(w, mustJSON(s.t, response))
 }
 
@@ -586,17 +676,23 @@ func assertFullHTTPProxyPayload(t *testing.T, payload client.HTTPProxyRequest) {
 	if attrs.Backend == nil || attrs.Backend.DeliveryMethod != "IP_HASH" || attrs.Backend.TLSSettings == nil {
 		t.Fatalf("backend mapping missing: %#v", attrs.Backend)
 	}
-	if attrs.WAF == nil || attrs.WAF.StagedWAF == nil || len(attrs.WAF.CookieExclusions) != 1 {
+	if attrs.WAF == nil || attrs.WAF.StagedWAF == nil || len(attrs.WAF.CookieExclusions) < 1 {
 		t.Fatalf("WAF mapping missing: %#v", attrs.WAF)
 	}
 	if attrs.IPBasedAccessControl == nil || len(attrs.IPBasedAccessControl.Rules.KnownServices) != 1 {
 		t.Fatalf("access control mapping missing: %#v", attrs.IPBasedAccessControl)
+	}
+	if len(attrs.IPBasedAccessControl.Rules.IPLists) != 1 || !attrs.IPBasedAccessControl.Rules.IPLists[0].BypassProtection.BotProtection {
+		t.Fatalf("IP list bypass protection mapping missing: %#v", attrs.IPBasedAccessControl.Rules.IPLists)
 	}
 	if attrs.RateLimiting == nil || len(attrs.RateLimiting.Exclusions) != 1 {
 		t.Fatalf("rate limiting mapping missing: %#v", attrs.RateLimiting)
 	}
 	if attrs.TrafficRules == nil || len(*attrs.TrafficRules) != 1 {
 		t.Fatalf("traffic rules mapping missing: %#v", attrs.TrafficRules)
+	}
+	if (*attrs.TrafficRules)[0].Actions.SetBotProtection == nil || (*attrs.TrafficRules)[0].Actions.SetBotProtection.Strategy != "DISABLED" {
+		t.Fatalf("traffic rule bot protection mapping missing: %#v", (*attrs.TrafficRules)[0].Actions)
 	}
 	if attrs.DataProtection == nil || len(attrs.DataProtection.LogRedaction.Headers) != 1 {
 		t.Fatalf("data protection mapping missing: %#v", attrs.DataProtection)
@@ -635,7 +731,10 @@ resource "baffinbay_http_proxy" "test" {
     ipv6 = "2001:db8::10"
     port = 443
     redirect_http = false
-    hosts = [{ host = "example.com", certificate_id = %q, tls_config = "ADVANCED" }]
+    hosts = [
+      { host = "example.com", certificate_id = %q, tls_config = "ADVANCED" },
+      { host = "bots-allowed.com", certificate_id = %q, tls_config = "INTERMEDIATE" }
+    ]
     hsts = { enabled = true, max_age = 31536000, include_subdomains = true, preload = true }
     client_certificate_verification = { mode = "VERIFY_AND_REJECT", ca_certificate_ids = [%q] }
   }
@@ -651,7 +750,12 @@ resource "baffinbay_http_proxy" "test" {
   protocol_settings = { version = "HTTP1.1", enable_websockets = true }
   bot_protection = { strategy = "ALWAYS_ON", challenge_type = "JS" }
   data_protection = { log_redaction = { headers = ["Authorization"], cookies = ["session"] } }
-  custom_pages = [{ id = %q, type = "WAF_BLOCK" }]
+  custom_pages = [
+    { id = %q, type = "WAF_BLOCK" },
+    { id = %q, type = "429_RATE_LIMIT_BLOCK" },
+    { id = %q, type = "500_INTERNAL_ERROR" },
+    { id = %q, type = "502_NETWORK_ERROR" }
+  ]
   rate_limiting = {
     by_source_ip = { enforcement = "BLOCK", rate = { value = 20, unit = "r/s" }, burst = 200 }
     by_source_ip_and_url = { enforcement = "DISABLED", rate = { value = 30, unit = "r/m" }, burst = 300 }
@@ -661,7 +765,7 @@ resource "baffinbay_http_proxy" "test" {
     default_policy = "BLOCK"
     rules = {
       ip_ranges = [{ policy = "ALLOW", address = "198.51.100.0/24", note = "office", bypass_bot_protection = true }]
-      ip_lists = [{ policy = "BLOCK", id = %q }]
+      ip_lists = [{ policy = "BLOCK", id = %q, bypass_bot_protection = true }]
       known_services = [{ policy = "BLOCK", id = "service-feed", note = "feed", bypass_bot_protection = true }]
       geo_locations = [{ policy = "BLOCK", region = "SE", note = "country" }]
       asns = [{ policy = "BLOCK", asn = 64500, note = "network" }]
@@ -672,21 +776,33 @@ resource "baffinbay_http_proxy" "test" {
     paranoia_level = 2
     core_rule_set_version = "4.*.*"
     matched_data_enabled = true
-    source_exclusions = { enabled = true, sources = ["203.0.113.0/24"] }
+    source_exclusions = { enabled = true, sources = ["198.51.100.8/32", "203.0.113.0/24"] }
     http_compliance = {
       parameter_limit = { enabled = true, limit = 750 }
-      allowed_methods = ["GET", "POST", "PUT"]
+      allowed_methods = ["GET", "POST", "PATCH", "PUT", "OPTIONS", "HEAD", "DELETE"]
       allowed_versions = ["HTTP/1.1", "HTTP/2"]
-      resource_configs = [{ matches = ["/api/{*}"], parse_json_enabled = true, parse_xml_enabled = false, parse_multipart_request_enabled = true }]
+      resource_configs = [
+        { matches = ["/api/{*}"], parse_json_enabled = true, parse_xml_enabled = false, parse_multipart_request_enabled = true },
+        { matches = ["/static/{*}", "/assets/{*}"], parse_json_enabled = false, parse_xml_enabled = true, parse_multipart_request_enabled = false }
+      ]
     }
-    path_exclusions = [{ match = "/health", disable_all = false, rule_ids = [%q] }]
-    cookie_exclusions = [{ cookie_name = "session", exclude_all_rules = false, rule_ids = [%q] }]
+    path_exclusions = [
+      { match = "/health", disable_all = false, rule_ids = [%q] },
+      { match = "/preview{*}", disable_all = true, rule_ids = [] }
+    ]
+    cookie_exclusions = [
+      { cookie_name = "session", exclude_all_rules = false, rule_ids = [%q] },
+      { cookie_name = "Authorization", exclude_all_rules = false, rule_ids = [] }
+    ]
     staged_waf = {
       state = "ENABLED"
       mode = "CRS_VERSION"
       core_rule_set_version = "5.*.*"
-      path_exclusions = [{ match = "/preview", disable_all = true, rule_ids = [] }]
-      cookie_exclusions = []
+      path_exclusions = [
+        { match = "/preview", disable_all = true, rule_ids = [] },
+        { match = "/beta{*}", disable_all = false, rule_ids = [%q] }
+      ]
+      cookie_exclusions = [{ cookie_name = "preview", exclude_all_rules = true, rule_ids = [] }]
     }
   }
   traffic_rules = [{
@@ -702,10 +818,11 @@ resource "baffinbay_http_proxy" "test" {
         by_source_ip_and_url = { enforcement = "BLOCK", rate = { value = 10, unit = "r/s" }, burst = 100 }
       }
       max_body_size = { enforcement = "ENABLED", value_bytes = 1048576 }
+      bot_protection = { strategy = "DISABLED" }
     }
   }]
 }
-`, name, testCertificateID, testCACertificateID, testClientCertificateID, testCACertificateID, testCustomPageID, testIPListID, testWAFRuleID, testWAFRuleID)
+`, name, testCertificateID, testCertificateID, testCACertificateID, testClientCertificateID, testCACertificateID, testCustomPageID, testRateLimitPageID, testInternalErrorPageID, testNetworkErrorPageID, testIPListID, testWAFRuleID, testWAFRuleID, testWAFRuleID)
 }
 
 func httpProxySecureCoreResource(name string) string {
