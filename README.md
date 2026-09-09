@@ -56,6 +56,84 @@ To test the provider locally without publishing it to the Terraform Registry, yo
 
     **Note:** When using `dev_overrides`, `terraform init` will report a warning that it is using a local provider. This is expected.
 
+### Adopting Existing Resources
+
+Traffic configurations are managed with type-specific resources:
+
+| API type | Terraform resource |
+| --- | --- |
+| `httpProxy` | `baffinbay_http_proxy` |
+| `l4Proxy` | `baffinbay_l4_proxy` |
+| `routedDsr` | `baffinbay_routed_dsr` |
+
+The matching type-specific data sources are `baffinbay_http_proxy`, `baffinbay_l4_proxy`, and `baffinbay_routed_dsr`. The generic `baffinbay_traffic_config` and `baffinbay_traffic_configs` data sources have been removed.
+
+When using Terraform config generation to adopt an existing traffic config, import it into the matching typed resource:
+
+```hcl
+import {
+  to = baffinbay_http_proxy.example
+  id = "00000000-0000-0000-0000-000000000000"
+}
+```
+
+```bash
+terraform plan -generate-config-out=generated.tf
+```
+
+Terraform may generate a resource containing:
+
+```hcl
+provider = threat-protection
+```
+
+Remove that generated line, or replace it with:
+
+```hcl
+provider = baffinbay
+```
+
+The `provider` meta-argument references the local provider name, not the registry source address. This provider is published as `baffinbay/threat-protection`, but customer configurations normally declare the local provider name as `baffinbay` so resources such as `baffinbay_http_proxy`, `baffinbay_l4_proxy`, and `baffinbay_routed_dsr` work without explicit provider references.
+
+### Migrating from `baffinbay_traffic_config`
+
+The generic `baffinbay_traffic_config` resource has been removed in favor of the type-specific resources. Before upgrading to this major version, move each existing state entry and update its configuration to the matching typed resource.
+
+1.  Identify the traffic config type. You can inspect the current Terraform config, query the API, or use the generic data source in the previous provider version.
+2.  Update the Terraform resource block:
+    ```hcl
+    # Before
+    resource "baffinbay_traffic_config" "example" {
+      type = "l4Proxy"
+      # ...
+    }
+
+    # After
+    resource "baffinbay_l4_proxy" "example" {
+      # ...
+    }
+    ```
+3.  Move the existing state address before applying:
+    ```bash
+    terraform state mv baffinbay_traffic_config.example baffinbay_l4_proxy.example
+    ```
+
+Use the corresponding target resource for each API type:
+
+```bash
+terraform state mv baffinbay_traffic_config.http baffinbay_http_proxy.http
+terraform state mv baffinbay_traffic_config.l4 baffinbay_l4_proxy.l4
+terraform state mv baffinbay_traffic_config.routed baffinbay_routed_dsr.routed
+```
+
+If the old state is not available, import the remote traffic config directly into the typed resource instead:
+
+```bash
+terraform import baffinbay_http_proxy.example 00000000-0000-0000-0000-000000000000
+```
+
+Run `terraform plan` after each migration and resolve any schema differences before applying changes.
+
 ### Environment Management
 
 Set your OIDC credentials in the environment before running Terraform or `bb-tool`:
@@ -98,10 +176,22 @@ go test ./...
 Acceptance tests run against the actual Baffin Bay API. **Warning:** These tests may create real resources.
 
 1.  Ensure your `.env` file is configured and exported.
-2.  Run tests with `TF_ACC=1`:
+2.  Set a non-production frontend IP for the HTTP proxy tests:
+    ```bash
+    export BAFFINBAY_ACC_FRONTEND_IPV4=<test-frontend-ip>
+    ```
+3.  Run tests with `TF_ACC=1`:
     ```bash
     TF_ACC=1 go test -v ./...
     ```
+
+The full HTTP proxy acceptance test creates dummy certificates, a dummy CA
+certificate, dummy custom pages, and a dummy IP list instead of referencing
+existing production resources. By default it keeps the traffic config
+`UNDEPLOYED`; set `BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED` only when the test
+environment is safe for deployment. You can also override
+`BAFFINBAY_ACC_HOST`, `BAFFINBAY_ACC_BOT_HOST`, and
+`BAFFINBAY_ACC_BACKEND_ADDRESS` for environment-specific routing.
 
 ## Documentation
 
@@ -139,7 +229,7 @@ A CLI tool is included to help troubleshoot API connectivity and verify resource
 
 ### Building bb-tool
 ```bash
-go build -o bb-tool ./cmd/bb-tool/main.go
+go build -o bb-tool ./cmd/bb-tool
 ```
 
 ### Usage

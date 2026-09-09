@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
-func TestProviderResourcesIncludeL4ProxyAndExistingTrafficConfigResources(t *testing.T) {
+func TestProviderResourcesIncludeL4Proxy(t *testing.T) {
 	p := &BaffinBayProvider{}
 	resourceTypes := map[string]bool{}
 
@@ -27,9 +27,6 @@ func TestProviderResourcesIncludeL4ProxyAndExistingTrafficConfigResources(t *tes
 		resourceTypes[resp.TypeName] = true
 	}
 
-	if !resourceTypes["baffinbay_traffic_config"] {
-		t.Fatal("expected baffinbay_traffic_config to remain registered")
-	}
 	if !resourceTypes["baffinbay_routed_dsr"] {
 		t.Fatal("expected baffinbay_routed_dsr to remain registered")
 	}
@@ -282,6 +279,11 @@ func TestL4ProxyResource_LifecycleUpdateImportAndDelete(t *testing.T) {
 			return
 		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 			deleteCount.Add(1)
+			payload := current.Load().(l4ProxyRequestPayload)
+			if payload.DeploymentState == "DEPLOYED" {
+				http.Error(w, "deployed traffic config cannot be deleted", http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -439,11 +441,14 @@ func TestL4ProxyResource_LifecycleUpdateImportAndDelete(t *testing.T) {
 		},
 	})
 
-	if putCount.Load() == 0 {
-		t.Fatalf("expected L4 Proxy update to call PUT")
+	if putCount.Load() != 2 {
+		t.Fatalf("expected L4 Proxy update and destroy undeploy to call PUT, got %d", putCount.Load())
 	}
 	if deleteCount.Load() == 0 {
 		t.Fatalf("expected L4 Proxy destroy to call DELETE")
+	}
+	if got := current.Load().(l4ProxyRequestPayload).DeploymentState; got != "UNDEPLOYED" {
+		t.Fatalf("expected L4 Proxy destroy to undeploy before delete, got %q", got)
 	}
 }
 
@@ -794,6 +799,94 @@ func assertL4ProxyRequestOmitsAttribute(t *testing.T, name string, value *json.R
 	if value != nil {
 		t.Errorf("L4 Proxy request unexpectedly included %s", name)
 	}
+}
+
+func TestL4ProxyResourceCreateConflictExplainsFrontendBinding(t *testing.T) {
+	setTestTokenCache(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			writeTokenResponse(w)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs" {
+			http.Error(w, "frontend binding already exists", http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{{
+			Config: l4ProxyConfig(server.URL, l4ProxyRequestPayload{
+				Name: "test-l4",
+				Frontend: l4ProxyFrontendPayload{
+					IPv4: "192.168.1.1",
+					Port: 80,
+				},
+				Backend: l4ProxyBackendPayload{
+					Hosts: []l4ProxyBackendHostPayload{{
+						Address: "example.com",
+						Port:    8080,
+					}},
+					DeliveryMethod: "ROUND_ROBIN",
+					ServerName:     "example.com",
+				},
+			}),
+			ExpectError: regexp.MustCompile(`(?s)Frontend Binding Conflict.*192\.168\.1\.1:80.*TCP.*terraform import baffinbay_l4_proxy\.<resource_name>`),
+		}},
+	})
+}
+
+func TestL4ProxyResourceUpdateConflictExplainsFrontendBinding(t *testing.T) {
+	setTestTokenCache(t)
+
+	var current atomic.Value
+	current.Store(defaultL4ProxyPayload("test-l4"))
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/token" {
+			writeTokenResponse(w)
+			return
+		}
+
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs":
+			payload := readL4ProxyRequestAndAssertType(t, r)
+			current.Store(payload)
+			w.WriteHeader(http.StatusAccepted)
+			writeJSONAPI(w, l4ProxyResponse(payload))
+			return
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			writeJSONAPI(w, l4ProxyResponse(current.Load().(l4ProxyRequestPayload)))
+			return
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			http.Error(w, "frontend binding already exists", http.StatusConflict)
+			return
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	updated := defaultL4ProxyPayload("test-l4")
+	updated.Frontend.Port = 443
+
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{Config: l4ProxyConfig(server.URL, defaultL4ProxyPayload("test-l4"))},
+			{
+				Config:      l4ProxyConfig(server.URL, updated),
+				ExpectError: regexp.MustCompile(`(?s)Frontend Binding Conflict.*192\.168\.1\.1:443.*TCP.*terraform import baffinbay_l4_proxy\.<resource_name>`),
+			},
+		},
+	})
 }
 
 func l4ProxyWrongTypeServer(t *testing.T, remoteType *atomic.Value) *httptest.Server {

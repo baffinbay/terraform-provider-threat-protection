@@ -7,14 +7,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 )
 
-var _ datasource.DataSource = &TrafficConfigDataSource{}
 var _ datasource.DataSource = &HTTPProxyDataSource{}
 var _ datasource.DataSource = &L4ProxyDataSource{}
 var _ datasource.DataSource = &RoutedDsrDataSource{}
-
-func NewTrafficConfigDataSource() datasource.DataSource {
-	return &TrafficConfigDataSource{}
-}
 
 func NewHTTPProxyDataSource() datasource.DataSource {
 	return &HTTPProxyDataSource{}
@@ -28,10 +23,6 @@ func NewRoutedDsrDataSource() datasource.DataSource {
 	return &RoutedDsrDataSource{}
 }
 
-type TrafficConfigDataSource struct {
-	configuredDataSource
-}
-
 type HTTPProxyDataSource struct {
 	configuredDataSource
 }
@@ -42,30 +33,6 @@ type L4ProxyDataSource struct {
 
 type RoutedDsrDataSource struct {
 	configuredDataSource
-}
-
-func (d *TrafficConfigDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_traffic_config"
-}
-
-func (d *TrafficConfigDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	setComputedDataSourceSchemaFromResource(ctx, resp, NewTrafficConfigResource(), "Retrieves a Baffin Bay Traffic Configuration by UUID.")
-}
-
-func (d *TrafficConfigDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state TrafficConfigResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	response, err := d.client.GetTrafficConfig(ctx, state.ID.ValueString())
-	if err != nil {
-		addSingularDataSourceReadError(&resp.Diagnostics, "Traffic Configuration", state.ID.ValueString(), err)
-		return
-	}
-	state = mapTrafficConfigResponseToModel(response, state)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (d *HTTPProxyDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {

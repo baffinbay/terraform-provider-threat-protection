@@ -11,8 +11,7 @@ provider "baffinbay" {
   # and BAFFINBAY_TENANT_ID environment variables by default.
 }
 
-resource "baffinbay_traffic_config" "l4_example" {
-  type = "l4Proxy"
+resource "baffinbay_l4_proxy" "l4_example" {
   name = "terraform-l4-example"
 
   frontend = {

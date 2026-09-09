@@ -20,7 +20,6 @@ const (
 	lookupCACertificateID = "33333333-3333-4333-8333-333333333333"
 	lookupCustomPageID    = "44444444-4444-4444-8444-444444444444"
 	lookupIPSourceID      = "55555555-5555-4555-8555-555555555555"
-	lookupTrafficConfigID = "66666666-6666-4666-8666-666666666666"
 	lookupHTTPProxyID     = "77777777-7777-4777-8777-777777777777"
 	lookupL4ProxyID       = "88888888-8888-4888-8888-888888888888"
 	lookupRoutedDsrID     = "99999999-9999-4999-8999-999999999999"
@@ -43,7 +42,6 @@ func TestProviderIncludesSingularDataSources(t *testing.T) {
 		"baffinbay_custom_page",
 		"baffinbay_known_service",
 		"baffinbay_ip_source",
-		"baffinbay_traffic_config",
 		"baffinbay_http_proxy",
 		"baffinbay_l4_proxy",
 		"baffinbay_routed_dsr",
@@ -56,12 +54,11 @@ func TestProviderIncludesSingularDataSources(t *testing.T) {
 
 func TestSingularDataSourceSchemasRequireOnlyID(t *testing.T) {
 	for name, factory := range map[string]func() datasource.DataSource{
-		"ip_list":        NewIPListDataSource,
-		"ip_source":      NewIPSourceDataSource,
-		"traffic_config": NewTrafficConfigDataSource,
-		"http_proxy":     NewHTTPProxyDataSource,
-		"l4_proxy":       NewL4ProxyDataSource,
-		"routed_dsr":     NewRoutedDsrDataSource,
+		"ip_list":    NewIPListDataSource,
+		"ip_source":  NewIPSourceDataSource,
+		"http_proxy": NewHTTPProxyDataSource,
+		"l4_proxy":   NewL4ProxyDataSource,
+		"routed_dsr": NewRoutedDsrDataSource,
 	} {
 		t.Run(name, func(t *testing.T) {
 			resp := &datasource.SchemaResponse{}
@@ -105,11 +102,10 @@ data "baffinbay_certificate" "test" { id = %q }
 data "baffinbay_ca_certificate" "test" { id = %q }
 data "baffinbay_custom_page" "test" { id = %q }
 data "baffinbay_ip_source" "test" { id = %q }
-data "baffinbay_traffic_config" "test" { id = %q }
 data "baffinbay_http_proxy" "test" { id = %q }
 data "baffinbay_l4_proxy" "test" { id = %q }
 data "baffinbay_routed_dsr" "test" { id = %q }
-`, lookupIPListID, lookupCertificateID, lookupCACertificateID, lookupCustomPageID, lookupIPSourceID, lookupTrafficConfigID, lookupHTTPProxyID, lookupL4ProxyID, lookupRoutedDsrID)
+`, lookupIPListID, lookupCertificateID, lookupCACertificateID, lookupCustomPageID, lookupIPSourceID, lookupHTTPProxyID, lookupL4ProxyID, lookupRoutedDsrID)
 
 	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{{
 		Config: config,
@@ -121,8 +117,6 @@ data "baffinbay_routed_dsr" "test" { id = %q }
 			tfresource.TestCheckResourceAttr("data.baffinbay_ca_certificate.test", "name", "Example Root CA"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_custom_page.test", "content", "<html>blocked</html>"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_ip_source.test", "cidr", "185.195.95.0/24"),
-			tfresource.TestCheckResourceAttr("data.baffinbay_traffic_config.test", "type", "routedDsr"),
-			tfresource.TestCheckResourceAttr("data.baffinbay_traffic_config.test", "prefix", "203.0.113.0/24"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_http_proxy.test", "name", "lookup-http"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_http_proxy.test", "frontend.ipv4", "192.0.2.10"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_l4_proxy.test", "protocols.0", "TCP"),
@@ -194,8 +188,6 @@ func newSingularDataSourceServer(t *testing.T) *httptest.Server {
 
 func singularTrafficConfigResponse(id string) (string, bool) {
 	switch id {
-	case lookupTrafficConfigID:
-		return fmt.Sprintf(`{"data":{"id":%q,"type":"routedDsr","attributes":{"name":"lookup-generic","prefix":"203.0.113.0/24","announced":false,"deployment":{"state":"UNDEPLOYED"}}}}`, id), true
 	case lookupHTTPProxyID:
 		return fmt.Sprintf(`{"data":{"id":%q,"type":"httpProxy","attributes":{"name":"lookup-http","version":"0.1.0","deployment":{"state":"UNDEPLOYED"},"connectionReuseEnabled":true,"frontend":{"connectionType":"PLAINTEXT","ipv4":"192.0.2.10","port":80,"hosts":[{"host":"proxy.example.com"}]},"backend":{"hosts":[{"address":"origin.example.com","port":80}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com"},"protocolSettings":{"httpVersion":"HTTP1.1","enableWebsockets":false},"trafficRules":[]}}}`, id), true
 	case lookupL4ProxyID:

@@ -27,9 +27,6 @@ func TestProviderResourcesIncludeRoutedDsr(t *testing.T) {
 		resourceTypes[resp.TypeName] = true
 	}
 
-	if !resourceTypes["baffinbay_traffic_config"] {
-		t.Fatal("expected baffinbay_traffic_config to remain registered")
-	}
 	if !resourceTypes["baffinbay_routed_dsr"] {
 		t.Fatal("expected baffinbay_routed_dsr to be registered")
 	}
@@ -120,6 +117,10 @@ func TestRoutedDsrResource_LifecycleUpdateImportAndDelete(t *testing.T) {
 			return
 		case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 			deleteCount.Add(1)
+			if currentDeploymentState.Load().(string) == "DEPLOYED" {
+				http.Error(w, "deployed traffic config cannot be deleted", http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -163,11 +164,14 @@ func TestRoutedDsrResource_LifecycleUpdateImportAndDelete(t *testing.T) {
 		},
 	})
 
-	if putCount.Load() == 0 {
-		t.Fatalf("expected Routed DSR update to call PUT")
+	if putCount.Load() != 2 {
+		t.Fatalf("expected Routed DSR update and destroy undeploy to call PUT, got %d", putCount.Load())
 	}
 	if deleteCount.Load() == 0 {
 		t.Fatalf("expected Routed DSR destroy to call DELETE")
+	}
+	if got := currentDeploymentState.Load().(string); got != "UNDEPLOYED" {
+		t.Fatalf("expected Routed DSR destroy to undeploy before delete, got %q", got)
 	}
 }
 

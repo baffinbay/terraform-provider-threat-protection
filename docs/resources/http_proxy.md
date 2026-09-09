@@ -260,6 +260,10 @@ Required:
 - `id` (String)
 - `policy` (String)
 
+Optional:
+
+- `bypass_bot_protection` (Boolean)
+
 
 <a id="nestedatt--ip_based_access_control--rules--ip_ranges"></a>
 ### Nested Schema for `ip_based_access_control.rules.ip_ranges`
@@ -354,6 +358,7 @@ Required:
 Optional:
 
 - `backends` (Attributes List) (see [below for nested schema](#nestedatt--traffic_rules--actions--backends))
+- `bot_protection` (Attributes) (see [below for nested schema](#nestedatt--traffic_rules--actions--bot_protection))
 - `headers` (Attributes List) (see [below for nested schema](#nestedatt--traffic_rules--actions--headers))
 - `host_header` (String)
 - `max_body_size` (Attributes) (see [below for nested schema](#nestedatt--traffic_rules--actions--max_body_size))
@@ -367,6 +372,14 @@ Required:
 
 - `address` (String)
 - `port` (Number)
+
+
+<a id="nestedatt--traffic_rules--actions--bot_protection"></a>
+### Nested Schema for `traffic_rules.actions.bot_protection`
+
+Required:
+
+- `strategy` (String)
 
 
 <a id="nestedatt--traffic_rules--actions--headers"></a>
@@ -588,3 +601,5 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 ```shell
 terraform import baffinbay_http_proxy.example 00000000-0000-0000-0000-000000000000
 ```
+
+When using Terraform config generation, Terraform may emit `provider = threat-protection` because the registry source is `baffinbay/threat-protection`. If your `required_providers` block uses the normal local name `baffinbay`, remove that generated line or change it to `provider = baffinbay` before applying the generated configuration.

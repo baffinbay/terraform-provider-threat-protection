@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,17 +12,9 @@ type HTTPProxyRequest struct {
 }
 
 type HTTPProxyRequestData struct {
-	Type          string                       `json:"type"`
-	Attributes    HTTPProxyAttributes          `json:"attributes"`
-	Relationships HTTPProxyRequestRelationship `json:"relationships"`
-}
-
-type HTTPProxyRequestRelationship struct {
-	BelongsTo HTTPProxyBelongsTo `json:"belongsTo"`
-}
-
-type HTTPProxyBelongsTo struct {
-	Data HTTPProxyRelationshipData `json:"data"`
+	Type          string                        `json:"type"`
+	Attributes    HTTPProxyAttributes           `json:"attributes"`
+	Relationships TrafficConfigRequestRelations `json:"relationships"`
 }
 
 type HTTPProxyRelationshipData struct {
@@ -169,8 +160,9 @@ type HTTPProxyIPRangeRule struct {
 }
 
 type HTTPProxyIPListRule struct {
-	Policy string `json:"policy"`
-	ID     string `json:"id"`
+	Policy           string                    `json:"policy"`
+	ID               string                    `json:"id"`
+	BypassProtection HTTPProxyBypassProtection `json:"bypassProtection"`
 }
 
 type HTTPProxyKnownServiceRule struct {
@@ -288,17 +280,22 @@ type HTTPProxyTrafficRuleHostMatch struct {
 }
 
 type HTTPProxyTrafficRuleActions struct {
-	SetBackends    []HTTPProxyBackendHost       `json:"setBackends"`
-	SetHeaders     []HTTPProxyHeader            `json:"setHeaders"`
-	SetHostHeader  *string                      `json:"setHostHeader"`
-	SetRedirect    *HTTPProxyRedirect           `json:"setRedirect"`
-	SetRateLimit   *HTTPProxyTrafficRateLimit   `json:"setRateLimit"`
-	SetMaxBodySize *HTTPProxySetMaximumBodySize `json:"setMaxBodySize"`
+	SetBackends      []HTTPProxyBackendHost             `json:"setBackends"`
+	SetHeaders       []HTTPProxyHeader                  `json:"setHeaders"`
+	SetHostHeader    *string                            `json:"setHostHeader"`
+	SetRedirect      *HTTPProxyRedirect                 `json:"setRedirect"`
+	SetRateLimit     *HTTPProxyTrafficRateLimit         `json:"setRateLimit"`
+	SetMaxBodySize   *HTTPProxySetMaximumBodySize       `json:"setMaxBodySize"`
+	SetBotProtection *HTTPProxyTrafficRuleBotProtection `json:"setBotProtection,omitempty"`
 }
 
 type HTTPProxyHeader struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type HTTPProxyTrafficRuleBotProtection struct {
+	Strategy string `json:"strategy"`
 }
 
 type HTTPProxyRedirect struct {
@@ -325,11 +322,18 @@ type HTTPProxyData struct {
 		ActiveChange struct {
 			Data HTTPProxyRelationshipData `json:"data"`
 		} `json:"activeChange"`
+		ActiveRollout struct {
+			Data HTTPProxyRelationshipData `json:"data"`
+		} `json:"activeRollout"`
 	} `json:"relationships"`
 }
 
 func (d HTTPProxyData) ActiveChangeID() string {
 	return d.Relationships.ActiveChange.Data.ID
+}
+
+func (d HTTPProxyData) ActiveRolloutID() string {
+	return d.Relationships.ActiveRollout.Data.ID
 }
 
 type HTTPProxyResponse struct {
@@ -352,30 +356,8 @@ func (c *Client) mutateHTTPProxy(ctx context.Context, method, path, operation st
 	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
 	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
 
-	jsonData, err := json.Marshal(reqData)
-	if err != nil {
-		return nil, err
-	}
-
-	logTrafficConfigRequest(ctx, method, path, jsonData)
-	req, err := c.NewRequest(ctx, method, path, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/vnd.api+json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		return nil, httpStatusError(resp, operation)
-	}
-
 	var proxyResp HTTPProxyResponse
-	if err := json.NewDecoder(resp.Body).Decode(&proxyResp); err != nil {
+	if err := c.mutateTrafficConfig(ctx, method, path, operation, reqData, &proxyResp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 		return nil, err
 	}
 	return &proxyResp, nil
