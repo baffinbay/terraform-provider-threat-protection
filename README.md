@@ -87,17 +87,13 @@ Terraform may generate a resource containing:
 provider = threat-protection
 ```
 
-Remove that generated line, or replace it with:
+Remove that generated line.
 
-```hcl
-provider = baffinbay
-```
-
-The `provider` meta-argument references the local provider name, not the registry source address. This provider is published as `baffinbay/threat-protection`, but customer configurations normally declare the local provider name as `baffinbay` so resources such as `baffinbay_http_proxy`, `baffinbay_l4_proxy`, and `baffinbay_routed_dsr` work without explicit provider references.
+The `provider` meta-argument references a local provider name, not the registry source address. This provider is published as `baffinbay/threat-protection`, but customer configurations normally declare the local provider name as `baffinbay`. Resources such as `baffinbay_http_proxy`, `baffinbay_l4_proxy`, and `baffinbay_routed_dsr` select that default provider automatically, so they do not need an explicit provider reference.
 
 ### Migrating from `baffinbay_traffic_config`
 
-The generic `baffinbay_traffic_config` resource has been removed in favor of the type-specific resources. Before upgrading to this major version, move each existing state entry and update its configuration to the matching typed resource.
+The generic `baffinbay_traffic_config` resource has been removed in favor of the type-specific resources. Before upgrading to this major version, remove each existing state entry and update its configuration to the matching typed resource.
 
 1.  Identify the traffic config type. You can inspect the current Terraform config, query the API, or use the generic data source in the previous provider version.
 2.  Update the Terraform resource block:
@@ -113,20 +109,32 @@ The generic `baffinbay_traffic_config` resource has been removed in favor of the
       # ...
     }
     ```
-3.  Move the existing state address before applying:
+3.  Remove the old resource from Terraform state before applying:
     ```bash
-    terraform state mv baffinbay_traffic_config.example baffinbay_l4_proxy.example
+    terraform state rm baffinbay_traffic_config.example
     ```
 
-Use the corresponding target resource for each API type:
+   `terraform state rm` removes the resource from Terraform state without deleting the remote traffic config.
+
+4.  Import the remote traffic config into the matching typed resource:
+    ```bash
+    terraform import baffinbay_l4_proxy.example <traffic-config-id>
+    ```
+
+Use the corresponding typed resource for each API type:
 
 ```bash
-terraform state mv baffinbay_traffic_config.http baffinbay_http_proxy.http
-terraform state mv baffinbay_traffic_config.l4 baffinbay_l4_proxy.l4
-terraform state mv baffinbay_traffic_config.routed baffinbay_routed_dsr.routed
+terraform state rm baffinbay_traffic_config.http
+terraform import baffinbay_http_proxy.http <http-proxy-id>
+
+terraform state rm baffinbay_traffic_config.l4
+terraform import baffinbay_l4_proxy.l4 <l4-proxy-id>
+
+terraform state rm baffinbay_traffic_config.routed
+terraform import baffinbay_routed_dsr.routed <routed-dsr-id>
 ```
 
-If the old state is not available, import the remote traffic config directly into the typed resource instead:
+If the old state is not available, skip the `terraform state rm` command and import the remote traffic config directly into the typed resource:
 
 ```bash
 terraform import baffinbay_http_proxy.example 00000000-0000-0000-0000-000000000000

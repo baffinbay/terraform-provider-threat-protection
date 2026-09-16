@@ -319,17 +319,10 @@ type HTTPProxyData struct {
 	Type          string              `json:"type"`
 	Attributes    HTTPProxyAttributes `json:"attributes"`
 	Relationships struct {
-		ActiveChange struct {
-			Data HTTPProxyRelationshipData `json:"data"`
-		} `json:"activeChange"`
 		ActiveRollout struct {
 			Data HTTPProxyRelationshipData `json:"data"`
 		} `json:"activeRollout"`
 	} `json:"relationships"`
-}
-
-func (d HTTPProxyData) ActiveChangeID() string {
-	return d.Relationships.ActiveChange.Data.ID
 }
 
 func (d HTTPProxyData) ActiveRolloutID() string {

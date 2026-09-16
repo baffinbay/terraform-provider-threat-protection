@@ -17,8 +17,8 @@ type L4ProxyRequestData struct {
 }
 
 type L4ProxyAttributes struct {
-	Name          string                `json:"name"`
-	Version       string                `json:"version"`
+	Name                   string       `json:"name,omitempty"`
+	Version                string       `json:"version,omitempty"`
 	Frontend      *L4ProxyFrontend      `json:"frontend,omitempty"`
 	Backend       *L4ProxyBackend       `json:"backend,omitempty"`
 	Deployment    Deployment            `json:"deployment"`

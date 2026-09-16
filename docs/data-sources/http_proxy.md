@@ -203,6 +203,7 @@ Read-Only:
 
 Read-Only:
 
+- `bypass_bot_protection` (Boolean)
 - `id` (String)
 - `policy` (String)
 
@@ -303,6 +304,7 @@ Read-Only:
 Read-Only:
 
 - `backends` (Attributes List) (see [below for nested schema](#nestedatt--traffic_rules--actions--backends))
+- `bot_protection` (Attributes) (see [below for nested schema](#nestedatt--traffic_rules--actions--bot_protection))
 - `headers` (Attributes List) (see [below for nested schema](#nestedatt--traffic_rules--actions--headers))
 - `host_header` (String)
 - `max_body_size` (Attributes) (see [below for nested schema](#nestedatt--traffic_rules--actions--max_body_size))
@@ -316,6 +318,14 @@ Read-Only:
 
 - `address` (String)
 - `port` (Number)
+
+
+<a id="nestedatt--traffic_rules--actions--bot_protection"></a>
+### Nested Schema for `traffic_rules.actions.bot_protection`
+
+Read-Only:
+
+- `strategy` (String)
 
 
 <a id="nestedatt--traffic_rules--actions--headers"></a>
