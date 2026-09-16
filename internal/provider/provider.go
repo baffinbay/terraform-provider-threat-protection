@@ -41,7 +41,7 @@ func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaReque
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"api_url": schema.StringAttribute{
-				MarkdownDescription: "The API URL for Baffin Bay Threat Protection API. Defaults to production URL.",
+				MarkdownDescription: "The API URL for Baffin Bay Threat Protection API. May also be set via the `BAFFINBAY_API_URL` environment variable; defaults to production URL.",
 				Optional:            true,
 			},
 			"client_id": schema.StringAttribute{
@@ -54,7 +54,7 @@ func (p *BaffinBayProvider) Schema(ctx context.Context, req provider.SchemaReque
 				Sensitive:           true,
 			},
 			"oidc_url": schema.StringAttribute{
-				MarkdownDescription: "The OIDC token endpoint URL. Defaults to production URL.",
+				MarkdownDescription: "The OIDC token endpoint URL. May also be set via the `BAFFINBAY_OIDC_URL` environment variable; defaults to production URL.",
 				Optional:            true,
 			},
 			"tenant_id": schema.StringAttribute{
@@ -84,14 +84,20 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 		clientSecret = os.Getenv("BAFFINBAY_CLIENT_SECRET")
 	}
 
-	apiURL := "https://portal.baffinbay.com"
-	if !data.APIURL.IsNull() {
-		apiURL = data.APIURL.ValueString()
+	apiURL := data.APIURL.ValueString()
+	if data.APIURL.IsNull() {
+		apiURL = os.Getenv("BAFFINBAY_API_URL")
+	}
+	if apiURL == "" {
+		apiURL = "https://portal.baffinbay.com"
 	}
 
-	oidcURL := "https://m2m-auth.baffinbay.com/oauth/token"
-	if !data.OIDCURL.IsNull() {
-		oidcURL = data.OIDCURL.ValueString()
+	oidcURL := data.OIDCURL.ValueString()
+	if data.OIDCURL.IsNull() {
+		oidcURL = os.Getenv("BAFFINBAY_OIDC_URL")
+	}
+	if oidcURL == "" {
+		oidcURL = "https://m2m-auth.baffinbay.com/oauth/token"
 	}
 
 	tenantID := data.TenantID.ValueString()
@@ -136,8 +142,6 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewPingDataSource,
-		NewTrafficConfigDataSource,
-		NewTrafficConfigsDataSource,
 		NewHTTPProxyDataSource,
 		NewL4ProxyDataSource,
 		NewRoutedDsrDataSource,
@@ -161,7 +165,6 @@ func (p *BaffinBayProvider) Resources(ctx context.Context) []func() resource.Res
 		NewCaCertificateResource,
 		NewCustomPageResource,
 		NewIPListResource,
-		NewTrafficConfigResource,
 		NewHTTPProxyResource,
 		NewL4ProxyResource,
 		NewRoutedDsrResource,
