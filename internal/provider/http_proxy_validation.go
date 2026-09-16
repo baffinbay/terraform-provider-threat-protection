@@ -342,6 +342,9 @@ func validateHTTPProxyTrafficRuleActions(actions *HTTPProxyTrafficRuleActionsMod
 	if actions.MaxBodySize != nil {
 		actionCount++
 	}
+	if actions.BotProtection != nil {
+		actionCount++
+	}
 	if actionCount == 0 {
 		resp.Diagnostics.AddAttributeError(actionPath, "Missing Traffic Rule Action", "At least one traffic rule action must be configured.")
 	}

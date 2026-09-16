@@ -25,206 +25,21 @@ func SetTrafficConfigChangePollIntervalForTesting(interval time.Duration) func()
 	}
 }
 
-type TrafficConfigRequest struct {
-	Data struct {
-		Type          string                  `json:"type"`
-		Attributes    TrafficConfigAttributes `json:"attributes"`
-		Relationships struct {
-			BelongsTo struct {
-				Data struct {
-					Type string `json:"type"`
-					ID   string `json:"id"`
-				} `json:"data"`
-			} `json:"belongsTo"`
-		} `json:"relationships"`
-	} `json:"data"`
+type TrafficConfigRequestRelations struct {
+	BelongsTo TrafficConfigBelongsTo `json:"belongsTo"`
 }
 
-type TrafficConfigAttributes struct {
-	Name             string            `json:"name"`
-	Version          string            `json:"version"`
-	Frontend         *Frontend         `json:"frontend,omitempty"`
-	Backend          *Backend          `json:"backend,omitempty"`
-	Deployment       Deployment        `json:"deployment"`
-	Protocols        []string          `json:"protocols,omitempty"`
-	ProxyProtocol    string            `json:"proxyProtocol,omitempty"`
-	Prefix           string            `json:"prefix,omitempty"`
-	Announced        *bool             `json:"announced,omitempty"`
-	WAF              *WAF              `json:"waf,omitempty"`
-	GeoFencing       *GeoFencing       `json:"geoFencing,omitempty"`
-	AllowedSources   *AllowedSources   `json:"allowedSources,omitempty"`
-	IPBasedAccess    *IPBasedAccess    `json:"ipBasedAccessControl,omitempty"`
-	ConnectionReuse  *bool             `json:"connectionReuseEnabled,omitempty"`
-	BotProtection    *BotProtection    `json:"botProtection,omitempty"`
-	CustomPages      *[]any            `json:"customPages,omitempty"`
-	DataProtection   *DataProtection   `json:"dataProtection,omitempty"`
-	GatewayPath      string            `json:"gatewayPath,omitempty"`
-	RateLimiting     *RateLimit        `json:"rateLimiting,omitempty"`
-	TrafficRules     *[]any            `json:"trafficRules,omitempty"`
-	ProtocolSettings *ProtocolSettings `json:"protocolSettings,omitempty"`
+type TrafficConfigBelongsTo struct {
+	Data TrafficConfigRelationshipData `json:"data"`
+}
+
+type TrafficConfigRelationshipData struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
 }
 
 type Deployment struct {
 	State string `json:"state"`
-}
-
-type WAF struct {
-	Enforcement      string `json:"enforcement"`
-	ParanoidLevel    int64  `json:"paranoidLevel"`
-	CoreRuleSetID    string `json:"coreRuleSetId"`
-	SourceExclusions struct {
-		Enabled bool     `json:"enabled"`
-		Sources []string `json:"sources"`
-	} `json:"sourceExclusions"`
-	HTTPCompliance struct {
-		GlobalConfig struct {
-			ParameterLimit struct {
-				Enabled bool `json:"enabled"`
-				Limit   int  `json:"limit"`
-			} `json:"parameterLimit"`
-			AllowedHttpMethods  []string `json:"allowedHttpMethods"`
-			AllowedHttpVersions []string `json:"allowedHttpVersions"`
-		} `json:"globalConfig"`
-		ResourceConfigs []any `json:"resourceConfigs"`
-	} `json:"httpCompliance"`
-	PathExclusions []any `json:"pathExclusions"`
-}
-
-type RateLimit struct {
-	BySrcIP       RateLimitRule `json:"bySrcIp"`
-	BySrcIPAndURL RateLimitRule `json:"bySrcIpAndUrl"`
-}
-
-type RateLimitRule struct {
-	Enforcement string        `json:"enforcement"`
-	Rate        RateLimitRate `json:"rate"`
-	Burst       int           `json:"burst"`
-}
-
-type RateLimitRate struct {
-	Value int    `json:"value"`
-	Unit  string `json:"unit"`
-}
-
-type GeoFencing struct {
-	Type    string   `json:"type"`
-	Regions []string `json:"regions"`
-}
-
-type AllowedSources struct {
-	Enforcement string   `json:"enforcement"`
-	Sources     []string `json:"sources"`
-}
-
-type IPBasedAccess struct {
-	DefaultPolicy string             `json:"defaultPolicy"`
-	Rules         IPBasedAccessRules `json:"rules"`
-}
-
-type IPBasedAccessRules struct {
-	IPRanges      []IPBasedAccessIPRangeRule      `json:"ipRanges"`
-	KnownServices *[]any                          `json:"knownServices,omitempty"`
-	IPLists       []IPBasedAccessIPListRule       `json:"ipLists"`
-	GeoLocations  []IPBasedAccessGeoLocationRule  `json:"geoLocations"`
-	ASNs          []IPBasedAccessAutonomousSystem `json:"asns"`
-}
-
-type IPBasedAccessIPRangeRule struct {
-	Policy  string `json:"policy"`
-	Address string `json:"address"`
-	Note    string `json:"note,omitempty"`
-}
-
-type IPBasedAccessIPListRule struct {
-	Type   string `json:"type,omitempty"`
-	ID     string `json:"id"`
-	Policy string `json:"policy"`
-}
-
-type IPBasedAccessGeoLocationRule struct {
-	Policy string `json:"policy"`
-	Region string `json:"region"`
-	Note   string `json:"note,omitempty"`
-}
-
-type IPBasedAccessAutonomousSystem struct {
-	Policy string `json:"policy"`
-	ASN    int64  `json:"asn"`
-	Note   string `json:"note,omitempty"`
-}
-
-type BotProtection struct {
-	Strategy      string `json:"strategy"`
-	ChallengeType string `json:"challengeType"`
-}
-
-type DataProtection struct {
-	LogRedaction LogRedaction `json:"logRedaction"`
-}
-
-type LogRedaction struct {
-	Headers []string `json:"headers"`
-	Cookies []string `json:"cookies"`
-}
-
-type Frontend struct {
-	IPv4                          string                         `json:"ipv4,omitempty"`
-	IPv6                          string                         `json:"ipv6,omitempty"`
-	IP                            string                         `json:"ip,omitempty"`
-	Port                          int64                          `json:"port,omitempty"`
-	ConnectionType                string                         `json:"connectionType,omitempty"`
-	RedirectHttp                  *bool                          `json:"redirectHttp,omitempty"`
-	Hosts                         []FrontendHost                 `json:"hosts,omitempty"`
-	HTTPStrictTransportSecurity   *HSTS                          `json:"httpStrictTransportSecurity,omitempty"`
-	ClientCertificateVerification *ClientCertificateVerification `json:"clientCertificateVerification,omitempty"`
-}
-
-type FrontendHost struct {
-	Host          string `json:"host"`
-	CertificateID string `json:"certificateId,omitempty"`
-	TLSConfig     string `json:"tlsConfig,omitempty"`
-}
-
-type HSTS struct {
-	Enabled           bool  `json:"enabled"`
-	MaxAge            int64 `json:"maxAge"`
-	IncludeSubdomains bool  `json:"includeSubdomains"`
-	Preload           bool  `json:"preload"`
-}
-
-type ClientCertificateVerification struct {
-	Mode             string   `json:"mode"`
-	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
-	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
-}
-
-type Backend struct {
-	Hosts          []Host       `json:"hosts"`
-	DeliveryMethod string       `json:"deliveryMethod"`
-	ServerName     string       `json:"serverName"`
-	TLSSettings    *TLSSettings `json:"tlsSettings,omitempty"`
-}
-
-type TLSSettings struct {
-	ClientCertificateID string             `json:"clientCertificateId,omitempty"`
-	VerifyCertificate   *VerifyCertificate `json:"verifyCertificate,omitempty"`
-}
-
-type VerifyCertificate struct {
-	Mode             string   `json:"mode"`
-	CaCertificateIds []string `json:"caCertificateIds,omitempty"`
-	VerifyCrl        *bool    `json:"verifyCrl,omitempty"`
-}
-
-type Host struct {
-	Address string `json:"address"`
-	Port    int64  `json:"port"`
-}
-
-type ProtocolSettings struct {
-	Version          string `json:"httpVersion"`
-	EnableWebsockets *bool  `json:"enableWebsockets,omitempty"`
-	Multiplexing     *bool  `json:"multiplexing,omitempty"`
 }
 
 type TrafficConfigData struct {
@@ -232,12 +47,12 @@ type TrafficConfigData struct {
 	Type          string                          `json:"type"`
 	Attributes    TrafficConfigResponseAttributes `json:"attributes"`
 	Relationships struct {
-		ActiveChange struct {
+		ActiveRollout struct {
 			Data struct {
 				Type string `json:"type"`
 				ID   string `json:"id"`
 			} `json:"data"`
-		} `json:"activeChange"`
+		} `json:"activeRollout"`
 	} `json:"relationships"`
 }
 
@@ -428,8 +243,8 @@ type TrafficConfigResponseAutonomousSystem struct {
 	Note   *string `json:"note,omitempty"`
 }
 
-func (d TrafficConfigData) ActiveChangeID() string {
-	return d.Relationships.ActiveChange.Data.ID
+func (d TrafficConfigData) ActiveRolloutID() string {
+	return d.Relationships.ActiveRollout.Data.ID
 }
 
 type TrafficConfigResponse struct {
@@ -440,53 +255,18 @@ type TrafficConfigsResponse struct {
 	Data []TrafficConfigData `json:"data"`
 }
 
-type TrafficConfigChange struct {
-	ID    string `json:"id"`
-	State string `json:"state"`
+type TrafficConfigRolloutResponse struct {
+	Data TrafficConfigRolloutData `json:"data"`
 }
 
-func (c *Client) CreateTrafficConfig(ctx context.Context, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
-	if c.TenantID == "" {
-		return nil, fmt.Errorf("tenant_id is required to create a traffic config")
-	}
+type TrafficConfigRolloutData struct {
+	ID         string                         `json:"id"`
+	Type       string                         `json:"type"`
+	Attributes TrafficConfigRolloutAttributes `json:"attributes"`
+}
 
-	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
-	if reqData.Data.Attributes.Version == "" {
-		reqData.Data.Attributes.Version = "0.1.0" // Default version
-	}
-
-	jsonData, err := json.Marshal(reqData)
-	if err != nil {
-		return nil, err
-	}
-
-	path := "/api/v2/traffic-mgmt/traffic-configs"
-	logTrafficConfigRequest(ctx, "POST", path, jsonData)
-
-	req, err := c.NewRequest(ctx, "POST", path, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/vnd.api+json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		return nil, httpStatusError(resp, "create traffic config")
-	}
-
-	var tcResp TrafficConfigResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tcResp); err != nil {
-		return nil, err
-	}
-
-	return &tcResp, nil
+type TrafficConfigRolloutAttributes struct {
+	State string `json:"state"`
 }
 
 func (c *Client) GetTrafficConfig(ctx context.Context, id string) (*TrafficConfigResponse, error) {
@@ -513,48 +293,32 @@ func (c *Client) GetTrafficConfig(ctx context.Context, id string) (*TrafficConfi
 	return &tcResp, nil
 }
 
-func (c *Client) UpdateTrafficConfig(ctx context.Context, id string, reqData TrafficConfigRequest) (*TrafficConfigResponse, error) {
-	if c.TenantID == "" {
-		return nil, fmt.Errorf("tenant_id is required to update a traffic config")
-	}
-
-	reqData.Data.Relationships.BelongsTo.Data.Type = "account"
-	reqData.Data.Relationships.BelongsTo.Data.ID = c.TenantID
-	if reqData.Data.Attributes.Version == "" {
-		reqData.Data.Attributes.Version = "0.1.0"
-	}
-
-	jsonData, err := json.Marshal(reqData)
+func (c *Client) mutateTrafficConfig(ctx context.Context, method, path, operation string, payload any, out any, acceptedStatusCodes ...int) error {
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	path := "/api/v2/traffic-mgmt/traffic-configs/" + id
-	logTrafficConfigRequest(ctx, "PUT", path, jsonData)
-
-	req, err := c.NewRequest(ctx, "PUT", path, bytes.NewBuffer(jsonData))
+	logTrafficConfigRequest(ctx, method, path, jsonData)
+	req, err := c.NewRequest(ctx, method, path, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return err
 	}
-
 	req.Header.Set("Content-Type", "application/vnd.api+json")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		return nil, httpStatusError(resp, "update traffic config")
+	for _, statusCode := range acceptedStatusCodes {
+		if resp.StatusCode == statusCode {
+			return json.NewDecoder(resp.Body).Decode(out)
+		}
 	}
 
-	var tcResp TrafficConfigResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tcResp); err != nil {
-		return nil, err
-	}
-
-	return &tcResp, nil
+	return httpStatusError(resp, operation)
 }
 
 func logTrafficConfigRequest(ctx context.Context, method, path string, payload []byte) {
@@ -614,8 +378,8 @@ func (c *Client) GetTrafficConfigs(ctx context.Context) (*TrafficConfigsResponse
 	return &tcResp, nil
 }
 
-func (c *Client) GetTrafficConfigChange(ctx context.Context, trafficConfigID, changeID string) (*TrafficConfigChange, error) {
-	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/traffic-configs/"+trafficConfigID+"/changelog/"+changeID, nil)
+func (c *Client) GetTrafficConfigRollout(ctx context.Context, trafficConfigID, rolloutID string) (*TrafficConfigRolloutResponse, error) {
+	req, err := c.NewRequest(ctx, "GET", "/api/v2/traffic-mgmt/traffic-configs/"+trafficConfigID+"/rollouts/"+rolloutID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -627,19 +391,19 @@ func (c *Client) GetTrafficConfigChange(ctx context.Context, trafficConfigID, ch
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, httpStatusError(resp, "get traffic config change")
+		return nil, httpStatusError(resp, "get traffic config rollout")
 	}
 
-	var change TrafficConfigChange
-	if err := json.NewDecoder(resp.Body).Decode(&change); err != nil {
+	var rollout TrafficConfigRolloutResponse
+	if err := json.NewDecoder(resp.Body).Decode(&rollout); err != nil {
 		return nil, err
 	}
 
-	return &change, nil
+	return &rollout, nil
 }
 
-func (c *Client) WaitForTrafficConfigChange(ctx context.Context, trafficConfigID, changeID string) error {
-	if changeID == "" {
+func (c *Client) WaitForTrafficConfigRollout(ctx context.Context, trafficConfigID, rolloutID string) error {
+	if rolloutID == "" {
 		return nil
 	}
 
@@ -647,21 +411,21 @@ func (c *Client) WaitForTrafficConfigChange(ctx context.Context, trafficConfigID
 	defer cancel()
 
 	for {
-		change, err := c.GetTrafficConfigChange(ctx, trafficConfigID, changeID)
+		rollout, err := c.GetTrafficConfigRollout(ctx, trafficConfigID, rolloutID)
 		if err != nil {
 			return err
 		}
 
-		switch change.State {
-		case "APPLIED":
+		switch rollout.Data.Attributes.State {
+		case "COMPLETED":
 			return nil
 		case "FAILED":
-			return fmt.Errorf("traffic config change %s failed", changeID)
+			return fmt.Errorf("traffic config rollout %s failed", rolloutID)
 		}
 
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for traffic config change %s: %w", changeID, ctx.Err())
+			return fmt.Errorf("timed out waiting for traffic config rollout %s: %w", rolloutID, ctx.Err())
 		case <-time.After(trafficConfigChangePollInterval):
 		}
 	}
