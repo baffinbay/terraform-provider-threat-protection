@@ -38,8 +38,8 @@ cache file is written at mode `0600`; concurrent invocations coordinate via
 
 ### Optional
 
-- `api_url` (String) The API URL for Baffin Bay Threat Protection API. Defaults to production URL.
+- `api_url` (String) The API URL for Baffin Bay Threat Protection API. May also be set via the `BAFFINBAY_API_URL` environment variable; defaults to production URL.
 - `client_id` (String) The OIDC Client ID for authentication. May also be set via the `BAFFINBAY_CLIENT_ID` environment variable.
 - `client_secret` (String, Sensitive) The OIDC Client Secret for authentication. May also be set via the `BAFFINBAY_CLIENT_SECRET` environment variable.
-- `oidc_url` (String) The OIDC token endpoint URL. Defaults to production URL.
+- `oidc_url` (String) The OIDC token endpoint URL. May also be set via the `BAFFINBAY_OIDC_URL` environment variable; defaults to production URL.
 - `tenant_id` (String) The tenant ID for Baffin Bay Threat Protection. May also be set via the `BAFFINBAY_TENANT_ID` environment variable.

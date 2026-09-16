@@ -179,7 +179,7 @@ func mapHTTPProxyIPAccessControlToAPI(data *HTTPProxyIPAccessControlModel) *clie
 		result.Rules.IPRanges = append(result.Rules.IPRanges, client.HTTPProxyIPRangeRule{Policy: rule.Policy.ValueString(), Address: rule.Address.ValueString(), Note: rule.Note.ValueString(), BypassProtection: client.HTTPProxyBypassProtection{BotProtection: rule.BypassBotProtection.ValueBool()}})
 	}
 	for _, rule := range data.Rules.IPLists {
-		result.Rules.IPLists = append(result.Rules.IPLists, client.HTTPProxyIPListRule{Policy: rule.Policy.ValueString(), ID: rule.ID.ValueString()})
+		result.Rules.IPLists = append(result.Rules.IPLists, client.HTTPProxyIPListRule{Policy: rule.Policy.ValueString(), ID: rule.ID.ValueString(), BypassProtection: client.HTTPProxyBypassProtection{BotProtection: rule.BypassBotProtection.ValueBool()}})
 	}
 	for _, rule := range data.Rules.KnownServices {
 		result.Rules.KnownServices = append(result.Rules.KnownServices, client.HTTPProxyKnownServiceRule{Policy: rule.Policy.ValueString(), ID: rule.ID.ValueString(), Note: rule.Note.ValueString(), BypassProtection: client.HTTPProxyBypassProtection{BotProtection: rule.BypassBotProtection.ValueBool()}})
@@ -323,6 +323,9 @@ func mapHTTPProxyTrafficRuleActionsToAPI(data *HTTPProxyTrafficRuleActionsModel)
 			actions.SetMaxBodySize.Value = &value
 		}
 	}
+	if data.BotProtection != nil {
+		actions.SetBotProtection = &client.HTTPProxyTrafficRuleBotProtection{Strategy: data.BotProtection.Strategy.ValueString()}
+	}
 	return actions
 }
 
@@ -435,7 +438,7 @@ func mapHTTPProxyIPAccessControlFromAPI(data *client.HTTPProxyIPBasedAccessContr
 		result.Rules.IPRanges = append(result.Rules.IPRanges, HTTPProxyIPRangeRuleModel{Policy: types.StringValue(rule.Policy), Address: types.StringValue(rule.Address), Note: nullableStringValue(rule.Note), BypassBotProtection: types.BoolValue(rule.BypassProtection.BotProtection)})
 	}
 	for _, rule := range data.Rules.IPLists {
-		result.Rules.IPLists = append(result.Rules.IPLists, HTTPProxyIPListRuleModel{Policy: types.StringValue(rule.Policy), ID: types.StringValue(rule.ID)})
+		result.Rules.IPLists = append(result.Rules.IPLists, HTTPProxyIPListRuleModel{Policy: types.StringValue(rule.Policy), ID: types.StringValue(rule.ID), BypassBotProtection: types.BoolValue(rule.BypassProtection.BotProtection)})
 	}
 	for _, rule := range data.Rules.KnownServices {
 		result.Rules.KnownServices = append(result.Rules.KnownServices, HTTPProxyKnownServiceRuleModel{Policy: types.StringValue(rule.Policy), ID: types.StringValue(rule.ID), Note: nullableStringValue(rule.Note), BypassBotProtection: types.BoolValue(rule.BypassProtection.BotProtection)})
@@ -560,6 +563,9 @@ func mapHTTPProxyTrafficRuleActionsFromAPI(data client.HTTPProxyTrafficRuleActio
 		if data.SetMaxBodySize.Value != nil {
 			result.MaxBodySize.ValueBytes = types.Int64Value(*data.SetMaxBodySize.Value)
 		}
+	}
+	if data.SetBotProtection != nil {
+		result.BotProtection = &HTTPProxyTrafficRuleBotProtectionModel{Strategy: types.StringValue(data.SetBotProtection.Strategy)}
 	}
 	return result
 }
