@@ -19,7 +19,7 @@ defaults:
 jobs:
   validate:
     name: Validate release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -72,7 +72,7 @@ jobs:
   release:
     name: Publish release
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     environment: release
     permissions:
