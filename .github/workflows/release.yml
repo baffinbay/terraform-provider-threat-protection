@@ -19,7 +19,7 @@ defaults:
 jobs:
   validate:
     name: Validate release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
-          terraform_version: v1.16.4
+          terraform_version: v1.16.6
           terraform_wrapper: false
 
       - name: Verify generated documentation
@@ -72,7 +72,7 @@ jobs:
   release:
     name: Publish release
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     environment: release
     permissions:
@@ -107,9 +107,9 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          version: v2.18.2
+          version: v2.18.3
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ github.token }}
