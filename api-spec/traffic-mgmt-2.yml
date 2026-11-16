@@ -540,6 +540,63 @@ paths:
         500:
           description: Internal Server Error
 
+  /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}/content-cache/purge:
+    post:
+      tags:
+        - Traffic Management
+      summary: Purge HTTP proxy content cache
+      description: >
+        Requests a purge of the content cache for a deployed HTTP proxy. The request marks
+        the cache purge timestamp on the traffic configuration and starts a high-priority
+        rollout that applies the purge on Heimdall servers. Poll the returned active rollout
+        to track completion. The traffic configuration revision changes. This endpoint does
+        not take a request body.
+      parameters:
+        - $ref: "#/components/parameters/trafficConfigId"
+        - in: header
+          name: If-Match
+          required: false
+          description: Optional current traffic configuration revision used for optimistic concurrency.
+          schema:
+            type: integer
+      responses:
+        202:
+          description: Content cache purge requested.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        $ref: "#/components/schemas/PatchHttpProxy"
+                      relationships:
+                        type: object
+                        properties:
+                          activeRollout:
+                            $ref: "#/components/schemas/ActiveRolloutRelationship"
+        400:
+          description: >
+            The traffic configuration is not an HTTP proxy, or the HTTP proxy is not deployed
+            and ready for updates.
+        403:
+          description: Forbidden
+        404:
+          description: Traffic Configuration not found
+        412:
+          description: The If-Match revision is invalid or does not match the current revision.
+        500:
+          description: Internal Server Error
+
   /api/v2/traffic-mgmt/custom-pages:
     get:
       description: List of all available Custom Pages.
@@ -1613,6 +1670,23 @@ components:
             - FAILED
         announced:
           type: boolean
+    CachePolicy:
+      type: object
+      description: >
+        Content caching for the HTTP proxy. When omitted on create or full update (PUT),
+        caching is disabled. Read responses always include it.
+      required:
+        - strategy
+      properties:
+        strategy:
+          type: string
+          description: >
+            DISABLED turns response caching off. BACKEND_RESPONSE_HEADERS turns caching on
+            and uses the backend response headers to decide what is cacheable.
+          enum:
+            - DISABLED
+            - BACKEND_RESPONSE_HEADERS
+          default: DISABLED
     ActiveRolloutRelationship:
       type: object
       properties:
@@ -2569,6 +2643,8 @@ components:
         multiplexingEnabled:
           type: object
           example: true
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
 
     IpListCreateRequest:
       $ref: "#/components/schemas/IpListRequestProperties"
@@ -3344,6 +3420,8 @@ components:
               enum:
                 - HTTP
                 - JS
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
           type: boolean
           example: true
@@ -3892,6 +3970,8 @@ components:
                 - ALWAYS_ON
                 - AUTO
                 - DISABLED
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
           type: boolean
           default: true
