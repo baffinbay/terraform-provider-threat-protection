@@ -201,6 +201,12 @@ environment is safe for deployment. You can also override
 `BAFFINBAY_ACC_HOST`, `BAFFINBAY_ACC_BOT_HOST`, and
 `BAFFINBAY_ACC_BACKEND_ADDRESS` for environment-specific routing.
 
+`TestAccHTTPProxyContentCachingLive` checks `cache_policy` against the live
+API. It changes the policy outside Terraform to confirm drift is detected and
+that applies without a `cache_policy` block keep the current value. Its content
+cache purge step runs only with `BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED`,
+because only deployed proxies can be purged.
+
 ## Documentation
 
 The provider documentation is automatically generated using [terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs). This ensures that the documentation is always in sync with the provider's schema.
