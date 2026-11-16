@@ -10,7 +10,7 @@ Epic PDEV-4277 ("Content Caching (CDN)") added two things to the **public** traf
    - `202` returns the HTTP proxy with `relationships.activeRollout` and a new revision.
    - `400` when the proxy is not deployed or not ready for updates. `400` when the config is not an HTTP proxy. `404` when it is unknown. `412` on a revision mismatch.
 
-Source of truth: `api-docs/traffic-mgmt.yml` on master. It documents purge but not `cachePolicy` yet, so `cachePolicy` follows `traffic-management` `origin/main` (`8c30702d`). The published `docs.baffinbay.com` spec lags behind and is not used.
+Source of truth: `api-docs/traffic-mgmt.yml`. `cachePolicy` is documented by PDEV-4588 (api-docs MR !245, matching `traffic-management` `origin/main` `8c30702d`); the purge endpoint is on master. The local `CachePolicy` schema and purge path are copied verbatim from the PDEV-4588 branch. Re-sync if review changes the MR. The published `docs.baffinbay.com` spec lags behind and is not used.
 
 ### Why this is urgent
 The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpecDto`) turns a missing `cachePolicy` into `DISABLED` and overwrites the stored policy with it. Today every `terraform apply` on a proxy silently turns off caching that was enabled in the portal.
@@ -37,7 +37,7 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - [x] RED: test that `PurgeHTTPProxyContentCache(ctx, id)` sends a POST with no body to `/api/v2/traffic-mgmt/traffic-configs/{id}/content-cache/purge`, accepts `202` and returns `ActiveRolloutID()`. Test that `400`, `404` and `412` come back as errors carrying the API problem detail.
     - [x] GREEN: implemented as a dedicated no-body POST that accepts only `202` (`mutateTrafficConfig` always sends a JSON body).
 - [x] Task: Add the purge path to `api-spec/traffic-mgmt-2.yml` and `cachePolicy` to the `HttpProxy`, `CreateHttpProxy` and `PatchHttpProxy` schemas. Run `bb-tool spec-check`.
-    - Note (2026-11-16): `api-docs` master is the source of truth for API changes, not the published `docs.baffinbay.com` spec, which lags behind. The local purge path matches `api-docs` master. `api-docs` does not document `cachePolicy` yet, so the local schema follows `traffic-management` `origin/main` until it does. The `ip-lists` client warning and the older traffic-config paths missing from the local spec are out of scope for this track.
+    - Note (2026-11-16): `api-docs` is the source of truth, not the published `docs.baffinbay.com` spec. `cachePolicy` was missing from `api-docs` and is added by PDEV-4588 (MR !245). The local `CachePolicy` schema and purge path are now verbatim copies from that branch. The `ip-lists` client warning and the older traffic-config paths missing from the local spec are out of scope (separate PR).
 
 ## Phase 2: `baffinbay_http_proxy.cache_policy`
 - [ ] Task: Add the schema and model (`internal/provider/http_proxy_resource.go`)
