@@ -73,26 +73,27 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - Verification: `go test ./...`, `go vet` and `golangci-lint` are clean. Coverage went from 78.2% to 78.4% for `internal/provider` and from 20.1% to 21.9% for `internal/client`; master was already below the 80% target.
 
 ## Phase 3: `baffinbay_http_proxy_content_cache_purge` action
-- [ ] Task: Scaffold the action (`internal/provider/http_proxy_content_cache_purge_action.go`)
-    - [ ] RED: test that the provider lists the action through `ProviderWithActions.Actions`, and test the schema: `traffic_config_id` is required and must be a UUID.
-    - [ ] GREEN: implement `action.Action` and `action.ActionWithConfigure` using the shared `configure.go` client wiring. Register it in `provider.go`.
-- [ ] Task: Invoke logic
-    - [ ] RED: unit tests that call `Invoke` against a mock server:
-        - The happy path polls the rollout until it is `COMPLETED`.
-        - A `FAILED` rollout produces an error diagnostic.
-        - A `400` (not deployed) produces a clear message: "content cache can only be purged for a deployed HTTP proxy that is ready for updates".
-        - `404`.
-        - A non-HTTP-proxy config.
-    - [ ] GREEN: call `PurgeHTTPProxyContentCache`, then `WaitForTrafficConfigRollout`. Send progress messages through `resp.SendProgress` (purge requested, then rollout completed).
+- [x] Task: Scaffold the action (`internal/provider/http_proxy_content_cache_purge_action.go`)
+    - [x] RED: `TestProviderActionsIncludeContentCachePurge`, `TestContentCachePurgeActionSchema` (only `traffic_config_id`, required and validated), and `TestContentCachePurgeActionRejectsInvalidID`, which runs through Terraform.
+    - [x] GREEN: the action implements `action.ActionWithConfigure` through a new shared `configuredAction` in `configure.go`. The provider implements `ProviderWithActions`, sets `resp.ActionData`, and lists the action in `Actions()`.
+- [x] Task: Invoke logic
+    - [x] RED: these tests call `Invoke` directly against a mock server (`newPurgeServer`):
+        - `TestContentCachePurgeInvokeWaitsForRollout`: one purge, polling `IN_PROGRESS` then `COMPLETED`, with progress messages.
+        - `...WithoutRollout`: no polling when there's no active rollout.
+        - `...Errors`: a `FAILED` rollout, a 400 (not deployed or wrong type, with the API detail kept in the message), a 404, and a 500.
+        - `...WithoutConfiguredClient` and `ConfigureRejectsWrongProviderData`.
+    - [x] GREEN: `PurgeHTTPProxyContentCache`, then `WaitForTrafficConfigRollout`, with `resp.SendProgress` before and after.
+    - Note: the backend answers 400 both when the proxy isn't deployed and when the ID isn't an HTTP proxy, so a single message covers both. There's no type pre-check, to avoid an extra GET.
 - [ ] Task: Optional `If-Match` support. Not exposed in v1; revisit only if requested.
-- [ ] Task: End-to-end test through Terraform (checked 2026-11-16, see note below)
-    - [ ] Add a `tfresource.UnitTest` lifecycle test using `newHTTPProxyStateServer`. The config has an `action "baffinbay_http_proxy_content_cache_purge"` block and an `action_trigger { events = [after_update] }` on the proxy.
-        - Step 1 (create): assert no purge request.
-        - Step 2 (update): assert exactly one POST to `.../content-cache/purge` with the right ID, and that the rollout was polled. Use `PostApplyFunc` or server counters.
-    - [ ] Add an error test: the mock server returns `400` for purge, and the update step uses `ExpectError` matching the message.
-    - Note: plugin-testing v1.16 has no step mode for `terraform apply -invoke`. But test steps run a real `terraform apply`, so actions fired by `action_trigger` do run. A throwaway spike (framework v1.19, plugin-testing v1.16, Terraform 1.14.9) showed no invoke on create, exactly one invoke with the resolved ID on update, and that an `Invoke` error diagnostic fails the step with the expected message. The `-invoke` CLI path is covered by the live check in Phase 5.
-- [ ] Task: Pin the Terraform CLI in CI
-    - [ ] `.github/workflows/build.yml` runs `go test ./...` without installing Terraform, so the tests use whatever binary the runner has. Action tests need Terraform 1.14 or later. Add `hashicorp/setup-terraform` with `terraform_version: v1.17.2` (matching `release.yml`) and `terraform_wrapper: false` before the unit tests.
+- [x] Task: End-to-end test through Terraform
+    - [x] `newHTTPProxyStateServer` now serves the purge endpoint (`purgeStatus`, `purgeCount`) and a `purge-rollout` (`purgeRolloutReads`).
+    - [x] `TestContentCachePurgeActionTriggerLifecycle`: `action_trigger { events = [after_update] }`. No purge on create; exactly one purge on update, with the rollout polled.
+    - [x] `TestContentCachePurgeActionTriggerError`: a 400 from purge fails the update step with the "deployed HTTP proxy that is ready for updates" message.
+    - [x] Mutation check: a no-op `Invoke` makes both tests fail.
+    - Note: plugin-testing v1.16 has no step mode for `terraform apply -invoke`; that path is covered by the live check in Phase 5.
+- [x] Task: Pin the Terraform CLI in CI
+    - [x] `.github/workflows/build.yml` now runs `hashicorp/setup-terraform` with the same SHA pin as `release.yml` (v4.0.1), `terraform_version: v1.17.2` and `terraform_wrapper: false`, before the unit tests. actionlint and zizmor (pedantic) report nothing.
+- Verification: `go test ./...`, `go vet`, `gofmt` and `golangci-lint` are clean. Coverage is 78.8% for `internal/provider` (78.4% after Phase 2) and 21.9% for `internal/client`.
 
 ## Phase 4: Docs & Examples
 - [ ] Task: Update `examples/resources/baffinbay_http_proxy/resource.tf` with a `cache_policy` block.
