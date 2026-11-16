@@ -40,31 +40,37 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - Note (2026-11-16): `api-docs` is the source of truth, not the published `docs.baffinbay.com` spec. `cachePolicy` was missing from `api-docs` and is added by PDEV-4588 (MR !245). The local `CachePolicy` schema and purge path are now verbatim copies from that branch. The `ip-lists` client warning and the older traffic-config paths missing from the local spec are out of scope (separate PR).
 
 ## Phase 2: `baffinbay_http_proxy.cache_policy`
-- [ ] Task: Add the schema and model (`internal/provider/http_proxy_resource.go`)
-    - [ ] RED: extend `TestHTTPProxyResourceSchema` to check `cache_policy.strategy`, with `DISABLED` and `BACKEND_RESPONSE_HEADERS` as the only allowed values.
-    - [ ] GREEN: add `HTTPProxyCachePolicyModel`, `httpProxyCachePolicyAttribute()` (Optional + Computed; `strategy` Optional + Computed, defaulting to `DISABLED`), and `defaultHTTPProxyCachePolicy()`.
-- [ ] Task: Extend plan merging (`mergeHTTPProxyOptionalState`)
-    - [ ] RED: unit tests for these cases:
-        - Create without the block gives `DISABLED`.
-        - Update without the block keeps the prior `BACKEND_RESPONSE_HEADERS`.
+- [x] Task: Add the schema and model (`internal/provider/http_proxy_resource.go`)
+    - [x] RED: `TestHTTPProxyCachePolicySchema`, plus `TestHTTPProxyCachePolicyRejectsUnknownStrategy`, which rejects the aliases `ENABLED` and `RESPONSE_HEADERS` and lowercase values.
+    - [x] GREEN: `HTTPProxyCachePolicyModel`, `httpProxyCachePolicyAttribute()` (Optional + Computed; `strategy` Optional + Computed with default `DISABLED`, allowing only `DISABLED` and `BACKEND_RESPONSE_HEADERS`), and `defaultHTTPProxyCachePolicy()`.
+- [x] Task: Extend plan merging (`mergeHTTPProxyOptionalState`)
+    - [x] RED: `TestHTTPProxyCachePolicyPlanMerge` covers these cases:
+        - Create without the block, and with an empty block, gives `DISABLED`.
+        - Update without the block keeps the prior value.
         - An explicit value wins.
-    - [ ] GREEN: implement the same create/prior/default branches used for `BotProtection`.
-- [ ] Task: Map in both directions (`internal/provider/http_proxy_mapping.go`)
-    - [ ] RED:
-        - Extend `TestHTTPProxyRequestUsesCurrentWireContract`: the payload always contains `cachePolicy`.
-        - Extend `TestHTTPProxyResponseFixtureMapsCurrentBackendShape`: `cachePolicy` is read back into state.
-        - A response without `cachePolicy` (older backend) leaves the prior value unchanged.
-    - [ ] GREEN: add `mapHTTPProxyCachePolicyToAPI` and `mapHTTPProxyCachePolicyFromAPI`, and wire them into `mapHTTPProxyManagedAttributes` and `mapHTTPProxyResponseToModel`.
-- [ ] Task: Keep the portal-set policy when state has no value
-    - [ ] RED: in the mock-server lifecycle test, the remote policy is `BACKEND_RESPONSE_HEADERS` and both the config and the prior state have no `cache_policy`. Assert that the PUT payload contains `BACKEND_RESPONSE_HEADERS`.
-    - [ ] GREEN: in `Update`, when the planned `CachePolicy` is nil, read the current proxy and use its policy.
-- [ ] Task: Drift and lifecycle tests using `newHTTPProxyStateServer`
-    - [ ] Create with `BACKEND_RESPONSE_HEADERS`, then import with `ImportStateVerify`.
-    - [ ] Change the policy remotely; the next plan shows a diff.
-    - [ ] Switch to `DISABLED`; the payload is correct.
-    - [ ] Extend `TestHTTPProxyResourceImportThenUpdatePreservesRemoteFields` to cover `cachePolicy`.
-- [ ] Task: Data source
-    - [ ] The `baffinbay_http_proxy` data source copies its schema from the resource, so check that `cache_policy.strategy` appears as computed and is filled in (`singular_data_sources_test.go`).
+        - Update with neither a config nor a prior value stays unresolved.
+    - [x] GREEN: unlike the other optional blocks, an update never falls back to the default here.
+- [x] Task: Map in both directions (`internal/provider/http_proxy_mapping.go`)
+    - [x] RED: `TestHTTPProxyCachePolicyRequestMapping` covers the create and update payloads. `TestHTTPProxyCachePolicyResponseMapping` covers reading the policy back, and keeping the prior value when the response lacks `cachePolicy`.
+    - [x] GREEN: `mapHTTPProxyCachePolicyToAPI` and response mapping in `mapHTTPProxyResponseToModel`.
+- [x] Task: Keep the portal-set policy when state has no value
+    - [x] RED: `TestHTTPProxyCachePolicyResolvedFromRemoteWhenStateHasNone` and `...ResolvesToDisabledWhenRemoteOmitsIt`.
+    - [x] GREEN: `resolveHTTPProxyCachePolicy` is called from `ModifyPlan` for updates, so the plan shows the real value, and again in `Update` as a safety net.
+- [x] Task: Drift and lifecycle tests using `newHTTPProxyStateServer`
+    - [x] The mock server now treats a missing `cachePolicy` on POST/PUT as `DISABLED`, like the backend, and has `setRemoteCachePolicy` to simulate portal changes.
+    - [x] `TestHTTPProxyCachePolicyLifecycle` steps through:
+        - create, which sends `DISABLED`;
+        - enabling caching;
+        - import with `ImportStateVerify`;
+        - a portal change, which shows drift;
+        - an apply that restores the policy;
+        - disabling caching again.
+    - [x] `TestHTTPProxyCachePolicyPortalValueSurvivesUnmanagedApply` is the regression test. Caching enabled in the portal gives an empty plan when the config doesn't manage it, and a later unrelated apply sends `BACKEND_RESPONSE_HEADERS`.
+    - [x] The full fixture config sets `BACKEND_RESPONSE_HEADERS`. `TestHTTPProxyResourceImportThenUpdatePreservesRemoteFields` now also checks that it survives an update that omits the block.
+    - [x] Mutation check: removing `cachePolicy` from the payload, or resetting it to `DISABLED` on update, makes the tests fail.
+- [x] Task: Data source
+    - [x] `TestSingularDataSourcesReadByID` checks that `cache_policy.strategy` is filled in on `data.baffinbay_http_proxy`.
+- Verification: `go test ./...`, `go vet` and `golangci-lint` are clean. Coverage went from 78.2% to 78.4% for `internal/provider` and from 20.1% to 21.9% for `internal/client`; master was already below the 80% target.
 
 ## Phase 3: `baffinbay_http_proxy_content_cache_purge` action
 - [ ] Task: Scaffold the action (`internal/provider/http_proxy_content_cache_purge_action.go`)
