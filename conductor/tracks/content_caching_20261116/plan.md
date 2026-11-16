@@ -30,13 +30,14 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - The action waits for the purge rollout to finish, using `WaitForTrafficConfigRollout`. Purge changes the revision, but the resource does not store the revision in state, so this causes no drift.
 
 ## Phase 1: Client
-- [ ] Task: Add the cache policy to the wire model (`internal/client/http_proxy.go`)
-    - [ ] RED: add a test that a request with a policy produces JSON containing `"cachePolicy":{"strategy":"BACKEND_RESPONSE_HEADERS"}`, and that a response with `cachePolicy` decodes it.
-    - [ ] GREEN: add the type `HTTPProxyCachePolicy{Strategy string \`json:"strategy"\`}` and the field `CachePolicy *HTTPProxyCachePolicy \`json:"cachePolicy,omitempty"\`` on `HTTPProxyAttributes`.
-- [ ] Task: Add the purge client method
-    - [ ] RED: test that `PurgeHTTPProxyContentCache(ctx, id)` sends a POST with no body to `/api/v2/traffic-mgmt/traffic-configs/{id}/content-cache/purge`, accepts `202` and returns `ActiveRolloutID()`. Test that `400`, `404` and `412` come back as errors carrying the API problem detail.
-    - [ ] GREEN: implement it through `mutateTrafficConfig` with `http.StatusAccepted` allowed.
-- [ ] Task: Add the purge path to `api-spec/traffic-mgmt-2.yml` and `cachePolicy` to the HTTP proxy create, update, patch and read schemas. Run `bb-tool spec-check`.
+- [x] Task: Add the cache policy to the wire model (`internal/client/http_proxy.go`)
+    - [x] RED: add a test that a request with a policy produces JSON containing `"cachePolicy":{"strategy":"BACKEND_RESPONSE_HEADERS"}`, and that a response with `cachePolicy` decodes it.
+    - [x] GREEN: add the type `HTTPProxyCachePolicy{Strategy string \`json:"strategy"\`}` and the field `CachePolicy *HTTPProxyCachePolicy \`json:"cachePolicy,omitempty"\`` on `HTTPProxyAttributes`.
+- [x] Task: Add the purge client method
+    - [x] RED: test that `PurgeHTTPProxyContentCache(ctx, id)` sends a POST with no body to `/api/v2/traffic-mgmt/traffic-configs/{id}/content-cache/purge`, accepts `202` and returns `ActiveRolloutID()`. Test that `400`, `404` and `412` come back as errors carrying the API problem detail.
+    - [x] GREEN: implemented as a dedicated no-body POST that accepts only `202` (`mutateTrafficConfig` always sends a JSON body).
+- [x] Task: Add the purge path to `api-spec/traffic-mgmt-2.yml` and `cachePolicy` to the `HttpProxy`, `CreateHttpProxy` and `PatchHttpProxy` schemas. Run `bb-tool spec-check`.
+    - Note (2026-11-16): the published spec at `docs.baffinbay.com/openapi/traffic-mgmt.yml` has neither the purge path nor `cachePolicy`, so spec-check reports the purge path as `[REMOVED PATH]` (present locally, missing remotely). `api-docs` master has the purge path but has not been published yet. The `[CLIENT ERROR]` for `ip-lists?filter[tenant-id]=` already existed before this change.
 
 ## Phase 2: `baffinbay_http_proxy.cache_policy`
 - [ ] Task: Add the schema and model (`internal/provider/http_proxy_resource.go`)
