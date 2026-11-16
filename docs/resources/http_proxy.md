@@ -39,6 +39,12 @@ resource "baffinbay_http_proxy" "example" {
   protocol_settings = {
     version = "HTTP1.1"
   }
+
+  # Cache responses as the backend's response headers allow.
+  # Omit the block to keep the current policy (DISABLED on create).
+  cache_policy = {
+    strategy = "BACKEND_RESPONSE_HEADERS"
+  }
 }
 ```
 
@@ -55,6 +61,7 @@ resource "baffinbay_http_proxy" "example" {
 ### Optional
 
 - `bot_protection` (Attributes) (see [below for nested schema](#nestedatt--bot_protection))
+- `cache_policy` (Attributes) Content caching for the HTTP Proxy. Defaults to `DISABLED` on create. When omitted on update, the current policy is kept, including one set outside Terraform. (see [below for nested schema](#nestedatt--cache_policy))
 - `connection_reuse_enabled` (Boolean)
 - `custom_pages` (Attributes List) (see [below for nested schema](#nestedatt--custom_pages))
 - `data_protection` (Attributes) (see [below for nested schema](#nestedatt--data_protection))
@@ -179,6 +186,14 @@ Optional:
 
 - `challenge_type` (String)
 - `strategy` (String)
+
+
+<a id="nestedatt--cache_policy"></a>
+### Nested Schema for `cache_policy`
+
+Optional:
+
+- `strategy` (String) `DISABLED` turns response caching off. `BACKEND_RESPONSE_HEADERS` turns response caching on and uses the backend's response headers to decide what is cacheable.
 
 
 <a id="nestedatt--custom_pages"></a>

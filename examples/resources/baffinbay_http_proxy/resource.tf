@@ -24,4 +24,10 @@ resource "baffinbay_http_proxy" "example" {
   protocol_settings = {
     version = "HTTP1.1"
   }
+
+  # Cache responses as the backend's response headers allow.
+  # Omit the block to keep the current policy (DISABLED on create).
+  cache_policy = {
+    strategy = "BACKEND_RESPONSE_HEADERS"
+  }
 }
