@@ -103,10 +103,26 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - [x] Task: Outside this repo, document `cachePolicy` in `api-docs/traffic-mgmt.yml`. Done in PDEV-4588 (MR !245), merged at `0b17408`, which is the same commit `api-spec/traffic-mgmt-2.yml` was synced from.
 
 ## Phase 5: Verification
-- [ ] Task: Run `go test ./...`, `golangci-lint run` and `govulncheck ./...`. Coverage must stay above 80% for the touched packages.
-- [ ] Task: Live check against QA/preprod:
-    - Create a proxy with `BACKEND_RESPONSE_HEADERS`.
-    - Toggle the policy in the portal and confirm the plan shows drift.
-    - Apply without a `cache_policy` block and confirm the portal value is kept.
-    - Run `terraform apply -invoke=action.baffinbay_http_proxy_content_cache_purge.x` and confirm the rollout completes.
-- [ ] Task: Add a changelog entry covering the new attribute, the new action, and the fix for portal-enabled caching being reset on apply.
+- [x] Task: Run `go test ./...`, `golangci-lint run` and `govulncheck ./...`.
+    - All are clean, along with `go vet`, `gofmt`, `go mod verify`, actionlint, and a `go generate` check showing no docs drift.
+    - govulncheck: 0 reachable vulnerabilities. Like master, it reports 2 vulnerabilities in required modules that the code doesn't call.
+    - Coverage: `internal/provider` is 78.8% (master 78.2%) and `internal/client` is 21.9% (master 20.1%). Both went up, but `internal/provider` was already below the 80% target on master.
+- [ ] Task: Live check against QA/preprod. **Pending: needs QA credentials, which aren't available in this environment.**
+    - The check is automated as `TestAccHTTPProxyContentCachingLive` (`internal/provider/http_proxy_content_caching_acc_test.go`). Its HCL passes `terraform validate`, and it skips cleanly without credentials. The steps:
+        - Create a proxy with `BACKEND_RESPONSE_HEADERS`.
+        - Apply without the block; the policy is kept.
+        - Change the policy through the API, as the portal would; the plan shows drift.
+        - Apply restores the policy.
+        - With `BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED`, an update fires the purge through `action_trigger` and waits for the rollout.
+    - Run it:
+      ```
+      set -a && source .env && set +a
+      TF_ACC=1 BAFFINBAY_ACC_FRONTEND_IPV4=<qa-ip> BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED \
+        go test ./internal/provider -run TestAccHTTPProxyContentCachingLive -v
+      ```
+    - Still manual: `terraform apply -invoke=action.baffinbay_http_proxy_content_cache_purge.<name>`, because plugin-testing has no `-invoke` step. Use `examples/actions/baffinbay_http_proxy_content_cache_purge/action.tf`.
+- [x] Task: Changelog. The repo has no CHANGELOG file and GoReleaser's changelog is disabled (`changelog.disable: true`), so the release notes go in the PR description and GitHub release instead:
+    - **New:** `cache_policy` on `baffinbay_http_proxy` and the `baffinbay_http_proxy` data source. The `strategy` is `DISABLED` (the default) or `BACKEND_RESPONSE_HEADERS`.
+    - **New:** the `baffinbay_http_proxy_content_cache_purge` action (Terraform 1.14 or later), which purges the content cache of a deployed HTTP Proxy and waits for the rollout.
+    - **Fix:** applying a `baffinbay_http_proxy` no longer resets content caching that was enabled outside Terraform. An omitted `cache_policy` keeps the current value.
+    - **CI:** unit tests run on Terraform 1.17.2.
