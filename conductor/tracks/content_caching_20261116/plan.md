@@ -96,10 +96,11 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - Verification: `go test ./...`, `go vet`, `gofmt` and `golangci-lint` are clean. Coverage is 78.8% for `internal/provider` (78.4% after Phase 2) and 21.9% for `internal/client`.
 
 ## Phase 4: Docs & Examples
-- [ ] Task: Update `examples/resources/baffinbay_http_proxy/resource.tf` with a `cache_policy` block.
-- [ ] Task: Add `examples/actions/baffinbay_http_proxy_content_cache_purge/action.tf`, showing a manual run with `-invoke` and an `action_trigger` on `after_update`. Note that Terraform 1.14 or later is required.
-- [ ] Task: Run `go generate ./...` (tfplugindocs v0.25, which supports actions) and check `docs/resources/http_proxy.md`, `docs/data-sources/http_proxy.md` and `docs/actions/http_proxy_content_cache_purge.md`.
-- [ ] Task: Outside this repo, add the `cachePolicy` schema to the HTTP proxy schemas in `api-docs/traffic-mgmt.yml`.
+- [x] Task: Update `examples/resources/baffinbay_http_proxy/resource.tf` with a `cache_policy` block.
+- [x] Task: Add `examples/actions/baffinbay_http_proxy_content_cache_purge/action.tf`, showing a manual run with `-invoke` and an `action_trigger` on `after_update`. Note that Terraform 1.14 or later is required.
+    - Both examples pass `terraform fmt -check` and `terraform validate` against a locally built provider (dev override, Terraform 1.14.9).
+- [x] Task: Run `go generate ./...` (tfplugindocs v0.25) and check `docs/resources/http_proxy.md`, `docs/data-sources/http_proxy.md` and the new `docs/actions/http_proxy_content_cache_purge.md`.
+- [x] Task: Outside this repo, document `cachePolicy` in `api-docs/traffic-mgmt.yml`. Done in PDEV-4588 (MR !245), merged at `0b17408`, which is the same commit `api-spec/traffic-mgmt-2.yml` was synced from.
 
 ## Phase 5: Verification
 - [ ] Task: Run `go test ./...`, `golangci-lint run` and `govulncheck ./...`. Coverage must stay above 80% for the touched packages.
