@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 const (
@@ -65,6 +66,7 @@ func TestHTTPProxyCachePolicyPlanMerge(t *testing.T) {
 		{name: "create without block defaults to disabled", creating: true, want: disabled},
 		{name: "create with explicit value", config: backend, creating: true, want: backend},
 		{name: "create with empty block defaults strategy", config: &HTTPProxyCachePolicyModel{Strategy: types.StringNull()}, creating: true, want: disabled},
+		{name: "unknown strategy stays unknown", config: &HTTPProxyCachePolicyModel{Strategy: types.StringUnknown()}, creating: true, want: &HTTPProxyCachePolicyModel{Strategy: types.StringUnknown()}},
 		{name: "update without block keeps remote value", prior: backend, want: backend},
 		{name: "update with explicit value wins", config: disabled, prior: backend, want: disabled},
 		{name: "update without block or prior stays unresolved", want: nil},
@@ -253,4 +255,64 @@ func httpProxyCachePolicyResource(name, strategy string) string {
 		`protocol_settings = { version = "HTTP1.1" }`,
 		`protocol_settings = { version = "HTTP1.1" }
   cache_policy = { strategy = "`+strategy+`" }`, 1)
+}
+
+// A strategy only known at apply time (here: another resource's output) must
+// stay unknown in the plan instead of being replaced with the default.
+func TestHTTPProxyCachePolicyUnknownStrategy(t *testing.T) {
+	setTestTokenCache(t)
+	server := newHTTPProxyStateServer(t)
+	defer server.Close()
+	const addr = "baffinbay_http_proxy.test"
+	config := func(strategy string) string {
+		return testProviderConfig(server.URL) + `
+resource "terraform_data" "policy" { input = "` + strategy + `" }
+` + strings.Replace(httpProxyMinimalResource("test-http", true),
+			`protocol_settings = { version = "HTTP1.1" }`,
+			`protocol_settings = { version = "HTTP1.1" }
+  cache_policy = { strategy = terraform_data.policy.output }`, 1)
+	}
+
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{
+		{
+			// Create: the value is unknown until terraform_data is applied.
+			Config: config(cacheBackend),
+			ConfigPlanChecks: tfresource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{
+				plancheck.ExpectUnknownValue(addr, tfjsonpath.New("cache_policy").AtMapKey("strategy")),
+			}},
+			Check: tfresource.TestCheckResourceAttr(addr, "cache_policy.strategy", cacheBackend),
+			PostApplyFunc: func() {
+				assertCachePolicySent(t, server.lastMutation(t), cacheBackend)
+			},
+		},
+		{
+			// Update: changing the dependency makes the strategy unknown again.
+			Config: config(cacheDisabled),
+			ConfigPlanChecks: tfresource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{
+				plancheck.ExpectUnknownValue(addr, tfjsonpath.New("cache_policy").AtMapKey("strategy")),
+			}},
+			Check: tfresource.TestCheckResourceAttr(addr, "cache_policy.strategy", cacheDisabled),
+			PostApplyFunc: func() {
+				assertCachePolicySent(t, server.lastMutation(t), cacheDisabled)
+			},
+		},
+	}})
+}
+
+// Known limitation, shared by every nested block of baffinbay_http_proxy: the
+// resource model can't hold a whole block that is unknown at plan time. Tracked
+// as a follow-up; when it's fixed, this test should be changed to expect success.
+func TestHTTPProxyCachePolicyUnknownObjectIsNotYetSupported(t *testing.T) {
+	setTestTokenCache(t)
+	server := newHTTPProxyStateServer(t)
+	defer server.Close()
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{{
+		Config: testProviderConfig(server.URL) + `
+resource "terraform_data" "policy" { input = { strategy = "BACKEND_RESPONSE_HEADERS" } }
+` + strings.Replace(httpProxyMinimalResource("test-http", true),
+			`protocol_settings = { version = "HTTP1.1" }`,
+			`protocol_settings = { version = "HTTP1.1" }
+  cache_policy = terraform_data.policy.output`, 1),
+		ExpectError: regexp.MustCompile(`Received unknown value, however the target type cannot handle unknown`),
+	}}})
 }

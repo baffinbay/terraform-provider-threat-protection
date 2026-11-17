@@ -711,7 +711,9 @@ func mergeHTTPProxyOptionalState(data *HTTPProxyResourceModel, prior HTTPProxyRe
 		if creating {
 			data.CachePolicy = defaultHTTPProxyCachePolicy()
 		}
-	} else if data.CachePolicy.Strategy.IsNull() || data.CachePolicy.Strategy.IsUnknown() {
+	} else if data.CachePolicy.Strategy.IsNull() {
+		// Default only a missing strategy. An unknown one (computed from another
+		// resource) must stay unknown, or Terraform rejects the plan.
 		data.CachePolicy.Strategy = types.StringValue(httpProxyCacheStrategyDisabled)
 	}
 	if data.BotProtection == nil {
