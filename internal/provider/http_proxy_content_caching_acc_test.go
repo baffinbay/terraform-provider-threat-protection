@@ -9,6 +9,7 @@ import (
 	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 // TestAccHTTPProxyContentCachingLive is the live check for content caching. It needs the
@@ -47,7 +48,10 @@ func TestAccHTTPProxyContentCachingLive(t *testing.T) {
 			Check:  tfresource.TestCheckResourceAttr(addr, "cache_policy.strategy", "BACKEND_RESPONSE_HEADERS"),
 		},
 	}
+	var versionChecks []tfversion.TerraformVersionCheck
 	if cfg.DeploymentState == "DEPLOYED" {
+		// The triggered action uses `caller`, which needs Terraform 1.16 or later.
+		versionChecks = actionCallerVersionChecks
 		// The update fires the purge action through action_trigger; it fails the step if the purge rollout fails.
 		steps = append(steps, tfresource.TestStep{
 			Config: httpProxyLiveCacheHCL(cfg, cfg.Name+"-purged", `cache_policy = { strategy = "BACKEND_RESPONSE_HEADERS" }`, true),
@@ -57,7 +61,7 @@ func TestAccHTTPProxyContentCachingLive(t *testing.T) {
 		t.Log("Skipping the purge step: set BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED to run it.")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: steps})
+	tfresource.Test(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, TerraformVersionChecks: versionChecks, Steps: steps})
 }
 
 func httpProxyLiveCacheHCL(cfg httpProxyLiveAcceptanceConfig, name, cachePolicy string, purgeOnUpdate bool) string {
@@ -65,7 +69,7 @@ func httpProxyLiveCacheHCL(cfg httpProxyLiveAcceptanceConfig, name, cachePolicy 
 	if purgeOnUpdate {
 		action = `
 action "baffinbay_http_proxy_content_cache_purge" "purge" {
-  config { traffic_config_id = baffinbay_http_proxy.cache.id }
+  config { traffic_config_id = caller.id }
 }
 `
 		lifecycle = `

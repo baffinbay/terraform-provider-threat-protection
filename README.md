@@ -205,7 +205,8 @@ environment is safe for deployment. You can also override
 API. It changes the policy outside Terraform to confirm drift is detected and
 that applies without a `cache_policy` block keep the current value. Its content
 cache purge step runs only with `BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED`,
-because only deployed proxies can be purged.
+because only deployed proxies can be purged. It also needs Terraform 1.16 or
+later, because the triggered action uses `caller`.
 
 ## Documentation
 

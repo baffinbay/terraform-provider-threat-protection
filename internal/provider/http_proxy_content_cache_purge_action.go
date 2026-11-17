@@ -36,11 +36,13 @@ func (a *HTTPProxyContentCachePurgeAction) Metadata(_ context.Context, req actio
 func (a *HTTPProxyContentCachePurgeAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Purges the content cache of a deployed HTTP Proxy and waits for the purge rollout to complete. " +
-			"Run it with `terraform apply -invoke`, or from a resource's `lifecycle.action_trigger`. Requires Terraform 1.14 or later.",
+			"Run it on demand with `terraform apply -invoke` (Terraform 1.14 or later), or from a resource's `lifecycle.action_trigger`. " +
+			"When the proxy itself triggers the action, set `traffic_config_id = caller.id` (Terraform 1.16 or later): " +
+			"referencing the triggering resource directly is an action reference cycle.",
 		Attributes: map[string]schema.Attribute{
 			"traffic_config_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "The ID of the HTTP Proxy whose content cache is purged, for example `baffinbay_http_proxy.example.id`. The proxy must be deployed.",
+				MarkdownDescription: "The ID of the HTTP Proxy whose content cache is purged: `baffinbay_http_proxy.example.id` for on-demand runs, or `caller.id` when the proxy triggers the action. The proxy must be deployed.",
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(singularDataSourceUUIDPattern, "must be a valid UUID"),
 				},

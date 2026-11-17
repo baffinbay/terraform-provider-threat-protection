@@ -3,27 +3,33 @@
 page_title: "baffinbay_http_proxy_content_cache_purge Action - baffinbay"
 subcategory: ""
 description: |-
-  Purges the content cache of a deployed HTTP Proxy and waits for the purge rollout to complete. Run it with terraform apply -invoke, or from a resource's lifecycle.action_trigger. Requires Terraform 1.14 or later.
+  Purges the content cache of a deployed HTTP Proxy and waits for the purge rollout to complete. Run it on demand with terraform apply -invoke (Terraform 1.14 or later), or from a resource's lifecycle.action_trigger. When the proxy itself triggers the action, set traffic_config_id = caller.id (Terraform 1.16 or later): referencing the triggering resource directly is an action reference cycle.
 ---
 
 # baffinbay_http_proxy_content_cache_purge (Action)
 
-Purges the content cache of a deployed HTTP Proxy and waits for the purge rollout to complete. Run it with `terraform apply -invoke`, or from a resource's `lifecycle.action_trigger`. Requires Terraform 1.14 or later.
+Purges the content cache of a deployed HTTP Proxy and waits for the purge rollout to complete. Run it on demand with `terraform apply -invoke` (Terraform 1.14 or later), or from a resource's `lifecycle.action_trigger`. When the proxy itself triggers the action, set `traffic_config_id = caller.id` (Terraform 1.16 or later): referencing the triggering resource directly is an action reference cycle.
 
 ## Example Usage
 
 ```terraform
-# Requires Terraform 1.14 or later.
-action "baffinbay_http_proxy_content_cache_purge" "example" {
+# Purge on demand (Terraform 1.14 or later):
+#   terraform apply -invoke=action.baffinbay_http_proxy_content_cache_purge.manual
+action "baffinbay_http_proxy_content_cache_purge" "manual" {
   config {
     traffic_config_id = baffinbay_http_proxy.example.id
   }
 }
 
-# Run the purge on demand:
-#   terraform apply -invoke=action.baffinbay_http_proxy_content_cache_purge.example
+# Purge automatically after every update of the proxy (Terraform 1.16 or later).
+# A triggered action can't reference the resource that triggers it, because
+# that is a dependency cycle. Use `caller`, which is the triggering resource.
+action "baffinbay_http_proxy_content_cache_purge" "on_update" {
+  config {
+    traffic_config_id = caller.id
+  }
+}
 
-# Or purge automatically every time the proxy is updated.
 resource "baffinbay_http_proxy" "example" {
   name             = "terraform-http-example"
   deployment_state = "DEPLOYED"
@@ -50,7 +56,7 @@ resource "baffinbay_http_proxy" "example" {
   lifecycle {
     action_trigger {
       events  = [after_update]
-      actions = [action.baffinbay_http_proxy_content_cache_purge.example]
+      actions = [action.baffinbay_http_proxy_content_cache_purge.on_update]
     }
   }
 }
@@ -61,4 +67,4 @@ resource "baffinbay_http_proxy" "example" {
 
 ### Required
 
-- `traffic_config_id` (String) The ID of the HTTP Proxy whose content cache is purged, for example `baffinbay_http_proxy.example.id`. The proxy must be deployed.
+- `traffic_config_id` (String) The ID of the HTTP Proxy whose content cache is purged: `baffinbay_http_proxy.example.id` for on-demand runs, or `caller.id` when the proxy triggers the action. The proxy must be deployed.

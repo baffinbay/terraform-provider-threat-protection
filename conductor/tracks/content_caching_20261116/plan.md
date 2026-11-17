@@ -112,6 +112,14 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - A whole block set to an unknown value fails to decode in `ValidateConfig` and `ModifyPlan`, because blocks are stored as Go pointers.
     - `TestHTTPProxyCachePolicyUnknownObjectIsNotYetSupported` documents the current error for `cache_policy`.
 
+## CI follow-up: action reference cycle on Terraform 1.16 and later
+- [x] CI (Terraform 1.17.2) failed both `action_trigger` tests with `Error: action reference cycle involving action.baffinbay_http_proxy_content_cache_purge.purge and baffinbay_http_proxy.test`.
+    - Terraform 1.16 and later reject an action whose config references the resource that triggers it. The 1.14.9 spike allowed it.
+    - The replacement is the `caller` symbol, added in Terraform 1.16 (hashicorp/terraform#38668). It holds the triggering resource, so the config uses `traffic_config_id = caller.id`.
+- [x] The trigger tests use `caller.id` and skip on Terraform below 1.16 (`actionCallerVersionChecks`). The `ExpectError` regex now tolerates Terraform 1.17's line wrapping.
+- [x] The action example has a `manual` action (a direct reference, for `-invoke`, Terraform 1.14 or later) and an `on_update` action (`caller.id`, Terraform 1.16 or later). The action docs are regenerated. The live test's purge step uses `caller.id` and checks the Terraform version.
+- [x] Verified: `go test ./...` passes with Terraform 1.17.2, matching CI, and with Terraform 1.14.9, where the trigger tests skip. The example passes `terraform validate` on 1.17.2.
+
 ## Phase 5: Verification
 - [x] Task: Run `go test ./...`, `golangci-lint run` and `govulncheck ./...`.
     - All are clean, along with `go vet`, `gofmt`, `go mod verify`, actionlint, and a `go generate` check showing no docs drift.

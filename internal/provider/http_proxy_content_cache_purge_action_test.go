@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	actionschema "github.com/hashicorp/terraform-plugin-framework/action/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 const purgeTestProxyID = "88888888-8888-4888-8888-888888888888"
@@ -245,7 +247,7 @@ func TestContentCachePurgeActionTriggerLifecycle(t *testing.T) {
 	server := newHTTPProxyStateServer(t)
 	defer server.Close()
 
-	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, TerraformVersionChecks: actionCallerVersionChecks, Steps: []tfresource.TestStep{
 		{
 			Config: testProviderConfig(server.URL) + httpProxyWithPurgeTrigger("test-http"),
 			PostApplyFunc: func() {
@@ -274,19 +276,27 @@ func TestContentCachePurgeActionTriggerError(t *testing.T) {
 	defer server.Close()
 	server.purgeStatus.Store(http.StatusBadRequest)
 
-	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, TerraformVersionChecks: actionCallerVersionChecks, Steps: []tfresource.TestStep{
 		{Config: testProviderConfig(server.URL) + httpProxyWithPurgeTrigger("test-http")},
 		{
-			Config:      testProviderConfig(server.URL) + httpProxyWithPurgeTrigger("test-http-renamed"),
-			ExpectError: regexp.MustCompile(`deployed HTTP proxy that is ready for updates`),
+			Config: testProviderConfig(server.URL) + httpProxyWithPurgeTrigger("test-http-renamed"),
+			// Terraform wraps long diagnostic lines, so allow any whitespace between words.
+			ExpectError: regexp.MustCompile(`(?s)Content Cache Purge Rejected.*deployed\s+HTTP\s+proxy\s+that\s+is\s+ready\s+for\s+updates`),
 		},
 	}})
+}
+
+// actionCallerVersionChecks skips tests that use `caller`, which Terraform added in 1.16.
+// An action triggered by a resource can't reference that resource directly:
+// Terraform 1.16 and later report an "action reference cycle".
+var actionCallerVersionChecks = []tfversion.TerraformVersionCheck{
+	tfversion.SkipBelow(version.Must(version.NewVersion("1.16.0"))),
 }
 
 func httpProxyWithPurgeTrigger(name string) string {
 	return `
 action "baffinbay_http_proxy_content_cache_purge" "purge" {
-  config { traffic_config_id = baffinbay_http_proxy.test.id }
+  config { traffic_config_id = caller.id }
 }
 ` + strings.Replace(httpProxyMinimalResource(name, true),
 		`protocol_settings = { version = "HTTP1.1" }`,
