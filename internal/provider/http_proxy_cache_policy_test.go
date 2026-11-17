@@ -301,7 +301,7 @@ resource "terraform_data" "policy" { input = "` + strategy + `" }
 
 // Known limitation, shared by every nested block of baffinbay_http_proxy: the
 // resource model can't hold a whole block that is unknown at plan time. Tracked
-// as a follow-up; when it's fixed, this test should be changed to expect success.
+// in PDEV-4598; when it's fixed, this test should be changed to expect success.
 func TestHTTPProxyCachePolicyUnknownObjectIsNotYetSupported(t *testing.T) {
 	setTestTokenCache(t)
 	server := newHTTPProxyStateServer(t)

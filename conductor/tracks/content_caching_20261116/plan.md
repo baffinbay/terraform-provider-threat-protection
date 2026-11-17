@@ -102,6 +102,16 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - [x] Task: Run `go generate ./...` (tfplugindocs v0.25) and check `docs/resources/http_proxy.md`, `docs/data-sources/http_proxy.md` and the new `docs/actions/http_proxy_content_cache_purge.md`.
 - [x] Task: Outside this repo, document `cachePolicy` in `api-docs/traffic-mgmt.yml`. Done in PDEV-4588 (MR !245), merged at `0b17408`, which is the same commit `api-spec/traffic-mgmt-2.yml` was synced from.
 
+## Review follow-up: unknown values
+- [x] Task: Keep an unknown `cache_policy.strategy` unknown in the plan
+    - Before: a strategy computed from another resource was replaced with `DISABLED`, and Terraform rejected the plan ("planned value does not match config value").
+    - [x] RED: `TestHTTPProxyCachePolicyUnknownStrategy` (terraform_data, create and update), plus an "unknown strategy stays unknown" case in `TestHTTPProxyCachePolicyPlanMerge`.
+    - [x] GREEN: only a null strategy gets the default.
+- [ ] Follow-up **PDEV-4598** (related to this ticket): the same problem affects every nested block of `baffinbay_http_proxy`.
+    - About 30 places default unknown values during planning.
+    - A whole block set to an unknown value fails to decode in `ValidateConfig` and `ModifyPlan`, because blocks are stored as Go pointers.
+    - `TestHTTPProxyCachePolicyUnknownObjectIsNotYetSupported` documents the current error for `cache_policy`.
+
 ## Phase 5: Verification
 - [x] Task: Run `go test ./...`, `golangci-lint run` and `govulncheck ./...`.
     - All are clean, along with `go vet`, `gofmt`, `go mod verify`, actionlint, and a `go generate` check showing no docs drift.
