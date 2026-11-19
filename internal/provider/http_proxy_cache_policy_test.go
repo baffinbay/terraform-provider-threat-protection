@@ -43,7 +43,7 @@ func TestHTTPProxyCachePolicyRejectsUnknownStrategy(t *testing.T) {
 	setTestTokenCache(t)
 	server := newHTTPProxyStateServer(t)
 	defer server.Close()
-	// ENABLED is a backend alias, not a documented value; keep the plan aligned with what the API returns.
+	// Only the two documented values are accepted, so the plan always matches what the API returns.
 	for _, value := range []string{"ENABLED", "RESPONSE_HEADERS", "backend_response_headers"} {
 		tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{{
 			Config:      testProviderConfig(server.URL) + httpProxyCachePolicyResource("test-http", value),

@@ -548,7 +548,7 @@ paths:
       description: >
         Requests a purge of the content cache for a deployed HTTP proxy. The request marks
         the cache purge timestamp on the traffic configuration and starts a high-priority
-        rollout that applies the purge on Heimdall servers. This endpoint does not require a
+        rollout that applies the purge on the edge servers. This endpoint does not require a
         request body.
       parameters:
         - $ref: "#/components/parameters/trafficConfigId"

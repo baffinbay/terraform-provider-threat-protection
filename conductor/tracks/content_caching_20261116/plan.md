@@ -4,24 +4,24 @@
 Epic PDEV-4277 ("Content Caching (CDN)") added two things to the **public** traffic-mgmt API:
 
 1. `attributes.cachePolicy.strategy` on HTTP proxies. It can be sent on POST, PUT and PATCH and is always returned on GET.
-   - Values: `DISABLED` (default) and `BACKEND_RESPONSE_HEADERS`. The backend also accepts the aliases `RESPONSE_HEADERS` and `ENABLED`, which it turns into `BACKEND_RESPONSE_HEADERS`.
+   - Values: `DISABLED` (default) and `BACKEND_RESPONSE_HEADERS`.
 2. `POST /api/v2/traffic-mgmt/traffic-configs/{id}/content-cache/purge`
    - No body. Optional `If-Match` revision header.
    - `202` returns the HTTP proxy with `relationships.activeRollout` and a new revision.
    - `400` when the proxy is not deployed or not ready for updates. `400` when the config is not an HTTP proxy. `404` when it is unknown. `412` on a revision mismatch.
 
-Source of truth: `api-docs/traffic-mgmt.yml`. `cachePolicy` is documented by PDEV-4588 (api-docs MR !245, matching `traffic-management` `origin/main` `8c30702d`); the purge endpoint is on master. The local `CachePolicy` schema and purge path are copied verbatim from the PDEV-4588 branch. Re-sync if review changes the MR. The published `docs.baffinbay.com` spec lags behind and is not used.
+Source of truth: the internal API documentation (`cachePolicy` added in PDEV-4588). The local `CachePolicy` schema and purge path in `api-spec/traffic-mgmt-2.yml` are copied from it.
 
 ### Why this is urgent
-The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpecDto`) turns a missing `cachePolicy` into `DISABLED` and overwrites the stored policy with it. Today every `terraform apply` on a proxy silently turns off caching that was enabled in the portal.
+The provider updates proxies with **PUT**, which replaces the whole proxy: every optional block that is left out (rate limiting, custom pages, data protection, `cachePolicy`, ...) is reset to its default. Provider versions without `cache_policy` never send it, so every `terraform apply` on a proxy turns off caching that was enabled in the portal. Users on those versions keep hitting this until they upgrade.
 
 ## Scope
 - In scope: `cache_policy` on `baffinbay_http_proxy` and its data source, plus a purge **action**.
-- Out of scope: `CacheSizeGB`, `CachePurgeRequestedAt` and anything else that only exists in the management API. Terraform only covers the public API.
+- Out of scope: settings that are not part of the public API. Terraform only covers the public API.
 
 ## Decisions
 - Schema: a `cache_policy` single nested attribute with `strategy` inside it, mirroring `bot_protection`. It leaves room for future cache settings.
-- Allowed values: `DISABLED` and `BACKEND_RESPONSE_HEADERS` only. The aliases are left out so the plan always matches what the API returns.
+- Allowed values: `DISABLED` and `BACKEND_RESPONSE_HEADERS`, the two documented values, so the plan always matches what the API returns.
 - When `cache_policy` is omitted, follow the existing `mergeHTTPProxyOptionalState` pattern:
   - On create, use the default `DISABLED` (matches the portal).
   - On update, keep the value from prior state, which comes from the API. Terraform therefore never wipes a policy set in the portal unless the user configures one.
@@ -37,11 +37,11 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - [x] RED: test that `PurgeHTTPProxyContentCache(ctx, id)` sends a POST with no body to `/api/v2/traffic-mgmt/traffic-configs/{id}/content-cache/purge`, accepts `202` and returns `ActiveRolloutID()`. Test that `400`, `404` and `412` come back as errors carrying the API problem detail.
     - [x] GREEN: implemented as a dedicated no-body POST that accepts only `202` (`mutateTrafficConfig` always sends a JSON body).
 - [x] Task: Add the purge path to `api-spec/traffic-mgmt-2.yml` and `cachePolicy` to the `HttpProxy`, `CreateHttpProxy` and `PatchHttpProxy` schemas. Run `bb-tool spec-check`.
-    - Note (2026-11-16): `api-docs` is the source of truth, not the published `docs.baffinbay.com` spec. `cachePolicy` was missing from `api-docs` and is added by PDEV-4588 (MR !245). The local `CachePolicy` schema and purge path are now verbatim copies from that branch. The `ip-lists` client warning and the older traffic-config paths missing from the local spec are out of scope (separate PR).
+    - Note (2026-11-16): `cachePolicy` was missing from the API documentation and was added by PDEV-4588. The local `CachePolicy` schema and purge path are copies of it. The `ip-lists` client warning and the older traffic-config paths missing from the local spec are out of scope (separate PR).
 
 ## Phase 2: `baffinbay_http_proxy.cache_policy`
 - [x] Task: Add the schema and model (`internal/provider/http_proxy_resource.go`)
-    - [x] RED: `TestHTTPProxyCachePolicySchema`, plus `TestHTTPProxyCachePolicyRejectsUnknownStrategy`, which rejects the aliases `ENABLED` and `RESPONSE_HEADERS` and lowercase values.
+    - [x] RED: `TestHTTPProxyCachePolicySchema`, plus `TestHTTPProxyCachePolicyRejectsUnknownStrategy`, which rejects undocumented and lowercase values.
     - [x] GREEN: `HTTPProxyCachePolicyModel`, `httpProxyCachePolicyAttribute()` (Optional + Computed; `strategy` Optional + Computed with default `DISABLED`, allowing only `DISABLED` and `BACKEND_RESPONSE_HEADERS`), and `defaultHTTPProxyCachePolicy()`.
 - [x] Task: Extend plan merging (`mergeHTTPProxyOptionalState`)
     - [x] RED: `TestHTTPProxyCachePolicyPlanMerge` covers these cases:
@@ -100,7 +100,8 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
 - [x] Task: Add `examples/actions/baffinbay_http_proxy_content_cache_purge/action.tf`, showing a manual run with `-invoke` and an `action_trigger` on `after_update`. Note that Terraform 1.14 or later is required.
     - Both examples pass `terraform fmt -check` and `terraform validate` against a locally built provider (dev override, Terraform 1.14.9).
 - [x] Task: Run `go generate ./...` (tfplugindocs v0.25) and check `docs/resources/http_proxy.md`, `docs/data-sources/http_proxy.md` and the new `docs/actions/http_proxy_content_cache_purge.md`.
-- [x] Task: Outside this repo, document `cachePolicy` in `api-docs/traffic-mgmt.yml`. Done in PDEV-4588 (MR !245), merged at `0b17408`, which is the same commit `api-spec/traffic-mgmt-2.yml` was synced from.
+- [x] Task: Outside this repo, document `cachePolicy` in the API documentation. Done in PDEV-4588; `api-spec/traffic-mgmt-2.yml` matches the merged version.
+- [ ] Task: Outside this repo, add `cachePolicy` and the purge endpoint to the public docs portal API reference (separate task and PR).
 
 ## Review follow-up: unknown values
 - [x] Task: Keep an unknown `cache_policy.strategy` unknown in the plan
@@ -125,7 +126,7 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - All are clean, along with `go vet`, `gofmt`, `go mod verify`, actionlint, and a `go generate` check showing no docs drift.
     - govulncheck: 0 reachable vulnerabilities. Like master, it reports 2 vulnerabilities in required modules that the code doesn't call.
     - Coverage: `internal/provider` is 78.8% (master 78.2%) and `internal/client` is 21.9% (master 20.1%). Both went up, but `internal/provider` was already below the 80% target on master.
-- [ ] Task: Live check against QA/preprod. **Pending: needs QA credentials, which aren't available in this environment.**
+- [ ] Task: Live check against a test environment. **Pending: needs test-environment credentials.**
     - The check is automated as `TestAccHTTPProxyContentCachingLive` (`internal/provider/http_proxy_content_caching_acc_test.go`). Its HCL passes `terraform validate`, and it skips cleanly without credentials. The steps:
         - Create a proxy with `BACKEND_RESPONSE_HEADERS`.
         - Apply without the block; the policy is kept.
@@ -135,7 +136,7 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - Run it:
       ```
       set -a && source .env && set +a
-      TF_ACC=1 BAFFINBAY_ACC_FRONTEND_IPV4=<qa-ip> BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED \
+      TF_ACC=1 BAFFINBAY_ACC_FRONTEND_IPV4=<test-ip> BAFFINBAY_ACC_DEPLOYMENT_STATE=DEPLOYED \
         go test ./internal/provider -run TestAccHTTPProxyContentCachingLive -v
       ```
     - Still manual: `terraform apply -invoke=action.baffinbay_http_proxy_content_cache_purge.<name>`, because plugin-testing has no `-invoke` step. Use `examples/actions/baffinbay_http_proxy_content_cache_purge/action.tf`.
@@ -143,4 +144,5 @@ The provider updates proxies with **PUT**. The backend's PUT path (`HttpProxySpe
     - **New:** `cache_policy` on `baffinbay_http_proxy` and the `baffinbay_http_proxy` data source. The `strategy` is `DISABLED` (the default) or `BACKEND_RESPONSE_HEADERS`.
     - **New:** the `baffinbay_http_proxy_content_cache_purge` action (Terraform 1.14 or later), which purges the content cache of a deployed HTTP Proxy and waits for the rollout.
     - **Fix:** applying a `baffinbay_http_proxy` no longer resets content caching that was enabled outside Terraform. An omitted `cache_policy` keeps the current value.
+    - **Upgrade note:** older provider versions don't know about `cache_policy`, so every apply with them turns off caching enabled in the portal. Upgrade before enabling content caching on proxies managed by Terraform.
     - **CI:** unit tests run on Terraform 1.17.2.
