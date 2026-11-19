@@ -101,7 +101,7 @@ The provider updates proxies with **PUT**, which replaces the whole proxy: every
     - Both examples pass `terraform fmt -check` and `terraform validate` against a locally built provider (dev override, Terraform 1.14.9).
 - [x] Task: Run `go generate ./...` (tfplugindocs v0.25) and check `docs/resources/http_proxy.md`, `docs/data-sources/http_proxy.md` and the new `docs/actions/http_proxy_content_cache_purge.md`.
 - [x] Task: Outside this repo, document `cachePolicy` in the API documentation. Done in PDEV-4588; `api-spec/traffic-mgmt-2.yml` matches the merged version.
-- [ ] Task: Outside this repo, add `cachePolicy` and the purge endpoint to the public docs portal API reference (separate task and PR).
+- [ ] Task: Outside this repo, add `cachePolicy` and the purge endpoint to the public docs portal API reference. Tracked in PDEV-4620 (`baffinbay-docs` branch `PDEV-4620-cache-policy`).
 
 ## Review follow-up: unknown values
 - [x] Task: Keep an unknown `cache_policy.strategy` unknown in the plan
