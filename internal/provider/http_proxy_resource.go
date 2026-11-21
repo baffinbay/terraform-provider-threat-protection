@@ -26,6 +26,9 @@ const (
 	httpProxyTrafficConfigVersion = "0.1.0"
 	httpProxyDefaultCRSVersion    = "4.*.*"
 	httpProxyDefaultHSTSMaxAge    = int64(14_515_200)
+
+	httpProxyCacheStrategyDisabled               = "DISABLED"
+	httpProxyCacheStrategyBackendResponseHeaders = "BACKEND_RESPONSE_HEADERS"
 )
 
 var httpProxyCRSVersionPattern = regexp.MustCompile(`^[0-9]+\.(?:[0-9]+\.(?:[0-9]+|\*)|\*\.\*)$`)
@@ -58,6 +61,7 @@ type HTTPProxyResourceModel struct {
 	RateLimiting         *HTTPProxyRateLimitingModel     `tfsdk:"rate_limiting"`
 	IPBasedAccessControl *HTTPProxyIPAccessControlModel  `tfsdk:"ip_based_access_control"`
 	TrafficRules         []HTTPProxyTrafficRuleModel     `tfsdk:"traffic_rules"`
+	CachePolicy          *HTTPProxyCachePolicyModel      `tfsdk:"cache_policy"`
 }
 
 type HTTPProxyFrontendModel struct {
@@ -119,6 +123,10 @@ type HTTPProxyProtocolSettingsModel struct {
 type HTTPProxyBotProtectionModel struct {
 	Strategy      types.String `tfsdk:"strategy"`
 	ChallengeType types.String `tfsdk:"challenge_type"`
+}
+
+type HTTPProxyCachePolicyModel struct {
+	Strategy types.String `tfsdk:"strategy"`
 }
 
 type HTTPProxyDataProtectionModel struct {
@@ -327,6 +335,7 @@ func (r *HTTPProxyResource) Schema(ctx context.Context, req resource.SchemaReque
 			"rate_limiting":            httpProxyRateLimitingAttribute(),
 			"ip_based_access_control":  httpProxyIPAccessControlAttribute(),
 			"traffic_rules":            httpProxyTrafficRulesAttribute(),
+			"cache_policy":             httpProxyCachePolicyAttribute(),
 		},
 	}
 }
@@ -385,6 +394,25 @@ func httpProxyProtocolSettingsAttribute() schema.SingleNestedAttribute {
 		"version":           schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.OneOf("HTTP1.1", "HTTP2.0")}},
 		"enable_websockets": schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false)},
 	}}
+}
+
+func httpProxyCachePolicyAttribute() schema.SingleNestedAttribute {
+	return schema.SingleNestedAttribute{
+		Optional: true,
+		Computed: true,
+		MarkdownDescription: "Content caching for the HTTP Proxy. Defaults to `DISABLED` on create. " +
+			"When omitted on update, the current policy is kept, including one set outside Terraform.",
+		Attributes: map[string]schema.Attribute{
+			"strategy": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  stringdefault.StaticString(httpProxyCacheStrategyDisabled),
+				MarkdownDescription: "`DISABLED` turns response caching off. `BACKEND_RESPONSE_HEADERS` turns response caching on " +
+					"and uses the backend's response headers to decide what is cacheable.",
+				Validators: []validator.String{stringvalidator.OneOf(httpProxyCacheStrategyDisabled, httpProxyCacheStrategyBackendResponseHeaders)},
+			},
+		},
+	}
 }
 
 func httpProxyBotProtectionAttribute() schema.SingleNestedAttribute {
@@ -575,7 +603,33 @@ func (r *HTTPProxyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 	}
 
 	planned := mergeHTTPProxyPlan(config, prior, req.State.Raw.IsNull())
+	if !req.State.Raw.IsNull() && r.client != nil {
+		if err := r.resolveHTTPProxyCachePolicy(ctx, &planned); err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read the current cache policy of HTTP Proxy traffic config %q, got error: %s", planned.ID.ValueString(), err))
+			return
+		}
+	}
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &planned)...)
+}
+
+// resolveHTTPProxyCachePolicy fills in the cache policy from the API when neither
+// the configuration nor the prior state has one. This only happens for state
+// written before cache_policy existed when refresh is skipped. PUT treats a
+// missing cachePolicy as DISABLED, so sending nothing would silently turn off
+// caching that was enabled outside Terraform.
+func (r *HTTPProxyResource) resolveHTTPProxyCachePolicy(ctx context.Context, planned *HTTPProxyResourceModel) error {
+	if planned.CachePolicy != nil {
+		return nil
+	}
+	tc, err := r.client.GetHTTPProxy(ctx, planned.ID.ValueString())
+	if err != nil {
+		return err
+	}
+	planned.CachePolicy = defaultHTTPProxyCachePolicy()
+	if remote := tc.Data.Attributes.CachePolicy; remote != nil {
+		planned.CachePolicy.Strategy = types.StringValue(remote.Strategy)
+	}
+	return nil
 }
 
 func mergeHTTPProxyPlan(config, prior HTTPProxyResourceModel, creating bool) HTTPProxyResourceModel {
@@ -650,6 +704,18 @@ func defaultHTTPProxyCore(data *HTTPProxyResourceModel) {
 }
 
 func mergeHTTPProxyOptionalState(data *HTTPProxyResourceModel, prior HTTPProxyResourceModel, creating bool) {
+	// Unlike the other optional blocks, an update without a configured or prior
+	// cache policy stays unresolved here; ModifyPlan reads it from the API.
+	if data.CachePolicy == nil {
+		data.CachePolicy = prior.CachePolicy
+		if creating {
+			data.CachePolicy = defaultHTTPProxyCachePolicy()
+		}
+	} else if data.CachePolicy.Strategy.IsNull() {
+		// Default only a missing strategy. An unknown one (computed from another
+		// resource) must stay unknown, or Terraform rejects the plan.
+		data.CachePolicy.Strategy = types.StringValue(httpProxyCacheStrategyDisabled)
+	}
 	if data.BotProtection == nil {
 		data.BotProtection = prior.BotProtection
 		if creating || data.BotProtection == nil {
@@ -741,6 +807,10 @@ func defaultHTTPProxyHSTSFields(v *HTTPProxyHSTSModel) {
 
 func defaultHTTPProxyTLSSettings() *HTTPProxyTLSSettingsModel {
 	return &HTTPProxyTLSSettingsModel{VerifyCertificate: &HTTPProxyVerifyCertificateModel{Mode: types.StringValue("SYSTEM_TRUSTSTORE"), CACertificateIDs: []types.String{}}}
+}
+
+func defaultHTTPProxyCachePolicy() *HTTPProxyCachePolicyModel {
+	return &HTTPProxyCachePolicyModel{Strategy: types.StringValue(httpProxyCacheStrategyDisabled)}
 }
 
 func defaultHTTPProxyBotProtection() *HTTPProxyBotProtectionModel {
@@ -967,6 +1037,11 @@ func (r *HTTPProxyResource) Update(ctx context.Context, req resource.UpdateReque
 	var data HTTPProxyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Safety net: never send an update without cachePolicy, because PUT would reset it to DISABLED.
+	if err := r.resolveHTTPProxyCachePolicy(ctx, &data); err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read the current cache policy of HTTP Proxy traffic config %q, got error: %s", data.ID.ValueString(), err))
 		return
 	}
 	tc, err := r.client.UpdateHTTPProxy(ctx, data.ID.ValueString(), mapHTTPProxyModelToUpdateRequest(data))

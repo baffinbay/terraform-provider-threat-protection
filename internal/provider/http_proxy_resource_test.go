@@ -563,6 +563,10 @@ type httpProxyStateServer struct {
 	putCount        atomic.Int64
 	deleteCount     atomic.Int64
 	rolloutReads    atomic.Int64
+	// Content cache purge: purgeStatus 0 means 202 Accepted.
+	purgeStatus       atomic.Int64
+	purgeCount        atomic.Int64
+	purgeRolloutReads atomic.Int64
 }
 
 func newHTTPProxyStateServer(t *testing.T) *httpProxyStateServer {
@@ -603,6 +607,28 @@ func (s *httpProxyStateServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		writeTrafficConfigRollout(w, "undeploy-rollout", state)
 		return
+	case r.Method == http.MethodPost && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id/content-cache/purge":
+		s.purgeCount.Add(1)
+		if status := int(s.purgeStatus.Load()); status != 0 {
+			http.Error(w, `{"errors":[{"detail":"Traffic config is not deployed"}]}`, status)
+			return
+		}
+		s.mu.Lock()
+		response := client.HTTPProxyResponse{}
+		response.Data.Attributes = s.attributes
+		s.mu.Unlock()
+		response.Data.ID = "traffic-config-id"
+		response.Data.Type = s.remoteType.Load().(string)
+		response.Data.Relationships.ActiveRollout.Data.Type = "rollout"
+		response.Data.Relationships.ActiveRollout.Data.ID = "purge-rollout"
+		w.Header().Set("Content-Type", "application/vnd.api+json")
+		w.WriteHeader(http.StatusAccepted)
+		writeJSONAPI(w, mustJSON(s.t, response))
+		return
+	case r.Method == http.MethodGet && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id/rollouts/purge-rollout":
+		s.purgeRolloutReads.Add(1)
+		writeTrafficConfigRollout(w, "purge-rollout", "COMPLETED")
+		return
 	case r.Method == http.MethodDelete && r.URL.Path == "/api/v2/traffic-mgmt/traffic-configs/traffic-config-id":
 		s.deleteCount.Add(1)
 		if s.activeRolloutID.Load().(string) != "" {
@@ -629,7 +655,18 @@ func (s *httpProxyStateServer) readMutation(r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.attributes = request.Data.Attributes
+	// Like the backend: POST and PUT treat a missing cachePolicy as DISABLED.
+	if s.attributes.CachePolicy == nil {
+		s.attributes.CachePolicy = &client.HTTPProxyCachePolicy{Strategy: "DISABLED"}
+	}
 	s.mutations = append(s.mutations, request)
+}
+
+// setRemoteCachePolicy simulates a cache policy change made outside Terraform (for example, in the portal).
+func (s *httpProxyStateServer) setRemoteCachePolicy(strategy string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.attributes.CachePolicy = &client.HTTPProxyCachePolicy{Strategy: strategy}
 }
 
 func (s *httpProxyStateServer) writeResponse(w http.ResponseWriter) {
@@ -697,6 +734,9 @@ func assertFullHTTPProxyPayload(t *testing.T, payload client.HTTPProxyRequest) {
 	if attrs.DataProtection == nil || len(attrs.DataProtection.LogRedaction.Headers) != 1 {
 		t.Fatalf("data protection mapping missing: %#v", attrs.DataProtection)
 	}
+	if attrs.CachePolicy == nil || attrs.CachePolicy.Strategy != "BACKEND_RESPONSE_HEADERS" {
+		t.Fatalf("cache policy mapping missing: %#v", attrs.CachePolicy)
+	}
 }
 
 func httpProxyMinimalResource(name string, includeIP bool) string {
@@ -749,6 +789,7 @@ resource "baffinbay_http_proxy" "test" {
   }
   protocol_settings = { version = "HTTP1.1", enable_websockets = true }
   bot_protection = { strategy = "ALWAYS_ON", challenge_type = "JS" }
+  cache_policy = { strategy = "BACKEND_RESPONSE_HEADERS" }
   data_protection = { log_redaction = { headers = ["Authorization"], cookies = ["session"] } }
   custom_pages = [
     { id = %q, type = "WAF_BLOCK" },

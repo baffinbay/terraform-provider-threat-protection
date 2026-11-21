@@ -36,8 +36,16 @@ func mapHTTPProxyManagedAttributes(data HTTPProxyResourceModel) client.HTTPProxy
 		CustomPages:            mapHTTPProxyCustomPagesToAPI(data.CustomPages),
 		BotProtection:          mapHTTPProxyBotProtectionToAPI(data.BotProtection),
 		ConnectionReuseEnabled: boolValuePointer(data.ConnectionReuse),
+		CachePolicy:            mapHTTPProxyCachePolicyToAPI(data.CachePolicy),
 	}
 	return attributes
+}
+
+func mapHTTPProxyCachePolicyToAPI(data *HTTPProxyCachePolicyModel) *client.HTTPProxyCachePolicy {
+	if data == nil || data.Strategy.IsNull() || data.Strategy.IsUnknown() {
+		return nil
+	}
+	return &client.HTTPProxyCachePolicy{Strategy: data.Strategy.ValueString()}
 }
 
 func mapHTTPProxyFrontendToAPI(data *HTTPProxyFrontendModel) *client.HTTPProxyFrontend {
@@ -368,6 +376,9 @@ func mapHTTPProxyResponseToModel(tc *client.HTTPProxyResponse, prior HTTPProxyRe
 	}
 	if attributes.TrafficRules != nil {
 		prior.TrafficRules = mapHTTPProxyTrafficRulesFromAPI(*attributes.TrafficRules, prior.TrafficRules)
+	}
+	if attributes.CachePolicy != nil {
+		prior.CachePolicy = &HTTPProxyCachePolicyModel{Strategy: types.StringValue(attributes.CachePolicy.Strategy)}
 	}
 	return prior
 }

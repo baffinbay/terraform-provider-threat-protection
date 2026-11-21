@@ -1,0 +1,8 @@
+{
+  "track_id": "content_caching_20261116",
+  "type": "feature",
+  "status": "active",
+  "created_at": "2026-11-16T00:00:00Z",
+  "updated_at": "2026-11-16T00:00:00Z",
+  "description": "feature: support HTTP proxy content caching (PDEV-4527): cache_policy attribute and content cache purge action."
+}
