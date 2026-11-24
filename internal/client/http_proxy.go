@@ -107,8 +107,9 @@ type HTTPProxyProtocolSettings struct {
 }
 
 type HTTPProxyBotProtection struct {
-	Strategy      string `json:"strategy"`
-	ChallengeType string `json:"challengeType"`
+	Strategy           string `json:"strategy"`
+	ChallengeType      string `json:"challengeType"`
+	LinkPreviewEnabled *bool  `json:"linkPreviewEnabled,omitempty"`
 }
 
 type HTTPProxyDataProtection struct {

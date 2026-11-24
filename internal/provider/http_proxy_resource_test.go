@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 const (
@@ -145,6 +146,7 @@ func TestHTTPProxyResourceCreateDefaultsMatchPortal(t *testing.T) {
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "backend.delivery_method", "LEAST_CONNECTIONS"),
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.strategy", "AUTO"),
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.challenge_type", "JS"),
+			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "true"),
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "waf.enforcement", "LOG"),
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "waf.core_rule_set_version", "4.*.*"),
 			tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "rate_limiting.by_source_ip.rate.value", "10"),
@@ -164,6 +166,65 @@ func TestHTTPProxyResourceCreateDefaultsMatchPortal(t *testing.T) {
 	if attrs.RateLimiting == nil || attrs.RateLimiting.Strategy != "BY_IP" || attrs.RateLimiting.Overall == nil || attrs.RateLimiting.Overall.Rate.Value != 10 || attrs.RateLimiting.Overall.Burst != 100 || attrs.RateLimiting.PerPath == nil || attrs.RateLimiting.BySourceIP != nil {
 		t.Fatalf("unexpected rate limiting defaults: %#v", attrs.RateLimiting)
 	}
+	if attrs.BotProtection == nil || attrs.BotProtection.LinkPreviewEnabled == nil || !*attrs.BotProtection.LinkPreviewEnabled {
+		t.Fatalf("unexpected bot protection defaults: %#v", attrs.BotProtection)
+	}
+}
+
+func TestHTTPProxyResourceLinkPreviewDefaultFollowsStrategy(t *testing.T) {
+	setTestTokenCache(t)
+	server := newHTTPProxyStateServer(t)
+	defer server.Close()
+
+	config := func(botProtection string) string {
+		return testProviderConfig(server.URL) + fmt.Sprintf(`
+resource "baffinbay_http_proxy" "test" {
+  name = "link-preview-http"
+  frontend = {
+    connection_type = "PLAINTEXT"
+    ipv4 = "192.0.2.10"
+    port = 80
+    hosts = [{ host = "example.com" }]
+  }
+  backend = { hosts = [{ address = "origin.example.com", port = 80 }] }
+  protocol_settings = { version = "HTTP1.1" }
+  bot_protection = %s
+}
+`, botProtection)
+	}
+	sent := func(want bool) tfresource.TestCheckFunc {
+		return func(*terraform.State) error {
+			bp := server.lastMutation(t).Data.Attributes.BotProtection
+			if bp == nil || bp.LinkPreviewEnabled == nil || *bp.LinkPreviewEnabled != want {
+				return fmt.Errorf("expected linkPreviewEnabled=%t in payload, got %#v", want, bp)
+			}
+			return nil
+		}
+	}
+
+	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{
+		{
+			Config: config(`{ strategy = "ALWAYS_ON", link_preview_enabled = false }`),
+			Check: tfresource.ComposeTestCheckFunc(
+				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "false"),
+				sent(false),
+			),
+		},
+		{
+			Config: config(`{ strategy = "AUTO" }`),
+			Check: tfresource.ComposeTestCheckFunc(
+				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "true"),
+				sent(true),
+			),
+		},
+		{
+			Config: config(`{ strategy = "DISABLED" }`),
+			Check: tfresource.ComposeTestCheckFunc(
+				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "false"),
+				sent(false),
+			),
+		},
+	}})
 }
 
 func TestHTTPProxyResourceRejectsInvalidCRSVersionSelectors(t *testing.T) {
@@ -478,7 +539,7 @@ func TestHTTPProxyResponseFixtureMapsCurrentBackendShape(t *testing.T) {
         "tlsSettings": {"verifyCertificate": {"mode": "SYSTEM_TRUSTSTORE"}}
       },
       "protocolSettings": {"httpVersion": "HTTP2.0"},
-      "botProtection": {"strategy": "AUTO", "challengeType": "JS"},
+      "botProtection": {"strategy": "AUTO", "challengeType": "JS", "linkPreviewEnabled": false},
       "dataProtection": {"logRedaction": {"headers": [], "cookies": []}},
       "customPages": [],
       "trafficRules": []
@@ -498,6 +559,21 @@ func TestHTTPProxyResponseFixtureMapsCurrentBackendShape(t *testing.T) {
 	}
 	if mapped.ConnectionReuse.IsNull() || mapped.ConnectionReuse.ValueBool() {
 		t.Fatal("explicit connectionReuseEnabled=false was not preserved")
+	}
+	if mapped.BotProtection.LinkPreviewEnabled.IsNull() || mapped.BotProtection.LinkPreviewEnabled.ValueBool() {
+		t.Fatalf("explicit linkPreviewEnabled=false was not preserved: %#v", mapped.BotProtection)
+	}
+}
+
+func TestHTTPProxyResponseWithoutLinkPreviewKeepsPriorValue(t *testing.T) {
+	var response client.HTTPProxyResponse
+	if err := json.Unmarshal([]byte(`{"data":{"id":"traffic-config-id","type":"httpProxy","attributes":{"botProtection":{"strategy":"AUTO","challengeType":"JS"}}}}`), &response); err != nil {
+		t.Fatal(err)
+	}
+	prior := HTTPProxyResourceModel{BotProtection: &HTTPProxyBotProtectionModel{LinkPreviewEnabled: typesBool(true)}}
+	mapped := mapHTTPProxyResponseToModel(&response, prior)
+	if !mapped.BotProtection.LinkPreviewEnabled.ValueBool() {
+		t.Fatalf("expected prior linkPreviewEnabled to be kept, got %#v", mapped.BotProtection)
 	}
 }
 

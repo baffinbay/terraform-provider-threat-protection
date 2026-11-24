@@ -195,6 +195,7 @@ Optional:
 Optional:
 
 - `challenge_type` (String)
+- `link_preview_enabled` (Boolean)
 - `strategy` (String)
 
 

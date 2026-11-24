@@ -126,7 +126,7 @@ func mapHTTPProxyBotProtectionToAPI(data *HTTPProxyBotProtectionModel) *client.H
 	if data == nil {
 		return nil
 	}
-	return &client.HTTPProxyBotProtection{Strategy: data.Strategy.ValueString(), ChallengeType: data.ChallengeType.ValueString()}
+	return &client.HTTPProxyBotProtection{Strategy: data.Strategy.ValueString(), ChallengeType: data.ChallengeType.ValueString(), LinkPreviewEnabled: boolValuePointer(data.LinkPreviewEnabled)}
 }
 
 func mapHTTPProxyDataProtectionToAPI(data *HTTPProxyDataProtectionModel) *client.HTTPProxyDataProtection {
@@ -365,7 +365,13 @@ func mapHTTPProxyResponseToModel(tc *client.HTTPProxyResponse, prior HTTPProxyRe
 		prior.ProtocolSettings = mapHTTPProxyProtocolSettingsFromAPI(attributes.ProtocolSettings)
 	}
 	if attributes.BotProtection != nil {
-		prior.BotProtection = &HTTPProxyBotProtectionModel{Strategy: types.StringValue(attributes.BotProtection.Strategy), ChallengeType: types.StringValue(attributes.BotProtection.ChallengeType)}
+		linkPreviewEnabled := types.BoolNull()
+		if attributes.BotProtection.LinkPreviewEnabled != nil {
+			linkPreviewEnabled = types.BoolValue(*attributes.BotProtection.LinkPreviewEnabled)
+		} else if prior.BotProtection != nil {
+			linkPreviewEnabled = prior.BotProtection.LinkPreviewEnabled
+		}
+		prior.BotProtection = &HTTPProxyBotProtectionModel{Strategy: types.StringValue(attributes.BotProtection.Strategy), ChallengeType: types.StringValue(attributes.BotProtection.ChallengeType), LinkPreviewEnabled: linkPreviewEnabled}
 	}
 	if attributes.DataProtection != nil {
 		prior.DataProtection = &HTTPProxyDataProtectionModel{LogRedaction: &HTTPProxyLogRedactionModel{Headers: stringSliceToTypeValues(attributes.DataProtection.LogRedaction.Headers), Cookies: stringSliceToTypeValues(attributes.DataProtection.LogRedaction.Cookies)}}

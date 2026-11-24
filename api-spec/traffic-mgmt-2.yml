@@ -3450,6 +3450,10 @@ components:
               enum:
                 - HTTP
                 - JS
+            linkPreviewEnabled:
+              type: boolean
+              description: Allow requests from known messaging apps to bypass bot challenges (strictly rate limited) to be able to display link previews.
+              example: true
         cachePolicy:
           $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
@@ -4000,6 +4004,15 @@ components:
                 - ALWAYS_ON
                 - AUTO
                 - DISABLED
+            challengeType:
+              type: string
+              enum:
+                - HTTP
+                - JS
+            linkPreviewEnabled:
+              type: boolean
+              description: Allow requests from known messaging apps to bypass bot challenges (strictly rate limited) to be able to display link previews. Will only be applied if strategy is not `DISABLED`.
+              example: true
         cachePolicy:
           $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
