@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/hashicorp/terraform-plugin-framework/action"
+
 	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -12,7 +14,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var _ provider.Provider = &BaffinBayProvider{}
+var (
+	_ provider.Provider            = &BaffinBayProvider{}
+	_ provider.ProviderWithActions = &BaffinBayProvider{}
+)
 
 type BaffinBayProvider struct {
 	version string
@@ -137,6 +142,13 @@ func (p *BaffinBayProvider) Configure(ctx context.Context, req provider.Configur
 
 	resp.DataSourceData = c
 	resp.ResourceData = c
+	resp.ActionData = c
+}
+
+func (p *BaffinBayProvider) Actions(ctx context.Context) []func() action.Action {
+	return []func() action.Action{
+		NewHTTPProxyContentCachePurgeAction,
+	}
 }
 
 func (p *BaffinBayProvider) DataSources(ctx context.Context) []func() datasource.DataSource {

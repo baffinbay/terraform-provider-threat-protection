@@ -38,7 +38,7 @@ jobs:
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
       - name: Audit workflow security
-        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # zizmor: ignore[stale-action-refs]
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # v0.9.2
         with:
           version: 1.33.1
           persona: pedantic
@@ -102,6 +102,13 @@ jobs:
 
       - name: Run Go Vulnerability Check
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+
+      # Unit tests drive the real Terraform CLI; action tests need Terraform 1.14 or later.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: v1.17.2
+          terraform_wrapper: false
 
       - name: Run Unit Tests
         run: go test -v ./...

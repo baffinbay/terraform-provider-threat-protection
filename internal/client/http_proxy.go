@@ -37,6 +37,13 @@ type HTTPProxyAttributes struct {
 	CustomPages            *[]HTTPProxyCustomPage         `json:"customPages,omitempty"`
 	BotProtection          *HTTPProxyBotProtection        `json:"botProtection,omitempty"`
 	ConnectionReuseEnabled *bool                          `json:"connectionReuseEnabled,omitempty"`
+	CachePolicy            *HTTPProxyCachePolicy          `json:"cachePolicy,omitempty"`
+}
+
+// HTTPProxyCachePolicy controls content caching for an HTTP proxy.
+// Strategy is DISABLED or BACKEND_RESPONSE_HEADERS.
+type HTTPProxyCachePolicy struct {
+	Strategy string `json:"strategy"`
 }
 
 type HTTPProxyDeployment struct {
@@ -339,6 +346,36 @@ func (c *Client) CreateHTTPProxy(ctx context.Context, reqData HTTPProxyRequest) 
 
 func (c *Client) UpdateHTTPProxy(ctx context.Context, id string, reqData HTTPProxyRequest) (*HTTPProxyResponse, error) {
 	return c.mutateHTTPProxy(ctx, http.MethodPut, "/api/v2/traffic-mgmt/traffic-configs/"+id, "update HTTP Proxy traffic config", reqData)
+}
+
+// PurgeHTTPProxyContentCache requests a full content cache purge for a deployed
+// HTTP proxy. The purge is applied by a rollout; wait for it with
+// WaitForTrafficConfigRollout using the returned ActiveRolloutID.
+func (c *Client) PurgeHTTPProxyContentCache(ctx context.Context, id string) (*HTTPProxyResponse, error) {
+	const operation = "purge HTTP Proxy content cache"
+	path := "/api/v2/traffic-mgmt/traffic-configs/" + id + "/content-cache/purge"
+
+	logTrafficConfigRequest(ctx, http.MethodPost, path, nil)
+	req, err := c.NewRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return nil, httpStatusError(resp, operation)
+	}
+
+	var proxyResp HTTPProxyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&proxyResp); err != nil {
+		return nil, err
+	}
+	return &proxyResp, nil
 }
 
 func (c *Client) mutateHTTPProxy(ctx context.Context, method, path, operation string, reqData HTTPProxyRequest) (*HTTPProxyResponse, error) {

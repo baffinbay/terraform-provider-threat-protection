@@ -119,6 +119,7 @@ data "baffinbay_routed_dsr" "test" { id = %q }
 			tfresource.TestCheckResourceAttr("data.baffinbay_ip_source.test", "cidr", "185.195.95.0/24"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_http_proxy.test", "name", "lookup-http"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_http_proxy.test", "frontend.ipv4", "192.0.2.10"),
+			tfresource.TestCheckResourceAttr("data.baffinbay_http_proxy.test", "cache_policy.strategy", "BACKEND_RESPONSE_HEADERS"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_l4_proxy.test", "protocols.0", "TCP"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_l4_proxy.test", "backend.delivery_method", "ROUND_ROBIN"),
 			tfresource.TestCheckResourceAttr("data.baffinbay_routed_dsr.test", "prefix", "2001:db8::/48"),
@@ -189,7 +190,7 @@ func newSingularDataSourceServer(t *testing.T) *httptest.Server {
 func singularTrafficConfigResponse(id string) (string, bool) {
 	switch id {
 	case lookupHTTPProxyID:
-		return fmt.Sprintf(`{"data":{"id":%q,"type":"httpProxy","attributes":{"name":"lookup-http","version":"0.1.0","deployment":{"state":"UNDEPLOYED"},"connectionReuseEnabled":true,"frontend":{"connectionType":"PLAINTEXT","ipv4":"192.0.2.10","port":80,"hosts":[{"host":"proxy.example.com"}]},"backend":{"hosts":[{"address":"origin.example.com","port":80}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com"},"protocolSettings":{"httpVersion":"HTTP1.1","enableWebsockets":false},"trafficRules":[]}}}`, id), true
+		return fmt.Sprintf(`{"data":{"id":%q,"type":"httpProxy","attributes":{"name":"lookup-http","version":"0.1.0","deployment":{"state":"UNDEPLOYED"},"connectionReuseEnabled":true,"frontend":{"connectionType":"PLAINTEXT","ipv4":"192.0.2.10","port":80,"hosts":[{"host":"proxy.example.com"}]},"backend":{"hosts":[{"address":"origin.example.com","port":80}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com"},"protocolSettings":{"httpVersion":"HTTP1.1","enableWebsockets":false},"trafficRules":[],"cachePolicy":{"strategy":"BACKEND_RESPONSE_HEADERS"}}}}`, id), true
 	case lookupL4ProxyID:
 		return fmt.Sprintf(`{"data":{"id":%q,"type":"l4Proxy","attributes":{"name":"lookup-l4","version":"0.0.1","deployment":{"state":"UNDEPLOYED"},"frontend":{"ipv4":"192.0.2.20","port":9000},"backend":{"hosts":[{"address":"origin.example.com","port":9000}],"deliveryMethod":"ROUND_ROBIN","serverName":"origin.example.com"},"protocols":["TCP","UDP"],"proxyProtocol":"DISABLED"}}}`, id), true
 	case lookupRoutedDsrID:

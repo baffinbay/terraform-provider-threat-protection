@@ -540,6 +540,90 @@ paths:
         500:
           description: Internal Server Error
 
+  /api/v2/traffic-mgmt/traffic-configs/{trafficConfigId}/content-cache/purge:
+    post:
+      tags:
+        - Traffic Management
+      summary: Purge HTTP proxy content cache
+      description: >
+        Requests a purge of the content cache for a deployed HTTP proxy. The request marks
+        the cache purge timestamp on the traffic configuration and starts a high-priority
+        rollout that applies the purge on the edge servers. This endpoint does not require a
+        request body.
+      parameters:
+        - $ref: "#/components/parameters/trafficConfigId"
+        - in: header
+          name: If-Match
+          required: false
+          description: Optional current traffic configuration revision used for optimistic concurrency.
+          schema:
+            type: integer
+      responses:
+        202:
+          description: Content cache purge requested.
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - httpProxy
+                      id:
+                        type: string
+                        format: uuid
+                      attributes:
+                        $ref: '#/components/schemas/PatchHttpProxy'
+                      relationships:
+                        type: object
+                        properties:
+                          activeRollout:
+                            $ref: '#/components/schemas/ActiveRolloutRelationship'
+                          belongsTo:
+                            type: object
+                            properties:
+                              data:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    example: account
+                                  id:
+                                    type: string
+                                    format: uuid
+                          availableCoreRuleSets:
+                            type: object
+                            properties:
+                              data:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    type:
+                                      type: string
+                                      example: "coreRuleSet"
+                                    id:
+                                      type: string
+                                      example: "crs-v4.22.0"
+                          managedConfig:
+                            $ref: '#/components/schemas/ManagedConfig'
+        400:
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        403:
+          description: Forbidden
+        404:
+          description: Traffic Configuration not found
+        412:
+          description: Revision conflict
+
   /api/v2/traffic-mgmt/custom-pages:
     get:
       description: List of all available Custom Pages.
@@ -1613,6 +1697,26 @@ components:
             - FAILED
         announced:
           type: boolean
+    CachePolicy:
+      type: object
+      description: >
+        Content caching for an HTTP proxy. When cachePolicy is omitted on create (POST) or
+        full update (PUT), caching is disabled. When it is omitted on PATCH, the current policy
+        is kept. Responses always include it. Use the content-cache purge endpoint to clear
+        cached content.
+      required:
+        - strategy
+      properties:
+        strategy:
+          type: string
+          description: >
+            DISABLED turns response caching off. BACKEND_RESPONSE_HEADERS turns response
+            caching on and uses the backend's response headers to decide what is cacheable.
+          enum:
+            - DISABLED
+            - BACKEND_RESPONSE_HEADERS
+          default: DISABLED
+          example: BACKEND_RESPONSE_HEADERS
     ActiveRolloutRelationship:
       type: object
       properties:
@@ -2569,6 +2673,8 @@ components:
         multiplexingEnabled:
           type: object
           example: true
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
 
     IpListCreateRequest:
       $ref: "#/components/schemas/IpListRequestProperties"
@@ -3344,6 +3450,8 @@ components:
               enum:
                 - HTTP
                 - JS
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
           type: boolean
           example: true
@@ -3892,6 +4000,8 @@ components:
                 - ALWAYS_ON
                 - AUTO
                 - DISABLED
+        cachePolicy:
+          $ref: "#/components/schemas/CachePolicy"
         multiplexingEnabled:
           type: boolean
           default: true

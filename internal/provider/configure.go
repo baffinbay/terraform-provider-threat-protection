@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/baffinbay/terraform-provider-threat-protection/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
@@ -27,6 +28,14 @@ type configuredResource struct {
 
 func (r *configuredResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	r.client = clientFromProviderData(req.ProviderData, "Resource", &resp.Diagnostics)
+}
+
+type configuredAction struct {
+	client *client.Client
+}
+
+func (a *configuredAction) Configure(_ context.Context, req action.ConfigureRequest, resp *action.ConfigureResponse) {
+	a.client = clientFromProviderData(req.ProviderData, "Action", &resp.Diagnostics)
 }
 
 func clientFromProviderData(providerData any, target string, diags errorDiagnostics) *client.Client {
