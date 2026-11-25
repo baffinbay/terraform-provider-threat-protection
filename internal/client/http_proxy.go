@@ -125,10 +125,20 @@ type HTTPProxyCustomPage struct {
 	Type string `json:"type"`
 }
 
+// HTTPProxyRateLimiting is the global rate limiting of an HTTP proxy.
+//
+// Strategy, Overall, PerPath and IPRateLimitMultiplier are the current shape.
+// BySourceIP and BySourceIPAndURL are the deprecated shape: the API still returns
+// them, and reads a request without strategy as BY_IP using them. The provider
+// sends only the current shape.
 type HTTPProxyRateLimiting struct {
-	BySourceIP       HTTPProxyRateLimitRule `json:"bySrcIp"`
-	BySourceIPAndURL HTTPProxyRateLimitRule `json:"bySrcIpAndUrl"`
-	Exclusions       []string               `json:"exclusions"`
+	Strategy              string                  `json:"strategy,omitempty"`
+	Overall               *HTTPProxyRateLimitRule `json:"overall,omitempty"`
+	PerPath               *HTTPProxyRateLimitRule `json:"perPath,omitempty"`
+	IPRateLimitMultiplier *int64                  `json:"ipRateLimitMultiplier,omitempty"`
+	BySourceIP            *HTTPProxyRateLimitRule `json:"bySrcIp,omitempty"`
+	BySourceIPAndURL      *HTTPProxyRateLimitRule `json:"bySrcIpAndUrl,omitempty"`
+	Exclusions            []string                `json:"exclusions"`
 }
 
 type HTTPProxyRateLimitRule struct {

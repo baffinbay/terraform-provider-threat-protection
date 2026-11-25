@@ -151,14 +151,22 @@ func mapHTTPProxyCustomPagesToAPI(data []HTTPProxyCustomPageModel) *[]client.HTT
 }
 
 func mapHTTPProxyRateLimitingToAPI(data *HTTPProxyRateLimitingModel) *client.HTTPProxyRateLimiting {
-	if data == nil || data.BySourceIP == nil || data.BySourceIPAndURL == nil {
+	if data == nil || data.Overall == nil || data.PerPath == nil {
 		return nil
 	}
-	return &client.HTTPProxyRateLimiting{
-		BySourceIP:       mapHTTPProxyRateLimitRuleToAPI(data.BySourceIP),
-		BySourceIPAndURL: mapHTTPProxyRateLimitRuleToAPI(data.BySourceIPAndURL),
-		Exclusions:       httpProxyStringValues(data.Exclusions),
+	overall := mapHTTPProxyRateLimitRuleToAPI(data.Overall)
+	perPath := mapHTTPProxyRateLimitRuleToAPI(data.PerPath)
+	result := &client.HTTPProxyRateLimiting{
+		Strategy:   data.Strategy.ValueString(),
+		Overall:    &overall,
+		PerPath:    &perPath,
+		Exclusions: httpProxyStringValues(data.Exclusions),
 	}
+	if result.Strategy == httpProxyRateLimitStrategyBySessionCookie && knownInt64(data.IPRateLimitMultiplier) {
+		multiplier := data.IPRateLimitMultiplier.ValueInt64()
+		result.IPRateLimitMultiplier = &multiplier
+	}
+	return result
 }
 
 func mapHTTPProxyRateLimitRuleToAPI(data *HTTPProxyRateLimitRuleModel) client.HTTPProxyRateLimitRule {
@@ -435,7 +443,44 @@ func mapHTTPProxyCustomPagesFromAPI(data []client.HTTPProxyCustomPage) []HTTPPro
 }
 
 func mapHTTPProxyRateLimitingFromAPI(data *client.HTTPProxyRateLimiting) *HTTPProxyRateLimitingModel {
-	return &HTTPProxyRateLimitingModel{BySourceIP: mapHTTPProxyRateLimitRuleFromAPI(data.BySourceIP), BySourceIPAndURL: mapHTTPProxyRateLimitRuleFromAPI(data.BySourceIPAndURL), Exclusions: stringSliceToTypeValues(data.Exclusions)}
+	result := &HTTPProxyRateLimitingModel{
+		Strategy:              types.StringValue(data.Strategy),
+		Overall:               mapHTTPProxyOptionalRateLimitRuleFromAPI(data.Overall),
+		PerPath:               mapHTTPProxyOptionalRateLimitRuleFromAPI(data.PerPath),
+		IPRateLimitMultiplier: types.Int64Null(),
+		BySourceIP:            mapHTTPProxyOptionalRateLimitRuleFromAPI(data.BySourceIP),
+		BySourceIPAndURL:      mapHTTPProxyOptionalRateLimitRuleFromAPI(data.BySourceIPAndURL),
+		Exclusions:            stringSliceToTypeValues(data.Exclusions),
+	}
+	if data.Strategy == "" {
+		// Only the deprecated shape: the API treats it as BY_IP.
+		result.Strategy = types.StringValue(httpProxyRateLimitStrategyByIP)
+		result.Overall = cloneHTTPProxyRateLimitRule(result.BySourceIP)
+		result.PerPath = cloneHTTPProxyRateLimitRule(result.BySourceIPAndURL)
+	}
+	if data.IPRateLimitMultiplier != nil {
+		result.IPRateLimitMultiplier = types.Int64Value(*data.IPRateLimitMultiplier)
+	}
+	// The API always returns every field. Only derive what a response lacks.
+	if result.Overall == nil || result.PerPath == nil || result.BySourceIP == nil || result.BySourceIPAndURL == nil {
+		bySourceIP, bySourceIPAndURL := result.BySourceIP, result.BySourceIPAndURL
+		result.BySourceIP, result.BySourceIPAndURL = nil, nil
+		defaultHTTPProxyRateLimitingFields(result)
+		if bySourceIP != nil {
+			result.BySourceIP = bySourceIP
+		}
+		if bySourceIPAndURL != nil {
+			result.BySourceIPAndURL = bySourceIPAndURL
+		}
+	}
+	return result
+}
+
+func mapHTTPProxyOptionalRateLimitRuleFromAPI(data *client.HTTPProxyRateLimitRule) *HTTPProxyRateLimitRuleModel {
+	if data == nil {
+		return nil
+	}
+	return mapHTTPProxyRateLimitRuleFromAPI(*data)
 }
 
 func mapHTTPProxyRateLimitRuleFromAPI(data client.HTTPProxyRateLimitRule) *HTTPProxyRateLimitRuleModel {

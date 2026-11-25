@@ -26,7 +26,31 @@ func (r *HTTPProxyResource) ValidateConfig(ctx context.Context, req resource.Val
 	validateHTTPProxyCustomPages(data.CustomPages, resp)
 	validateHTTPProxyWAF(data.WAF, resp)
 	validateHTTPProxyAccessControl(data.IPBasedAccessControl, resp)
+	validateHTTPProxyRateLimiting(data.RateLimiting, resp)
 	validateHTTPProxyTrafficRules(data.TrafficRules, resp)
+}
+
+func validateHTTPProxyRateLimiting(rateLimiting *HTTPProxyRateLimitingModel, resp *resource.ValidateConfigResponse) {
+	if rateLimiting == nil {
+		return
+	}
+	base := path.Root("rate_limiting")
+	usesCurrent := !rateLimiting.Strategy.IsNull() || rateLimiting.Overall != nil || rateLimiting.PerPath != nil || !rateLimiting.IPRateLimitMultiplier.IsNull()
+	for _, legacy := range []struct {
+		name string
+		rule *HTTPProxyRateLimitRuleModel
+	}{{"by_source_ip", rateLimiting.BySourceIP}, {"by_source_ip_and_url", rateLimiting.BySourceIPAndURL}} {
+		name, rule := legacy.name, legacy.rule
+		if rule != nil && usesCurrent {
+			resp.Diagnostics.AddAttributeError(base.AtName(name), "Conflicting Rate Limiting Attributes", fmt.Sprintf("%s is a deprecated alias and cannot be combined with strategy, overall, per_path or ip_rate_limit_multiplier. Use strategy = %q with overall and per_path instead.", name, httpProxyRateLimitStrategyByIP))
+		}
+	}
+	if knownString(rateLimiting.Strategy) && rateLimiting.Strategy.ValueString() != httpProxyRateLimitStrategyBySessionCookie && !rateLimiting.IPRateLimitMultiplier.IsNull() {
+		resp.Diagnostics.AddAttributeError(base.AtName("ip_rate_limit_multiplier"), "Invalid Rate Limiting Multiplier", fmt.Sprintf("ip_rate_limit_multiplier is only valid when strategy is %q.", httpProxyRateLimitStrategyBySessionCookie))
+	}
+	if rateLimiting.Strategy.IsNull() && !rateLimiting.IPRateLimitMultiplier.IsNull() {
+		resp.Diagnostics.AddAttributeError(base.AtName("ip_rate_limit_multiplier"), "Invalid Rate Limiting Multiplier", fmt.Sprintf("ip_rate_limit_multiplier is only valid when strategy is %q. strategy defaults to %q.", httpProxyRateLimitStrategyBySessionCookie, httpProxyRateLimitStrategyByIP))
+	}
 }
 
 func validateHTTPProxyFrontend(data HTTPProxyResourceModel, resp *resource.ValidateConfigResponse) {

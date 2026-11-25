@@ -161,7 +161,7 @@ func TestHTTPProxyResourceCreateDefaultsMatchPortal(t *testing.T) {
 	if attrs.WAF == nil || attrs.WAF.Enforcement != "LOG" || attrs.WAF.CoreRuleSet.Version != "4.*.*" {
 		t.Fatalf("unexpected WAF defaults: %#v", attrs.WAF)
 	}
-	if attrs.RateLimiting == nil || attrs.RateLimiting.BySourceIP.Rate.Value != 10 || attrs.RateLimiting.BySourceIP.Burst != 100 {
+	if attrs.RateLimiting == nil || attrs.RateLimiting.Strategy != "BY_IP" || attrs.RateLimiting.Overall == nil || attrs.RateLimiting.Overall.Rate.Value != 10 || attrs.RateLimiting.Overall.Burst != 100 || attrs.RateLimiting.PerPath == nil || attrs.RateLimiting.BySourceIP != nil {
 		t.Fatalf("unexpected rate limiting defaults: %#v", attrs.RateLimiting)
 	}
 }
@@ -659,7 +659,30 @@ func (s *httpProxyStateServer) readMutation(r *http.Request) {
 	if s.attributes.CachePolicy == nil {
 		s.attributes.CachePolicy = &client.HTTPProxyCachePolicy{Strategy: "DISABLED"}
 	}
+	s.attributes.RateLimiting = normalizeTestHTTPProxyRateLimiting(s.attributes.RateLimiting)
 	s.mutations = append(s.mutations, request)
+}
+
+// normalizeTestHTTPProxyRateLimiting mirrors how the backend stores and returns
+// rate limiting: a request without strategy is BY_IP with bySrcIp/bySrcIpAndUrl
+// as overall/perPath, and responses always include the deprecated fields
+// (disabled defaults while BY_SESSION_COOKIE is active).
+func normalizeTestHTTPProxyRateLimiting(in *client.HTTPProxyRateLimiting) *client.HTTPProxyRateLimiting {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	if out.Strategy == "" {
+		out.Strategy, out.Overall, out.PerPath, out.IPRateLimitMultiplier = "BY_IP", in.BySourceIP, in.BySourceIPAndURL, nil
+	}
+	if out.Strategy == "BY_IP" {
+		out.IPRateLimitMultiplier = nil
+		out.BySourceIP, out.BySourceIPAndURL = out.Overall, out.PerPath
+	} else {
+		disabled := &client.HTTPProxyRateLimitRule{Enforcement: "DISABLED", Rate: client.HTTPProxyRateLimitRate{Value: 10, Unit: "r/s"}, Burst: 10}
+		out.BySourceIP, out.BySourceIPAndURL = disabled, disabled
+	}
+	return &out
 }
 
 // setRemoteCachePolicy simulates a cache policy change made outside Terraform (for example, in the portal).
@@ -722,7 +745,7 @@ func assertFullHTTPProxyPayload(t *testing.T, payload client.HTTPProxyRequest) {
 	if len(attrs.IPBasedAccessControl.Rules.IPLists) != 1 || !attrs.IPBasedAccessControl.Rules.IPLists[0].BypassProtection.BotProtection {
 		t.Fatalf("IP list bypass protection mapping missing: %#v", attrs.IPBasedAccessControl.Rules.IPLists)
 	}
-	if attrs.RateLimiting == nil || len(attrs.RateLimiting.Exclusions) != 1 {
+	if attrs.RateLimiting == nil || len(attrs.RateLimiting.Exclusions) != 1 || attrs.RateLimiting.Strategy != "BY_IP" || attrs.RateLimiting.Overall == nil || attrs.RateLimiting.Overall.Burst != 200 || attrs.RateLimiting.PerPath == nil || attrs.RateLimiting.PerPath.Rate.Unit != "r/m" {
 		t.Fatalf("rate limiting mapping missing: %#v", attrs.RateLimiting)
 	}
 	if attrs.TrafficRules == nil || len(*attrs.TrafficRules) != 1 {
