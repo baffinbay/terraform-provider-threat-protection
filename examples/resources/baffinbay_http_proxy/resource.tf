@@ -30,4 +30,14 @@ resource "baffinbay_http_proxy" "example" {
   cache_policy = {
     strategy = "BACKEND_RESPONSE_HEADERS"
   }
+
+  # Rate limit per session cookie instead of per source IP. Requests without a
+  # recognized session cookie get the limit multiplied by ip_rate_limit_multiplier.
+  # Omit the block to keep the current settings (BY_IP with defaults on create).
+  rate_limiting = {
+    strategy                 = "BY_SESSION_COOKIE"
+    overall                  = { enforcement = "BLOCK", rate = { value = 10, unit = "r/s" }, burst = 100 }
+    per_path                 = { enforcement = "BLOCK", rate = { value = 10, unit = "r/s" }, burst = 100 }
+    ip_rate_limit_multiplier = 100
+  }
 }
