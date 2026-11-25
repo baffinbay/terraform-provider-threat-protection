@@ -2543,7 +2543,7 @@ components:
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: "#/components/schemas/RateLimit"
+            - $ref: "#/components/schemas/RateLimiting"
             - type: object
               properties:
                 exclusions:
@@ -3293,7 +3293,7 @@ components:
         rateLimiting:
           minProperties: 1
           allOf:
-            - $ref: "#/components/schemas/PatchRateLimit"
+            - $ref: "#/components/schemas/PatchRateLimiting"
             - type: object
               properties:
                 exclusions:
@@ -3842,7 +3842,7 @@ components:
           description: Configuration for source ip based access control
         rateLimiting:
           allOf:
-            - $ref: "#/components/schemas/RateLimit"
+            - $ref: "#/components/schemas/RateLimiting"
             - type: object
               properties:
                 exclusions:
@@ -4032,6 +4032,8 @@ components:
               properties:
                 value:
                   type: integer
+                  minimum: 1
+                  maximum: 10000
                   default: 100
                 unit:
                   type: string
@@ -4041,6 +4043,8 @@ components:
                     - r/m
             burst:
               type: integer
+              minimum: 1
+              maximum: 10000
               default: 10
         bySrcIpAndUrl:
           type: object
@@ -4063,6 +4067,8 @@ components:
               properties:
                 value:
                   type: integer
+                  minimum: 1
+                  maximum: 10000
                   default: 100
                 unit:
                   type: string
@@ -4072,6 +4078,8 @@ components:
                     - r/m
             burst:
               type: integer
+              minimum: 1
+              maximum: 10000
               default: 10
 
     PatchRateLimit:
@@ -4094,6 +4102,8 @@ components:
               properties:
                 value:
                   type: integer
+                  minimum: 1
+                  maximum: 10000
                   example: 100
                 unit:
                   type: string
@@ -4103,6 +4113,8 @@ components:
                     - r/m
             burst:
               type: integer
+              minimum: 1
+              maximum: 10000
               example: 10
         bySrcIpAndUrl:
           type: object
@@ -4120,6 +4132,8 @@ components:
               properties:
                 value:
                   type: integer
+                  minimum: 1
+                  maximum: 10000
                   example: 100
                 unit:
                   type: string
@@ -4129,7 +4143,211 @@ components:
                     - r/m
             burst:
               type: integer
+              minimum: 1
+              maximum: 10000
               example: 10
+
+    RateLimitRule:
+      type: object
+      required:
+        - enforcement
+        - rate
+        - burst
+      properties:
+        enforcement:
+          type: string
+          enum:
+            - BLOCK
+            - DISABLED
+        rate:
+          type: object
+          required:
+            - value
+            - unit
+          properties:
+            value:
+              type: integer
+              minimum: 1
+              maximum: 10000
+              default: 100
+            unit:
+              type: string
+              default: r/s
+              enum:
+                - r/s
+                - r/m
+        burst:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 10
+
+    RateLimiting:
+      description: >
+        Global rate limiting. `strategy` selects IP-based (`BY_IP`) or session-cookie-based
+        (`BY_SESSION_COOKIE`) limiting; the two are mutually exclusive.
+        Deprecated: the legacy `bySrcIp` / `bySrcIpAndUrl` fields are still accepted when `strategy`
+        is omitted (treated as `BY_IP`, equivalent to `overall` / `perPath`) and are ignored when
+        `strategy`, `overall`, `perPath` or `ipRateLimitMultiplier` is present. Responses still include
+        them for backward compatibility; with `BY_SESSION_COOKIE` they show disabled defaults.
+      oneOf:
+        - type: object
+          required:
+            - strategy
+            - overall
+            - perPath
+          properties:
+            strategy:
+              type: string
+              description: Rate limiting strategy. BY_IP limits requests per source IP address.
+              enum:
+                - BY_IP
+            overall:
+              description: Rate limit enforced across the whole resource, regardless of which path is requested.
+              allOf:
+                - $ref: '#/components/schemas/RateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      default: BLOCK
+            perPath:
+              description: Rate limit enforced independently for each distinct path.
+              allOf:
+                - $ref: '#/components/schemas/RateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      default: BLOCK
+        - type: object
+          required:
+            - strategy
+            - ipRateLimitMultiplier
+            - overall
+            - perPath
+          properties:
+            strategy:
+              type: string
+              description: Rate limiting strategy. BY_SESSION_COOKIE limits requests per session cookie, using ipRateLimitMultiplier to scale the limit for traffic without a recognized session.
+              enum:
+                - BY_SESSION_COOKIE
+            ipRateLimitMultiplier:
+              type: integer
+              minimum: 1
+              maximum: 100000
+              default: 100
+              description: Multiplier applied to the rate limit for requests that cannot be attributed to a session cookie.
+            overall:
+              description: Rate limit enforced across the whole resource, regardless of which path is requested.
+              allOf:
+                - $ref: '#/components/schemas/RateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      default: DISABLED
+            perPath:
+              description: Rate limit enforced independently for each distinct path.
+              allOf:
+                - $ref: '#/components/schemas/RateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      default: DISABLED
+
+    PatchRateLimitRule:
+      type: object
+      minProperties: 1
+      properties:
+        enforcement:
+          type: string
+          enum:
+            - BLOCK
+            - DISABLED
+        rate:
+          type: object
+          minProperties: 1
+          properties:
+            value:
+              type: integer
+              minimum: 1
+              maximum: 10000
+              example: 100
+            unit:
+              type: string
+              example: r/s
+              enum:
+                - r/s
+                - r/m
+        burst:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          example: 10
+
+    PatchRateLimiting:
+      description: >
+        Global rate limiting. `strategy` selects IP-based (`BY_IP`) or session-cookie-based
+        (`BY_SESSION_COOKIE`) limiting; the two are mutually exclusive.
+        Deprecated: the legacy `bySrcIp` / `bySrcIpAndUrl` fields are still accepted when `strategy`
+        is omitted (treated as `BY_IP`, equivalent to `overall` / `perPath`) and are ignored when
+        `strategy`, `overall`, `perPath` or `ipRateLimitMultiplier` is present. On PATCH, `strategy` is required
+        whenever `overall`, `perPath` or `ipRateLimitMultiplier` is present.
+      oneOf:
+        - type: object
+          required:
+            - strategy
+          properties:
+            strategy:
+              type: string
+              description: Rate limiting strategy. BY_IP limits requests per source IP address.
+              enum:
+                - BY_IP
+            overall:
+              description: Rate limit enforced across the whole resource, regardless of which path is requested.
+              allOf:
+                - $ref: '#/components/schemas/PatchRateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      example: BLOCK
+            perPath:
+              description: Rate limit enforced independently for each distinct path.
+              allOf:
+                - $ref: '#/components/schemas/PatchRateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      example: BLOCK
+        - type: object
+          required:
+            - strategy
+          properties:
+            strategy:
+              type: string
+              description: Rate limiting strategy. BY_SESSION_COOKIE limits requests per session cookie, using ipRateLimitMultiplier to scale the limit for traffic without a recognized session.
+              enum:
+                - BY_SESSION_COOKIE
+            ipRateLimitMultiplier:
+              type: integer
+              minimum: 1
+              maximum: 100000
+              example: 100
+              description: Multiplier applied to the rate limit for requests that cannot be attributed to a session cookie.
+            overall:
+              description: Rate limit enforced across the whole resource, regardless of which path is requested.
+              allOf:
+                - $ref: '#/components/schemas/PatchRateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      example: DISABLED
+            perPath:
+              description: Rate limit enforced independently for each distinct path.
+              allOf:
+                - $ref: '#/components/schemas/PatchRateLimitRule'
+                - type: object
+                  properties:
+                    enforcement:
+                      example: DISABLED
 
     ProtocolSettingsHttp1_1:
       type: object
