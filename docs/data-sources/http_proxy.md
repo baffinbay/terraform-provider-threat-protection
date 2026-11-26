@@ -38,7 +38,7 @@ data "baffinbay_http_proxy" "existing" {
 - `ip_based_access_control` (Attributes) (see [below for nested schema](#nestedatt--ip_based_access_control))
 - `name` (String) The HTTP Proxy traffic configuration name.
 - `protocol_settings` (Attributes) (see [below for nested schema](#nestedatt--protocol_settings))
-- `rate_limiting` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting))
+- `rate_limiting` (Attributes) Global rate limiting. Omit the block to keep the current settings (`BY_IP` with the portal defaults on create). (see [below for nested schema](#nestedatt--rate_limiting))
 - `traffic_rules` (Attributes List) (see [below for nested schema](#nestedatt--traffic_rules))
 - `waf` (Attributes) (see [below for nested schema](#nestedatt--waf))
 
@@ -255,9 +255,13 @@ Read-Only:
 
 Read-Only:
 
-- `by_source_ip` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting--by_source_ip))
-- `by_source_ip_and_url` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting--by_source_ip_and_url))
+- `by_source_ip` (Attributes, Deprecated) Deprecated: use `strategy = "BY_IP"` with `overall` instead. Cannot be combined with `strategy`, `overall`, `per_path` or `ip_rate_limit_multiplier`. While `BY_SESSION_COOKIE` is active it shows the disabled IP-based defaults. (see [below for nested schema](#nestedatt--rate_limiting--by_source_ip))
+- `by_source_ip_and_url` (Attributes, Deprecated) Deprecated: use `strategy = "BY_IP"` with `per_path` instead. Cannot be combined with `strategy`, `overall`, `per_path` or `ip_rate_limit_multiplier`. While `BY_SESSION_COOKIE` is active it shows the disabled IP-based defaults. (see [below for nested schema](#nestedatt--rate_limiting--by_source_ip_and_url))
 - `exclusions` (List of String)
+- `ip_rate_limit_multiplier` (Number) Only valid with `BY_SESSION_COOKIE`. Multiplier applied to the rate limit for requests that cannot be attributed to a session cookie. Defaults to `100`.
+- `overall` (Attributes) Rate limit enforced across the whole proxy, regardless of which path is requested. Counted per source IP with `BY_IP` and per session cookie with `BY_SESSION_COOKIE`. (see [below for nested schema](#nestedatt--rate_limiting--overall))
+- `per_path` (Attributes) Rate limit enforced independently for each distinct path. Counted per source IP with `BY_IP` and per session cookie with `BY_SESSION_COOKIE`. (see [below for nested schema](#nestedatt--rate_limiting--per_path))
+- `strategy` (String) Rate limiting strategy: `BY_IP` limits requests per source IP address, `BY_SESSION_COOKIE` limits requests per session cookie. The two are mutually exclusive. Defaults to `BY_IP`.
 
 <a id="nestedatt--rate_limiting--by_source_ip"></a>
 ### Nested Schema for `rate_limiting.by_source_ip`
@@ -289,6 +293,44 @@ Read-Only:
 
 <a id="nestedatt--rate_limiting--by_source_ip_and_url--rate"></a>
 ### Nested Schema for `rate_limiting.by_source_ip_and_url.rate`
+
+Read-Only:
+
+- `unit` (String)
+- `value` (Number)
+
+
+
+<a id="nestedatt--rate_limiting--overall"></a>
+### Nested Schema for `rate_limiting.overall`
+
+Read-Only:
+
+- `burst` (Number)
+- `enforcement` (String)
+- `rate` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting--overall--rate))
+
+<a id="nestedatt--rate_limiting--overall--rate"></a>
+### Nested Schema for `rate_limiting.overall.rate`
+
+Read-Only:
+
+- `unit` (String)
+- `value` (Number)
+
+
+
+<a id="nestedatt--rate_limiting--per_path"></a>
+### Nested Schema for `rate_limiting.per_path`
+
+Read-Only:
+
+- `burst` (Number)
+- `enforcement` (String)
+- `rate` (Attributes) (see [below for nested schema](#nestedatt--rate_limiting--per_path--rate))
+
+<a id="nestedatt--rate_limiting--per_path--rate"></a>
+### Nested Schema for `rate_limiting.per_path.rate`
 
 Read-Only:
 

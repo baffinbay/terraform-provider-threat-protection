@@ -5,6 +5,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [production_readiness_20260131](./tracks/production_readiness_20260131/index.md)
 - [typed_traffic_config_resources_20260701](./tracks/typed_traffic_config_resources_20260701/index.md)
 - [content_caching_20261116](./tracks/content_caching_20261116/index.md)
+- [session_cookie_rate_limiting_20261125](./tracks/session_cookie_rate_limiting_20261125/index.md)
 - [traffic_mgmt_resources_20260122](./tracks/traffic_mgmt_resources_20260122/index.md)
 
 ---

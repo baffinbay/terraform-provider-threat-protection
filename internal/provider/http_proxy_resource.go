@@ -144,9 +144,13 @@ type HTTPProxyCustomPageModel struct {
 }
 
 type HTTPProxyRateLimitingModel struct {
-	BySourceIP       *HTTPProxyRateLimitRuleModel `tfsdk:"by_source_ip"`
-	BySourceIPAndURL *HTTPProxyRateLimitRuleModel `tfsdk:"by_source_ip_and_url"`
-	Exclusions       []types.String               `tfsdk:"exclusions"`
+	Strategy              types.String                 `tfsdk:"strategy"`
+	Overall               *HTTPProxyRateLimitRuleModel `tfsdk:"overall"`
+	PerPath               *HTTPProxyRateLimitRuleModel `tfsdk:"per_path"`
+	IPRateLimitMultiplier types.Int64                  `tfsdk:"ip_rate_limit_multiplier"`
+	BySourceIP            *HTTPProxyRateLimitRuleModel `tfsdk:"by_source_ip"`
+	BySourceIPAndURL      *HTTPProxyRateLimitRuleModel `tfsdk:"by_source_ip_and_url"`
+	Exclusions            []types.String               `tfsdk:"exclusions"`
 }
 
 type HTTPProxyRateLimitRuleModel struct {
@@ -438,11 +442,31 @@ func httpProxyCustomPagesAttribute() schema.ListNestedAttribute {
 	}}}
 }
 
+const (
+	httpProxyRateLimitStrategyByIP            = "BY_IP"
+	httpProxyRateLimitStrategyBySessionCookie = "BY_SESSION_COOKIE"
+	httpProxyDefaultIPRateLimitMultiplier     = 100
+)
+
 func httpProxyRateLimitingAttribute() schema.SingleNestedAttribute {
-	return schema.SingleNestedAttribute{Optional: true, Computed: true, Attributes: map[string]schema.Attribute{
-		"by_source_ip":         httpProxyRateLimitRuleAttribute(true),
-		"by_source_ip_and_url": httpProxyRateLimitRuleAttribute(true),
-		"exclusions":           schema.ListAttribute{Optional: true, Computed: true, ElementType: types.StringType, Validators: []validator.List{listvalidator.UniqueValues()}},
+	overall := httpProxyRateLimitRuleAttribute(true)
+	overall.MarkdownDescription = "Rate limit enforced across the whole proxy, regardless of which path is requested. Counted per source IP with `BY_IP` and per session cookie with `BY_SESSION_COOKIE`."
+	perPath := httpProxyRateLimitRuleAttribute(true)
+	perPath.MarkdownDescription = "Rate limit enforced independently for each distinct path. Counted per source IP with `BY_IP` and per session cookie with `BY_SESSION_COOKIE`."
+	bySourceIP := httpProxyRateLimitRuleAttribute(true)
+	bySourceIP.DeprecationMessage = "Use strategy = \"BY_IP\" with overall instead. When strategy is BY_SESSION_COOKIE, this shows the disabled IP-based defaults."
+	bySourceIP.MarkdownDescription = "Deprecated: use `strategy = \"BY_IP\"` with `overall` instead. Cannot be combined with `strategy`, `overall`, `per_path` or `ip_rate_limit_multiplier`. While `BY_SESSION_COOKIE` is active it shows the disabled IP-based defaults."
+	bySourceIPAndURL := httpProxyRateLimitRuleAttribute(true)
+	bySourceIPAndURL.DeprecationMessage = "Use strategy = \"BY_IP\" with per_path instead. When strategy is BY_SESSION_COOKIE, this shows the disabled IP-based defaults."
+	bySourceIPAndURL.MarkdownDescription = "Deprecated: use `strategy = \"BY_IP\"` with `per_path` instead. Cannot be combined with `strategy`, `overall`, `per_path` or `ip_rate_limit_multiplier`. While `BY_SESSION_COOKIE` is active it shows the disabled IP-based defaults."
+	return schema.SingleNestedAttribute{Optional: true, Computed: true, MarkdownDescription: "Global rate limiting. Omit the block to keep the current settings (`BY_IP` with the portal defaults on create).", Attributes: map[string]schema.Attribute{
+		"strategy":                 schema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Rate limiting strategy: `BY_IP` limits requests per source IP address, `BY_SESSION_COOKIE` limits requests per session cookie. The two are mutually exclusive. Defaults to `BY_IP`.", Validators: []validator.String{stringvalidator.OneOf(httpProxyRateLimitStrategyByIP, httpProxyRateLimitStrategyBySessionCookie)}},
+		"overall":                  overall,
+		"per_path":                 perPath,
+		"ip_rate_limit_multiplier": schema.Int64Attribute{Optional: true, Computed: true, MarkdownDescription: "Only valid with `BY_SESSION_COOKIE`. Multiplier applied to the rate limit for requests that cannot be attributed to a session cookie. Defaults to `100`.", Validators: []validator.Int64{int64validator.Between(1, 100000)}},
+		"by_source_ip":             bySourceIP,
+		"by_source_ip_and_url":     bySourceIPAndURL,
+		"exclusions":               schema.ListAttribute{Optional: true, Computed: true, ElementType: types.StringType, Validators: []validator.List{listvalidator.UniqueValues()}},
 	}}
 }
 
@@ -751,9 +775,8 @@ func mergeHTTPProxyOptionalState(data *HTTPProxyResourceModel, prior HTTPProxyRe
 		if creating || data.RateLimiting == nil {
 			data.RateLimiting = defaultHTTPProxyRateLimiting()
 		}
-	} else {
-		defaultHTTPProxyRateLimitingFields(data.RateLimiting)
 	}
+	defaultHTTPProxyRateLimitingFields(data.RateLimiting)
 	if data.IPBasedAccessControl == nil {
 		data.IPBasedAccessControl = prior.IPBasedAccessControl
 		if creating || data.IPBasedAccessControl == nil {
@@ -865,19 +888,78 @@ func defaultHTTPProxyRateLimitRuleFields(v *HTTPProxyRateLimitRuleModel) {
 }
 
 func defaultHTTPProxyRateLimiting() *HTTPProxyRateLimitingModel {
-	return &HTTPProxyRateLimitingModel{BySourceIP: defaultHTTPProxyRateLimitRule(), BySourceIPAndURL: defaultHTTPProxyRateLimitRule(), Exclusions: []types.String{}}
+	v := &HTTPProxyRateLimitingModel{Exclusions: []types.String{}}
+	defaultHTTPProxyRateLimitingFields(v)
+	return v
 }
 
-func defaultHTTPProxyRateLimitingFields(v *HTTPProxyRateLimitingModel) {
-	if v.BySourceIP == nil {
-		v.BySourceIP = defaultHTTPProxyRateLimitRule()
-	} else {
-		defaultHTTPProxyRateLimitRuleFields(v.BySourceIP)
+// disabledHTTPProxyRateLimitRule is what the API returns in the deprecated
+// bySrcIp/bySrcIpAndUrl fields while BY_SESSION_COOKIE is active.
+func disabledHTTPProxyRateLimitRule() *HTTPProxyRateLimitRuleModel {
+	return &HTTPProxyRateLimitRuleModel{Enforcement: types.StringValue("DISABLED"), Rate: &HTTPProxyRateLimitRateModel{Value: types.Int64Value(10), Unit: types.StringValue("r/s")}, Burst: types.Int64Value(10)}
+}
+
+func cloneHTTPProxyRateLimitRule(v *HTTPProxyRateLimitRuleModel) *HTTPProxyRateLimitRuleModel {
+	if v == nil {
+		return nil
 	}
-	if v.BySourceIPAndURL == nil {
-		v.BySourceIPAndURL = defaultHTTPProxyRateLimitRule()
+	clone := *v
+	if v.Rate != nil {
+		rate := *v.Rate
+		clone.Rate = &rate
+	}
+	return &clone
+}
+
+// defaultHTTPProxyRateLimitingFields resolves the planned rate limiting so it
+// matches what the API returns:
+//   - A block that only sets the deprecated by_source_ip/by_source_ip_and_url is
+//     read as BY_IP with those values as overall/per_path, like the API does.
+//   - strategy defaults to BY_IP and overall/per_path to the portal defaults.
+//   - ip_rate_limit_multiplier is null for BY_IP and defaults to 100 for
+//     BY_SESSION_COOKIE.
+//   - The deprecated fields mirror overall/per_path for BY_IP and show the
+//     disabled IP-based defaults for BY_SESSION_COOKIE.
+func defaultHTTPProxyRateLimitingFields(v *HTTPProxyRateLimitingModel) {
+	usesLegacy := v.BySourceIP != nil || v.BySourceIPAndURL != nil
+	usesCurrent := !v.Strategy.IsNull() || v.Overall != nil || v.PerPath != nil || !v.IPRateLimitMultiplier.IsNull()
+	if usesLegacy && !usesCurrent {
+		v.Strategy = types.StringValue(httpProxyRateLimitStrategyByIP)
+		v.Overall = cloneHTTPProxyRateLimitRule(v.BySourceIP)
+		v.PerPath = cloneHTTPProxyRateLimitRule(v.BySourceIPAndURL)
+	}
+	if v.Strategy.IsNull() {
+		v.Strategy = types.StringValue(httpProxyRateLimitStrategyByIP)
+	}
+	if v.Overall == nil {
+		v.Overall = defaultHTTPProxyRateLimitRule()
 	} else {
-		defaultHTTPProxyRateLimitRuleFields(v.BySourceIPAndURL)
+		defaultHTTPProxyRateLimitRuleFields(v.Overall)
+	}
+	if v.PerPath == nil {
+		v.PerPath = defaultHTTPProxyRateLimitRule()
+	} else {
+		defaultHTTPProxyRateLimitRuleFields(v.PerPath)
+	}
+	switch v.Strategy.ValueString() {
+	case httpProxyRateLimitStrategyBySessionCookie:
+		if v.IPRateLimitMultiplier.IsNull() {
+			v.IPRateLimitMultiplier = types.Int64Value(httpProxyDefaultIPRateLimitMultiplier)
+		}
+		v.BySourceIP = disabledHTTPProxyRateLimitRule()
+		v.BySourceIPAndURL = disabledHTTPProxyRateLimitRule()
+	default:
+		// BY_IP. An unknown strategy (computed from another resource) is planned
+		// like BY_IP for the deprecated fields, which cannot be unknown here.
+		if v.Strategy.IsUnknown() {
+			if v.IPRateLimitMultiplier.IsNull() {
+				v.IPRateLimitMultiplier = types.Int64Unknown()
+			}
+		} else {
+			v.IPRateLimitMultiplier = types.Int64Null()
+		}
+		v.BySourceIP = cloneHTTPProxyRateLimitRule(v.Overall)
+		v.BySourceIPAndURL = cloneHTTPProxyRateLimitRule(v.PerPath)
 	}
 	if v.Exclusions == nil {
 		v.Exclusions = []types.String{}
