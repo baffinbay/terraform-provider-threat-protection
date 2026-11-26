@@ -86,6 +86,7 @@ Read-Only:
 Read-Only:
 
 - `challenge_type` (String)
+- `link_preview_enabled` (Boolean)
 - `strategy` (String)
 
 
