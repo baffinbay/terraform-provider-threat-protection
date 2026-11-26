@@ -747,10 +747,10 @@ func mergeHTTPProxyOptionalState(data *HTTPProxyResourceModel, prior HTTPProxyRe
 		if creating || data.BotProtection == nil {
 			data.BotProtection = defaultHTTPProxyBotProtection()
 		} else {
-			defaultHTTPProxyBotProtectionFields(data.BotProtection)
+			defaultHTTPProxyBotProtectionFields(data.BotProtection, nil)
 		}
 	} else {
-		defaultHTTPProxyBotProtectionFields(data.BotProtection)
+		defaultHTTPProxyBotProtectionFields(data.BotProtection, prior.BotProtection)
 	}
 	if data.DataProtection == nil {
 		data.DataProtection = prior.DataProtection
@@ -842,11 +842,11 @@ func defaultHTTPProxyCachePolicy() *HTTPProxyCachePolicyModel {
 
 func defaultHTTPProxyBotProtection() *HTTPProxyBotProtectionModel {
 	v := &HTTPProxyBotProtectionModel{Strategy: types.StringValue("AUTO"), ChallengeType: types.StringValue("JS"), LinkPreviewEnabled: types.BoolNull()}
-	defaultHTTPProxyBotProtectionFields(v)
+	defaultHTTPProxyBotProtectionFields(v, nil)
 	return v
 }
 
-func defaultHTTPProxyBotProtectionFields(v *HTTPProxyBotProtectionModel) {
+func defaultHTTPProxyBotProtectionFields(v, prior *HTTPProxyBotProtectionModel) {
 	if v.Strategy.IsNull() || v.Strategy.IsUnknown() {
 		v.Strategy = types.StringValue("AUTO")
 	}
@@ -854,7 +854,10 @@ func defaultHTTPProxyBotProtectionFields(v *HTTPProxyBotProtectionModel) {
 		v.ChallengeType = types.StringValue("JS")
 	}
 	if v.LinkPreviewEnabled.IsNull() || v.LinkPreviewEnabled.IsUnknown() {
-		v.LinkPreviewEnabled = types.BoolValue(v.Strategy.ValueString() != "DISABLED")
+		v.LinkPreviewEnabled = types.BoolValue(true)
+		if prior != nil && !prior.LinkPreviewEnabled.IsNull() && !prior.LinkPreviewEnabled.IsUnknown() {
+			v.LinkPreviewEnabled = prior.LinkPreviewEnabled
+		}
 	}
 }
 

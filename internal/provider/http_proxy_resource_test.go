@@ -171,7 +171,7 @@ func TestHTTPProxyResourceCreateDefaultsMatchPortal(t *testing.T) {
 	}
 }
 
-func TestHTTPProxyResourceLinkPreviewDefaultFollowsStrategy(t *testing.T) {
+func TestHTTPProxyResourceLinkPreviewDefaultMatchesBackend(t *testing.T) {
 	setTestTokenCache(t)
 	server := newHTTPProxyStateServer(t)
 	defer server.Close()
@@ -204,6 +204,13 @@ resource "baffinbay_http_proxy" "test" {
 
 	tfresource.UnitTest(t, tfresource.TestCase{ProtoV6ProviderFactories: testAccProtoV6ProviderFactories, Steps: []tfresource.TestStep{
 		{
+			Config: config(`{ strategy = "DISABLED" }`),
+			Check: tfresource.ComposeTestCheckFunc(
+				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "true"),
+				sent(true),
+			),
+		},
+		{
 			Config: config(`{ strategy = "ALWAYS_ON", link_preview_enabled = false }`),
 			Check: tfresource.ComposeTestCheckFunc(
 				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "false"),
@@ -212,13 +219,6 @@ resource "baffinbay_http_proxy" "test" {
 		},
 		{
 			Config: config(`{ strategy = "AUTO" }`),
-			Check: tfresource.ComposeTestCheckFunc(
-				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "true"),
-				sent(true),
-			),
-		},
-		{
-			Config: config(`{ strategy = "DISABLED" }`),
 			Check: tfresource.ComposeTestCheckFunc(
 				tfresource.TestCheckResourceAttr("baffinbay_http_proxy.test", "bot_protection.link_preview_enabled", "false"),
 				sent(false),
@@ -996,3 +996,13 @@ resource "baffinbay_http_proxy" "test" {
 func typesString(value string) types.String { return types.StringValue(value) }
 func typesBool(value bool) types.Bool       { return types.BoolValue(value) }
 func typesInt64(value int64) types.Int64    { return types.Int64Value(value) }
+
+func TestHTTPProxyPlanKeepsImportedLinkPreviewWhenOmitted(t *testing.T) {
+	prior := HTTPProxyResourceModel{BotProtection: &HTTPProxyBotProtectionModel{Strategy: types.StringValue("DISABLED"), ChallengeType: types.StringValue("JS"), LinkPreviewEnabled: types.BoolValue(true)}}
+	config := HTTPProxyResourceModel{BotProtection: &HTTPProxyBotProtectionModel{Strategy: types.StringValue("DISABLED"), ChallengeType: types.StringValue("JS"), LinkPreviewEnabled: types.BoolNull()}}
+
+	planned := mergeHTTPProxyPlan(config, prior, false)
+	if got := planned.BotProtection.LinkPreviewEnabled; !got.ValueBool() {
+		t.Fatalf("expected imported link_preview_enabled=true to be kept, got %s", got)
+	}
+}
